@@ -116,7 +116,7 @@ c          print*, '-----------------------------'
           endif
           
           if(QW_w.gt.0) then
-c            print*, 'alpha_s = ', alphas 
+            print*, 'alpha_s = ', alphas 
             print*, 'C_R = ', cr
 c            print*, 'pi = ', pi
             N_const=(2*alphas*cr*sqrt(2*QW_wc))/(pi)
@@ -124,7 +124,7 @@ c            print*, 'pi = ', pi
 
             print*, 'Wc = ', QW_wc
             print*, 'w = ', QW_w
-c            print*, 'w/wc = ', QW_w/QW_wc
+            print*, 'w/wc = ', QW_w/QW_wc
             print*, 'N_const = ', N_const
             print*, 'w_hard = ', w_int
             print*, 'w_soft = ', QW_w-w_int
