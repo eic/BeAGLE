@@ -1,0 +1,1807 @@
+*These are the interfaces to pythia needed by dpmjet
+
+C...intialize pythia when using dpmjet
+*======================================================================
+      subroutine DT_PYINITEP(EPN,PPN,Q2MIN,Q2MAX,YMIN,YMAX,INPUT)
+*     input:
+*           EPN      electron beam momentum in lab frame
+*           PPN      proton beam momentum in lab frame
+*           Q2MIN    Q2 cut low
+*           Q2MAX    Q2 cut high
+*           YMIN     Y cut low
+*           YMAX     Y cut high
+
+      include 'pythia.inc'              ! All PYTHIA commons blocks
+      include "mc_set.inc"
+      include "py6strf.inc"
+      include "mcRadCor.inc"
+      include "radgen.inc"
+      include "phiout.inc"
+
+* properties of interacting particles
+      COMMON /DTPRTA/ IT,ITZ,IP,IPZ,IJPROJ,IBPROJ,IJTARG,IBTARG
+
+c...target/proj mass, charge and projectile internal ID
+      integer IT, ITZ, IP, IPZ, IJPROJ
+
+      double precision EPN,PPN
+      PARAMETER (ZERO=0.0D0,ONE=1.0D0,TINY10=1.0D0-10,MAXNCL=260)
+C...Added by liang 1/6/12
+C...Switches for nuclear correction
+      COMMON /PYNUCL/ INUMOD,CHANUM,ORDER,genShd
+      SAVE /PYNUCL/
+      DOUBLE PRECISION INUMOD,CHANUM
+      INTEGER ORDER,genShd
+
+C...Pythia event counter (since we keep PYINITing) Mark 2017-01-31
+      COMMON /PYCNTR/ MYNGEN
+      INTEGER MYNGEN
+      SAVE /PYCNTR/
+
+C     MDB 2017-01-06 BeAGLE-specific output information
+      INTEGER KSOUT,BAMOUT,JM2OUT,JM1OUT,JD1OUT,JD2OUT,AOUT,ZOUT
+      COMMON /BEAEVT/ BBEA,PHIB,THKB,THKSCL,NCOLLT,NCOLLI,NNEVAP,NPEVAP,
+     &                AREMN,NINC,NINCCH,DFIRST,DAVG,PXF,PYF,PZF,PZLEP,
+     &                PZTARG,PZNUCL,RAEVT,USER1,USER2,USER3,OLDOUT,LTYPE
+      DOUBLE PRECISION BBEA,PHIB,THKB,THKSCL,DFIRST,DAVG,PXF,PYF,PZF
+      DOUBLE PRECISION RAEVT,USER1,USER2,USER3,PZLEP,PZTARG,PZNUCL
+      INTEGER NCOLLT,NCOLLI,NNEVAP,NPEVAP,AREMN,NINC,NINCCH,LTYPE
+      LOGICAL OLDOUT
+
+C...Pythia eA shadowing common block from Mark 2016-07-18 
+      COMMON /PYSHAD/ NKNOTS,RDUMMY,RAVAL,XKNOT(100),YKNOT(100),
+     &BKNOT(100),CKNOT(100),DKNOT(100),EKNOT(100),FKNOT(100)
+      SAVE /PYSHAD/
+      DOUBLE PRECISION XKNOT,YKNOT,BKNOT,CKNOT,DKNOT,EKNOT,FKNOT,RAVAL
+      INTEGER NKNOTS,RDUMMY
+C... Locals by Mark 7/15/16
+      INTEGER IKNOT
+      DOUBLE PRECISION XKTMP, YKTMP, BKTMP, CKTMP, DKTMP, EKTMP, FKTMP
+      DOUBLE PRECISION RATMP
+
+C...Parameters and switch for energy loss
+      DOUBLE PRECISION QHAT
+      INTEGER QSWITCH
+      COMMON /QUENCH/ QHAT, QSWITCH
+
+C...MDB 2016-11-10 Add pbeamP and pbeamN, idNuc, lName
+C...MDB 2017-01-25 Add MAscl
+C...Information about LT from lab to nucleon rest frame
+      COMMON /LABTONR/ MAscl,pgamma,pbeta,pbeamP,pbeamN,idNuc,lName
+      DOUBLE PRECISION MAscl,pgamma, pbeta
+      REAL pbeamP, pbeamN
+      INTEGER idNuc
+      CHARACTER*10 lName
+
+C...output file name definition
+      COMMON /OUNAME/ outname
+
+      integer NEV, NPRT, ievent, genevent, I, tracknr 
+      integer lastgenevent, idum1, idum2, initseed, nrtrack
+      REAL trueX, trueW2, trueNu
+      DOUBLE PRECISION sqrts, radgamE, radgamp, radgamEnucl
+      DOUBLE PRECISION pbeamE, ebeamE, epznucl 
+      DOUBLE PRECISION altpbeamE, altpbeam, altsqrts
+      CHARACTER PARAM*100
+      LOGICAL UseLut, GenLut
+
+C MDB 2016-11-09 Reorganize to conserve charge & momentum for eA collisions 
+C
+C The nucleon and nuclear target rest frame should all be the same or
+C our Pythia treatment of the hard collision will be inconsistent with
+C our treatment of the nuclear remnant. So protons, neutrons, and A should 
+C all have the same beta, gamma, rapidity, in the lab. So match the p/m.
+C
+C We are using the standard Pythia approach of treating the struck nucleon
+C as being on mass shell (free nucleon mass).
+C
+C The input beam momentum: PPN=p_A/A
+C For struck neutron: pbeamN = PPN*(A*Mn)/M_A
+C For struck proton:  pbeamP = PPN*(A*Mp)/M_A
+C
+C Note: massp is nucleon mass, not necessarily proton
+C
+C MDB 2016-10-22 variables for nucleus A and it's nucleons P,N
+C MAscl = M_A/A, 
+C
+C massp, masse, ebeam, pbeam, mcSet_EneBeam needed in mc_set.inc
+C used in radgen routines in: pythia_radgen_extras.f, pythia_xsec.f,
+C                           radgen_event.f, radgen.f, radgen_init.f
+C PYTHIA routines: pydiff, pygaga, pysigh 
+C and also: DT_PYEVNTEP, DT_PYOUTEP along with current DT_PYINITEP
+C
+      DOUBLE PRECISION Mprot,Mneut
+      ! beam type
+      CHARACTER*10 tName
+c ---------------------------------------------------------------------
+c     Run parameter
+c ---------------------------------------------------------------------
+      integer*4 today(3), now(3)
+c---------------------------------------------------------------------
+c     ASCII output file and input file
+c ---------------------------------------------------------------------
+      CHARACTER*8 INPUT
+      CHARACTER*256 outputfilename
+      CHARACTER*256 outname
+
+      integer LINP
+      parameter ( LINP=28 )
+      CHARACTER*256 inputfilename
+
+* 14-Dec-2016 MDB Event variable to find datafiles
+      CHARACTER*255 ENVDIR
+      COMMON /ENVCOM/ ENVDIR
+      CHARACTER*255 FILNAM
+
+c---------------------------------------------------------------------
+! ... force block data modules to be read
+C       external pydata
+c ---------------------------------------------------------------------
+       iModel=0
+       pbeam=real(PPN)
+       pbeamP=pbeam
+       pbeamN=pbeam
+       ebeam=real(EPN) 
+       ievent=0
+       genevent=0
+       lastgenevent=0
+       tracknr=0
+c ---------------------------------------------------------------------
+c     Open ascii input file
+c ---------------------------------------------------------------------
+       inputfilename=INPUT
+       open(LINP, file=inputfilename,STATUS='UNKNOWN')
+       write(*,*) 'the input file is: ', inputfilename
+
+C...Read output file name
+       READ(LINP,*) outname
+C...Read min/max x of radgen lookup table
+       READ(LINP,*) mcSet_XMin, mcSet_XMax
+C...Read information for cross section used in radgen
+       READ(LINP,*) genSet_FStruct, genSet_R
+C...Read parameters of radcorr: do radcorr (1), generate look-up table (2)
+       READ(LINP,*) qedrad
+       IF (qedrad.GT.0) WRITE(*,*) 'Warning: radcorr untested in BeAGLE'
+C...Read parameters for PYTHIA-Model = which generation is done     
+       READ(LINP,*) iModel
+C...Read target type mass and charge
+       READ(LINP,*) mcSet_TarA, mcSet_TarZ
+       IF (mcSet_TarA.NE.IT .OR. mcSet_TarZ.NE.ITZ) THEN
+          WRITE(*,*) ' '
+          WRITE(*,*) 'WARNING: DPMJET/Pythia control file mismatch'
+          WRITE(*,*) 'Beagle will use DPMJET A,Z: ',IT,', ',ITZ
+          WRITE(*,*) 'Radgen, if called, will use p or n event-by-event'
+       ENDIF
+C...Read switch for shadowing
+       READ(LINP,*) genShd
+C...Read nuclear pdf correction order
+       READ(LINP,*) ORDER
+C...Read the switch for quenching
+       READ(LINP,*) QSWITCH
+C...Read q hat
+       READ(LINP,*) QHAT
+C...Read information for cross section used in radgen
+C...Mark allow fixed seed 08/14/2016
+       IFSEED=0
+  100  READ(LINP,'(A)',END=200) PARAM
+       IF (PARAM(1:5).EQ."FSEED") THEN
+          READ(PARAM(7:16),'(I10)') IFSEED
+          WRITE(*,*)'Using fixed PYR seed: ', IFSEED
+       ELSE
+          CALL PYGIVE(PARAM)
+       ENDIF
+       GOTO 100
+c ---------------------------------------------------------------------
+C...Initialize PYTHIA.      
+c ---------------------------------------------------------------------
+  200  CLOSE(LINP)
+C...Added by Mark 2016-07-15. Hard-coded input file for now.
+       IF (genShd.GE.2) THEN
+          IF (IT.EQ.1) THEN
+             WRITE(*,*)'ERROR: Shadowing corrections requested (',
+     &                 'genShd>1) for A=1. genShd set to 1 (off).'
+             genShd=1
+          ELSE
+             IF (IT.NE.197.OR.ITZ.NE.79) 
+     &           WRITE(*,*)'WARNING: Shadowing corrections for gamma*',
+     &             '+Au are being used. Not fully accurate for A=',IT
+             CHECKR=0
+             IKNOT=0
+             IF (IT.EQ.197.AND.ITZ.EQ.79) THEN
+                FILNAM = TRIM(ENVDIR)//'/shadowmapAu.dat'
+             ELSEIF (IT.EQ.40.AND.ITZ.EQ.20) THEN
+                FILNAM = TRIM(ENVDIR)//'/shadowmapCa.dat'
+             ELSEIF(IT.LE.98) THEN
+                FILNAM = TRIM(ENVDIR)//'/shadowmapCa.dat'
+                WRITE(*,*)'WARNING: Shadowing corrections for gamma*',
+     &               '+Cu are being used. Not fully accurate for A=',IT
+             ELSE
+                FILNAM = TRIM(ENVDIR)//'/shadowmapAu.dat'
+                WRITE(*,*)'WARNING: Shadowing corrections for gamma*',
+     &               '+Au are being used. Not fully accurate for A=',IT
+             ENDIF
+             WRITE(*,*)'Opening file: ',FILNAM
+             OPEN(LINP, file=FILNAM,STATUS='OLD')
+ 300         READ(LINP,*,END=400)XKTMP,YKTMP,BKTMP,CKTMP,DKTMP,EKTMP,
+     &                           FKTMP
+             IKNOT=IKNOT+1
+             XKNOT(IKNOT)=XKTMP
+             YKNOT(IKNOT)=YKTMP
+             BKNOT(IKNOT)=BKTMP
+             CKNOT(IKNOT)=CKTMP
+             DKNOT(IKNOT)=DKTMP
+             EKNOT(IKNOT)=EKTMP
+             FKNOT(IKNOT)=FKTMP
+             GOTO 300
+ 400         CLOSE(LINP)
+             NKNOTS=IKNOT
+          ENDIF ! (IT.EQ.1)
+       ENDIF ! (genShd.GT.2)
+c...read parameters from dpmjet       
+       INUMOD=IT
+       CHANUM=ITZ
+       mcSet_YMin=real(YMIN)
+       mcSet_YMax=real(YMAX)
+       mcSet_Q2Min=real(Q2MIN)
+       mcSet_Q2Max=real(Q2MAX)
+
+       write(*,*) '*********************************************'
+       write(*,*) 'NOW all parameters are read by PYTHIA'
+       write(*,*) '*********************************************'
+       write(*,*) 'the output file is: ', outname
+C       call PYLIST(11)
+C       call PYLIST(12)
+
+       print*,'kinematics cut read by PYTHIA:'
+       print*,YMIN,' < y < ',YMAX,', ',Q2MIN,' < Q2 < ',Q2MAX
+
+C     Getting the date and time of the event generation
+        
+      call idate(today)   ! today(1)=day, (2)=month, (3)=year
+      call itime(now)     ! now(1)=hour, (2)=minute, (3)=second
+        
+!     Take date as the SEED for the random number generation
+       
+C...The random number for pythia 
+      initseed = today(1) + 10*today(2) + today(3) + now(1) + 5*now(3)
+C...Mark - fixed seed if requested in input for debugging 08/14/2016
+      IF (IFSEED.GT.0) initseed=IFSEED
+      write(6,*) 'SEED = ', initseed
+      call rndmq (idum1,idum2,initseed,' ')
+        
+      !default ltype, lName and tName
+      ltype = 11
+      lName = 'gamma/e-'
+      tName = 'p+'
+
+      !set up lepton beam
+      if( IJPROJ.eq.3 ) then
+         lName = 'gamma/e-'
+         ltype = 11
+      elseif( IJPROJ.eq.4 ) then
+         lName = 'gamma/e+'
+         ltype = -11
+      elseif( IJPROJ.eq.10 ) then
+         lName = 'gamma/mu+'
+         ltype = -13
+      elseif( IJPROJ.eq.11 ) then
+         lName = 'gamma/mu-'
+         ltype = 13
+      endif
+
+      !set up nucleon beam
+      Mneut=PYMASS(2112)
+      Mprot=PYMASS(2212)
+      masse=PYMASS(ltype)
+C Mark 2015-10-21 This is for the first PYINIT only.
+C                 For eA we may have to re-PYINIT event by event,
+C                 but start with a neutron since that's the most likely
+      if( ITZ.eq.1.and.IT.eq.1 ) then
+         tName = 'p+'
+         mcSet_TarA=1
+         mcSet_TarZ=1
+         massp=Mprot
+         idNuc=2212
+      else
+         tName = 'n0'
+         mcSet_TarA=1
+         mcSet_TarZ=0
+         massp=Mneut
+         idNuc=2112
+      endif
+
+C MDB 2016-11-10 For A>1, match rapidities for nucleon and nucleus 
+      IF (IT.GT.1) THEN
+         MAscl=AZMASS(IT,ITZ)/INUMOD 
+         pbeam=real(PPN*massp/MAscl)
+         pbeamP=real(PPN*Mprot/MAscl)
+         pbeamN=real(PPN*Mneut/MAscl)
+      ENDIF
+C     proton (neutron) is defined in positive z and as target
+      P(2,1)=0.0  
+      P(2,2)=0.0
+      P(2,3)=pbeam
+      PZTARG = PPN
+      PZNUCL = pbeam
+C     lepton is defined in negative z and as beam
+      P(1,1)=0.0  
+      P(1,2)=0.0  
+      P(1,3)=-ebeam
+      PZLEP = -ebeam
+
+      pbeamE=sqrt(pbeam**2+massp**2)
+      pbeta=pbeam/pbeamE
+      pgamma=pbeamE/massp
+      ebeamE=sqrt(ebeam**2+masse**2)
+      ebeamEnucl=pgamma*ebeamE-pgamma*pbeta*(-ebeam)
+      epznucl=-pgamma*pbeta*(ebeamE)+pgamma*(-ebeam)
+      write(*,*) ebeamEnucl, ebeamE, epznucl, -ebeam
+      mcSet_EneBeam=sngl(ebeamEnucl)
+
+      sqrts=sqrt((pbeamE+ebeamE)**2-(pbeam-ebeam)**2)
+      altpbeam=PPN
+      altpbeamE=sqrt(PPN*PPN+PYMASS(2212)**2)
+      altsqrts=sqrt((altpbeamE+ebeamE)**2-(altpbeam-ebeam)**2)
+      write(*,*) '*********************************************'
+      IF(IT.GT.1) THEN
+         write(*,*) 'Nucleus: Z, A: ', ITZ, ' ', IT
+         write(*,*) 'Per nucleon beam momentum:', PPN, 'GeV'
+         write(*,*) 'sqrts for momentum matched ep: ',altsqrts,'GeV'
+         write(*,*) 'Rapidity-matched neutron beam momentum: ', 
+     &               pbeamN, 'GeV'
+         write(*,*) 'Rapidity-matched proton beam momentum: ', 
+     &               pbeamP, 'GeV'
+      ELSEIF (ITZ.GT.1) THEN
+         write(*,*) 'proton beam momentum: ', pbeam, 'GeV'
+      ELSE
+         write(*,*) 'neutron beam momentum: ', pbeam, 'GeV'
+      ENDIF
+      write(*,*) 'lepton beam momentum: ', ebeam, 'GeV'
+      write(*,*) 'sqrts for eN system: ', sqrts, 'GeV'
+      write(*,*) 'lepton beam energy in TRF: ',ebeamEnucl,'GeV'
+      write(*,*) '*********************************************'
+
+       if (iModel.eq.0) then
+           UseLUT=.false.
+           GenLUT=.false.
+           qedrad=0
+           MSTP(199)=0
+           mcRadCor_EBrems=0.
+       elseif (iModel.eq.1) then
+         if (qedrad.eq.0) then
+             mcRadCor_EBrems=0.
+             UseLUT=.false.
+             GenLUT=.false.
+             MSTP(199)=1
+         elseif (qedrad.eq.1) then
+             mcRadCor_EBrems=0.
+             UseLUT=.true.
+             GenLUT=.false.
+             MSTP(199)=1
+             call radgen_init(UseLUT,GenLUT)
+             write(*,*) 'I have initialized radgen'
+         elseif (qedrad.eq.2) then
+             write(*,*) 'radgen lookup table will be generated'
+             mcRadCor_EBrems=0.
+             UseLUT=.true.
+             GenLUT=.true.
+             MSTP(199)=1
+             call radgen_init(UseLUT,GenLUT)
+             goto 500
+         endif
+       endif
+
+      IF(QSWITCH.EQ.1) THEN
+         print*,'Quenching requested, qhat=',QHAT
+         call GenNucDens(ITZ, IT)
+c...when quenching is used switch off internal parton shower
+         MSTP(61)=0
+         MSTP(71)=0
+      ENDIF
+
+      !initialize pythia
+      MYNGEN=0
+C-TEMP-TEMP-TEMP
+      write(*,*) '1st call to pyinit, MYNGEN=',MYNGEN
+      call pyinit('3MOM', lName, tName, WIN)
+  500  if (qedrad.eq.2) then
+         write(*,*) 'lookup table is generated;'
+         write(*,*) 'to run now pythia change parameter qedrad to 1'
+       endif
+
+      RETURN
+      END
+
+*=====dt_pyevnt========================================================
+*used to the sample a pythia event and dump this event to DTEVT1
+*Some important thing to be mentioned here is the output of pyhia
+*data is in the lab frame, while the calculation in dpmjet is made
+*in photon-proton c.m.s frame. So when we are copying the data common
+*to dpmjet, we must make the right Lorentz transformation. Plus,
+*the virtual photon has to be directed to the z+ direction. A rotation
+*for the reference is also necessary.
+
+      SUBROUTINE DT_PYEVNTEP(Q2,YY,MODE,IREJ)
+ 
+*     input:
+*           MODE  1: generate a pythia event get its Q2 and Y
+*                 2: copy this event to dpmjet data common block
+*     output:
+*           Q2    Q2 of this current event (used in MODE 1)
+*           YY    Y of this current event  (used in MODE 1)
+*           IREJ  reject flag for current event (used in MODE 2)
+
+      include 'pythia.inc'              ! All PYTHIA commons blocks
+      include "mc_set.inc"
+      include "py6strf.inc"
+      include "mcRadCor.inc"
+      include "radgen.inc"
+      include "phiout.inc"
+* event flag
+      COMMON /DTEVNO/ NEVENT,ICASCA 
+
+* event history
+
+      PARAMETER (NMXHKK=200000)
+
+      COMMON /DTEVT1/ NHKK,NEVHKK,ISTHKK(NMXHKK),IDHKK(NMXHKK),
+     &                JMOHKK(2,NMXHKK),JDAHKK(2,NMXHKK),
+     &                PHKK(5,NMXHKK),VHKK(4,NMXHKK),WHKK(4,NMXHKK)
+
+* extended event history
+      COMMON /DTEVT2/ IDRES(NMXHKK),IDXRES(NMXHKK),NOBAM(NMXHKK),
+     &                IDBAM(NMXHKK),IDCH(NMXHKK),NPOINT(10)
+c     &                IHIST(2,NMXHKK)
+
+      PARAMETER (ZERO=0.0D0,ONE=1.0D0,TINY10=1.0D0-10,MAXNCL=260)
+
+C     MDB 2017-01-06 BeAGLE-specific output information
+      INTEGER KSOUT,BAMOUT,JM2OUT,JM1OUT,JD1OUT,JD2OUT,AOUT,ZOUT
+      COMMON /BEAEVT/ BBEA,PHIB,THKB,THKSCL,NCOLLT,NCOLLI,NNEVAP,NPEVAP,
+     &                AREMN,NINC,NINCCH,DFIRST,DAVG,PXF,PYF,PZF,PZLEP,
+     &                PZTARG,PZNUCL,RAEVT,USER1,USER2,USER3,OLDOUT,LTYPE
+      DOUBLE PRECISION BBEA,PHIB,THKB,THKSCL,DFIRST,DAVG,PXF,PYF,PZF
+      DOUBLE PRECISION RAEVT,USER1,USER2,USER3,PZLEP,PZTARG,PZNUCL
+      INTEGER NCOLLT,NCOLLI,NNEVAP,NPEVAP,AREMN,NINC,NINCCH,LTYPE
+      LOGICAL OLDOUT
+
+C...MDB 2016-11-10 Add pbeamP and pbeamN, idNuc, lName
+C...MDB 2017-01-25 Add MAscl
+C...Information about LT from lab to nucleon rest frame
+      COMMON /LABTONR/ MAscl,pgamma,pbeta,pbeamP,pbeamN,idNuc,lName
+      DOUBLE PRECISION MAscl,pgamma, pbeta
+      REAL pbeamP, pbeamN
+      INTEGER idNuc
+      CHARACTER*10 lName
+
+C...Parameters and switch for energy loss from PyQM
+      DOUBLE PRECISION QHAT
+      INTEGER QSWITCH
+      COMMON /QUENCH/ QHAT, QSWITCH
+
+* Lorentz-parameters of the current interaction from DPMJET
+      COMMON /DTLTRA/ GACMS(2),BGCMS(2),GALAB,BGLAB,BLAB,
+     &                UMO,PPCM,EPROJ,PPROJ
+
+* lorentz transformation parameter 
+      COMMON /LTPARA/ BGTA(4), GAMM(5), eveBETA(4), GAA
+      COMMON /ROTATE/ COF,COD,SIF,SID
+
+* properties of photon/lepton projectiles from DPMJET
+      COMMON /DTGPRO/ VIRT,PGAMM(4),PLEPT0(4),PLEPT1(4),PNUCL(4),IDIREC
+
+* kinematics at lepton-gamma vertex from DPMJET
+      COMMON /DTLGVX/ PPL0(4),PPL1(4),PPG(4),PPA(4)
+
+* position of interacted nucleon
+      DOUBLE PRECISION PosNuc
+      COMMON /NPARINT/ PosNuc(4)
+* Added by Mark 2016-08-18
+      INTEGER INTFLG, MXINTS,IIGA
+      PARAMETER (INTFLG=77)
+      PARAMETER (MXINTS=300)
+      INTEGER IINTER(MXINTS),IPARTN,IMAXZ,NPOS(MXINTS),IMAIN
+      DOUBLE PRECISION PHIGAM,THEGAM,PTGAM,PTK1,PTK2,PZMAX
+      DOUBLE PRECISION PosAlt(MXINTS,4)
+      INTEGER MomAlt(MXINTS)
+      INTEGER IDAlt(MXINTS)
+      REAL ZMIN, ZTRY
+      DOUBLE PRECISION EEFIX,PZEFIX,BETAFX,GAMMFX
+
+      double precision PF
+      COMMON /CORECT/ PF(4)
+      double precision PAUX
+      COMMON /PFAUX/ PAUX(4)
+
+      DOUBLE PRECISION P1, P2, P3, P4, PTOT, PP1, PP2, PP3, PP4, QCHG
+
+      DOUBLE PRECISION UPVP,DNVP,USEAP,DSEAP,STRP,CHMP,BOTP,TOPP,GLUP
+      DOUBLE PRECISION UPVA,DNVA,USEAA,DSEAA,STRA,CHMA,BOTA,TOPA,GLUA
+
+      DOUBLE PRECISION USEAP1000, USEAP1001, USEAP1690
+      DOUBLE PRECISION USEAA1000, USEAA1001, USEAA1690
+
+      INTEGER MODE
+
+      DOUBLE PRECISION Q2, YY, XX, XXALT
+
+C...Shadowing Map & Switches for nuclear correction - Mark 7/22/16
+C...Added by liang 1/6/12
+C...Switches for nuclear correction
+      COMMON /PYNUCL/ INUMOD,CHANUM,ORDER,genShd
+      SAVE /PYNUCL/
+      DOUBLE PRECISION INUMOD,CHANUM
+      INTEGER ORDER,genShd
+
+      CHARACTER*20 chpset
+      CHARACTER*20 Nprm
+
+C...Pythia event counter (since we keep PYINITing) Mark 2017-01-31
+      COMMON /PYCNTR/ MYNGEN
+      INTEGER MYNGEN
+      SAVE /PYCNTR/
+
+C...Pythia eA shadowing common block from Mark 2016-07-18 
+      COMMON /PYSHAD/ NKNOTS,RDUMMY,RAVAL,XKNOT(100),YKNOT(100),
+     &BKNOT(100),CKNOT(100),DKNOT(100),EKNOT(100),FKNOT(100)
+      SAVE /PYSHAD/
+      DOUBLE PRECISION XKNOT,YKNOT,BKNOT,CKNOT,DKNOT,EKNOT,FKNOT,RAVAL
+      INTEGER NKNOTS,RDUMMY
+
+      LOGICAL LFIRST
+      INTEGER IREJ
+
+      SAVE LFIRST
+
+      GOTO(1,2) MODE
+
+c...generate a pythia event
+1     CONTINUE      
+c...MDB 2016-11-11 For eA, decide whether we are hitting a proton or neutron
+c...               and reinitialize Pythia (and radgen) if needed
+c...               Note: we assume p,n equally likely. Not strictly correct
+c...               especially at low energies. 
+c...
+      if (NINT(INUMOD).GT.1) then
+C         WRITE(*,*)'Prob(proton) = Z/A = ',CHANUM/INUMOD
+         if (DT_RNDM(RDUMMY).LE.CHANUM/INUMOD) then
+c...        proton - reinit if it was a neutron last event
+C            WRITE(*,*)'Choice for this event: proton'
+            if(idNuc.NE.2212) then
+C               WRITE(*,*)'Need to reinitialize for proton'
+               idNuc=2212
+               massp=PYMASS(idNuc)
+               pbeam  = pbeamP
+               P(2,3) = pbeam
+               PZNUCL = pbeam
+               if (qedrad.eq.1) call radgen_init(UseLUT,GenLUT)
+C-TEMP-TEMP-TEMP
+               write(*,*) 'pre-pyinit, MYNGEN=',MYNGEN
+               call pyinit('3MOM', lName, 'p+', WIN)
+            endif
+         else
+c...        neutron - reinit if it was a proton last event
+C            WRITE(*,*)'Choice for this event: neutron'
+            if(idNuc.NE.2112) then
+C               WRITE(*,*)'Need to reinitialize for neutron'
+               idNuc=2112
+               massp=PYMASS(idNuc)
+               pbeam  = pbeamN
+               P(2,3) = pbeam
+               PZNUCL = pbeam
+               if (qedrad.eq.1) call radgen_init(UseLUT,GenLUT)
+C-TEMP-TEMP-TEMP
+               write(*,*) 'pre-pyinit, MYNGEN=',MYNGEN
+               call pyinit('3MOM', lName, 'n0', WIN)
+            endif
+         endif 
+      endif
+c...if quenching requested (or eA shadowing), do not do fragmentation
+      if(QSWITCH.EQ.1 .OR. genShd.GE.2) MSTJ(1) = 0
+      print*,'in event:', NEVENT,' MYNGEN=',MYNGEN,
+     &       ' calling PYEVNT'
+999   CALL PYEVNT
+      MYNGEN = MYNGEN+1
+C-TEMP-TEMP-TEMP
+      print*,'After PYEVNT: MYNGEN=',MYNGEN
+      IF(MSTI(61).EQ.1) THEN
+         WRITE(*,*) 'go back to PYEVNT call'
+         GOTO 999
+      ENDIF
+
+      Q2=VINT(307)
+      YY=VINT(309)
+
+C      print*,'in event:', NEVENT
+C      print*,'Q2 from pythia:',Q2
+C      print*,'Y from pythia:',YY
+
+      IF (genShd.GE.2) THEN
+C Simplified method. Use sea RA(xBj, Q2) for all processes
+C x = Q2/y/(s-M2-m2) matches x from PYPDFU better than  Q2/(W2+Q2-M2)
+         XX = Q2/YY/(VINT(302)-VINT(308)-VINT(303)**2)
+
+C         print*,'X Bj from pythia:',XX
+C         print*,'subprocess: ',MINT(1)
+C         CALL PYLIST(2)
+         RAVAL = 1.0
+         IF(XX.LE.0.1) THEN
+C            CALL STRUCTM(XX,1.00,UPVP,DNVP,USEAP,DSEAP,STRP,CHMP,BOTP
+C     &                  ,TOPP,GLUP)
+C            WRITE(*,*)"UseaP(X=",XX,",Q2=1.00 GeV2 from STRUCTM: ",USEAP
+C            USEAP1000=USEAP
+C            CALL STRUCTM(XX,1.001,UPVP,DNVP,USEAP,DSEAP,STRP,CHMP,BOTP
+C     &                  ,TOPP,GLUP)
+C            WRITE(*,*)"UseaP(X=",XX,",Q2=1.001 GeV2 from STRUCTM: ",
+C     &                   USEAP
+C            USEAP1001=USEAP
+C            CALL STRUCTM(XX,1.69,UPVP,DNVP,USEAP,DSEAP,STRP,CHMP,BOTP
+C     &                  ,TOPP,GLUP)
+C            WRITE(*,*)"UseaP(X=",XX,",Q2=1.69 GeV2 from STRUCTM: ",USEAP
+C            USEAP1690=USEAP
+            CALL STRUCTM(XX,Q2,UPVP,DNVP,USEAP,DSEAP,STRP,CHMP,BOTP,TOPP
+     &                  ,GLUP)
+C            WRITE(*,*)"UseaP(X=",XX,",Q2=",Q2," GeV2 from STRUCTM: ",
+C     &                   USEAP
+            IF((CHANUM.GT.1D0).AND.(ORDER/100.GT.0)) THEN
+               write(chpset,'(I2)') MOD(ORDER,100)
+               IF(ORDER/100.EQ.1) THEN
+C                 print*,'Now run LO nuclear pdf'
+                  Nprm='EPS09LO,'//chpset
+                  CALL SETLHAPARM(Nprm)
+               ELSE IF(ORDER/100.EQ.2) THEN
+C                 print*,'Now run NLO nuclear pdf'
+                  Nprm='EPS09NLO,'//chpset
+                  CALL SETLHAPARM(Nprm)
+               ENDIF
+            ENDIF
+C            CALL STRUCTA(XX,1.0,INUMOD,UPVA,DNVA,USEAA,DSEAA,STRA,CHMA,
+C     &                   BOTA,TOPA,GLUA)
+C            WRITE(*,*)"UseaA(X=",XX,",Q2=1.00 GeV2 from STRUCTA: ",USEAA
+C            USEAA1000=USEAA
+C            CALL STRUCTA(XX,1.001,INUMOD,UPVA,DNVA,USEAA,DSEAA,STRA,CHMA
+C     &                   ,BOTA,TOPA,GLUA)
+C            WRITE(*,*)"UseaA(X=",XX,",Q2=1.001 GeV2 from STRUCTA: ",
+C     &                   USEAA
+C            USEAA1001=USEAA
+C            CALL STRUCTA(XX,1.69,INUMOD,UPVA,DNVA,USEAA,DSEAA,STRA,CHMA,
+C     &                   BOTA,TOPA,GLUA)
+C            WRITE(*,*)"UseaA(X=",XX,",Q2=1.69 GeV2 from STRUCTA: ",USEAA
+C            USEAA1690=USEAA
+            CALL STRUCTA(XX,Q2,INUMOD,UPVA,DNVA,USEAA,DSEAA,STRA,CHMA,
+     &                   BOTA,TOPA,GLUA)
+C            WRITE(*,*)"UseaA(X=",XX,",Q2=",Q2," GeV2 from STRUCTA: ",
+C     &                    USEAA
+C            WRITE(*,664)"RAu(X=",XX,", Q2= 1.00  GeV2): ",
+C     &                    USEAA1000/USEAP1000
+C            WRITE(*,664)"RAu(X=",XX,", Q2= 1.001 GeV2): ",
+C     &                    USEAA1001/USEAP1001
+C            WRITE(*,664)"RAu(X=",XX,", Q2= 1.69  GeV2): ",
+C     &                    USEAA1690/USEAP1690
+C            WRITE(*,665)"RAu(X=",XX,", Q2= ",Q2,USEAA/USEAP
+C 664        FORMAT(A,E11.4,A,F7.4)
+C 665        FORMAT(A,E11.4,A,F9.4,1X,F7.4)
+C
+C    Simplified eA shadowing implementation - Mark 2016-08-18   
+C    Use  u-sea R(A) for xBj for all processes including diffraction
+C   and 95 etc.  For R(A)>1 or x>0.1, set/leave R(A)=1
+C Note: For PGF (and QCDC) the x_SF is not the same as x_Bj
+C       Proper flavor dependence will take a bit of care...
+            RAVAL = USEAA/USEAP
+C            print*,'Used: ',Nprm
+C            print*,'Raw RA value: ',RAVAL
+            IF (RAVAL.GE.1.D0) RAVAL=1.D0
+         ENDIF
+C         print*,'Final RA value: ',RAVAL
+C         print*
+      ENDIF
+
+C     TEMP-TEMP-TEMP - comment these in instead of out
+C      WRITE(*,*) 'End of DT_PYEVNTEP mode 1, PYLIST(2):'
+C      CALL PYLIST(2)
+      LFIRST=.FALSE.
+
+      RETURN
+
+c...transform this event to certain reference and copy it to DPMJET
+2     CONTINUE
+c...guess the position of final state particle
+c...NPOINT(4), the position where final particle starts is very important!!      
+      IREJ=0
+
+c      IF(LFIRST) GOTO 9999
+
+c...added by liang for test
+c      print*,'NPOINT(1)=',NPOINT(1)
+C-TEMP-TEMP-TEMP ... added by Mark for test
+C      WRITE(*,*)'Beginning of DT_PYEVNTEP mode 2:'
+C      WRITE(*,*)'NHKK: ',NHKK
+C      WRITE(*,*)'VHKK(1,1),VHKK(2,1): ',VHKK(1,1),' ',VHKK(2,1)
+C      DO JJ=2,NHKK
+C         IF (ISTHKK(JJ).EQ.12) THEN
+C            WRITE(*,*)'VHKK(1-2,',JJ,'): ',VHKK(1,JJ),' ',
+C     &           VHKK(2,JJ)
+C         ENDIF
+C      ENDDO
+
+      NPOINT(1)=NHKK-1
+      NPOINT(2)=NPOINT(1)
+      NPOINT(3)=NPOINT(1)
+      NPOINT(4)=NPOINT(1)+5
+
+********find the position of wounded nucleon
+c...Don't assume just one! Mark 2016-08-18
+      NINTS=0
+      DO J=1,MXINTS
+         IMAIN=0
+         IINTER(J)=0
+         NPOS(J)=0
+         DO KK=1,4
+            PosAlt(J,KK)=0.0D0
+         ENDDO
+      ENDDO
+      DO J=1,NHKK      
+         IF(ISTHKK(J).EQ.12) THEN
+            NINTS=NINTS+1
+            IINTER(NINTS)=J
+         ENDIF
+      ENDDO
+
+C...  Pick main (Pythia) interaction
+      IF (NINTS.LT.1) THEN
+         WRITE(*,*) 'DT_PYEVNTEP ERROR: No Interactions!'
+         STOP
+      ELSEIF (genShd.LE.1) THEN
+C...  For genShd=1 should only be one.
+         IMAIN = 1
+         IF (NINTS.GT.1) THEN
+            write(*,*) 'DT_PYEVNTEP ERROR: Found ',NINTS,
+     &                 ' interactions. Expected 1.'
+         ENDIF
+      ELSEIF (genShd.EQ.2) THEN
+C...  For genShd=2, pick the main Pythia interaction at random
+         IMAIN=INT(NINTS*DT_RNDM(RDUMMY))+1
+      ELSEIF (genShd.GE.3) Then
+C...  The first interaction is the main Pythia interaction
+C...  Note: VHKK is always in TRF
+         ZMIN=10000.0E0
+         IMAIN=0
+         DO III=1,NINTS       
+            ZTRY=VHKK(3,IINTER(III))
+            IF (ZTRY.LT.ZMIN) THEN
+               ZMIN=ZTRY
+               IMAIN=III
+            ENDIF
+         ENDDO
+      ENDIF
+      IIMAIN = IINTER(IMAIN)
+      PosNuc(1)=VHKK(1,IIMAIN)
+      PosNuc(2)=VHKK(2,IIMAIN)
+      PosNuc(3)=VHKK(3,IIMAIN)
+      PosNuc(4)=VHKK(4,IIMAIN)
+      PXF = PHKK(1,IIMAIN)
+      PYF = PHKK(2,IIMAIN)
+      PZF = PHKK(3,IIMAIN)
+C     Temporary filling of thickness using Au hard sphere
+      THKB = 0.0
+      RadAu = 6.38
+      IF (BBEA.LT.RadAu) THEN
+         THKB = 2.0*DSQRT(RadAu*RadAu-BBEA*BBEA)
+      ENDIF
+C     Temporary rescaling using rho_0 = 3 A/(4 pi R^3)
+      THKSCL = 0.1811*THKB
+C     Temporary setting of d1st and davg using hard sphere
+      IF (THKB.LT.0.001) THEN
+         DFIRST = 0.0
+         DAVG   = 0.0
+      ELSEIF (NINTS.GE.1) THEN
+         ZMIN = 10000.0
+         DO III=1,NINTS       
+            ZTRY=VHKK(3,IINTER(III))
+            IF (ZTRY.LT.ZMIN) THEN
+               ZMIN=ZTRY
+            ENDIF
+         ENDDO
+         DFIRST = THKB/2.0-ZMIN
+         DAVG = THKB/2.0-VHKK(3,IIMAIN)
+      ENDIF
+
+c      write(*,*) 'DPMJET position',PosNuc(1),PosNuc(2),PosNuc(3)
+      PF(1)=0
+      PF(2)=0
+      PF(3)=0
+      PF(4)=0
+
+c...MDB 2016-11-14 Make sure the nucleon is the correct flavor
+c...               If not, swap flavors with a random nucleon
+c...MDB 2017-01-21 Swap momenta as well as flavor - neutrons have a
+c...               higher Fermi momentum than protons for A/Z>2.
+c...               Maybe this is destabilitzing the nucleus.
+C      WRITE(*,*) 'Output current event before possible swap'
+C      CALL DT_PYOUTEP(4)
+      IF (IDHKK(IIMAIN).NE.idNuc) THEN
+         WRITE(*,*) 'SWAP! Interaction# is: ',IIMAIN,' ID=',
+     &    IDHKK(IIMAIN),' idNuc=',idNuc
+c... Pick a # between 2 and NHKK and then look for a nucleon to swap flavors
+         ISWAP=INT((NHKK-1)*DT_RNDM(RDUMMY))+2
+         ISWTRY=0
+         DO WHILE (ISWTRY.LT.NHKK-1)            
+            IF (IDHKK(ISWAP).EQ.idNuc) GOTO 25
+            ISWTRY=ISWTRY+1
+            ISWAP = ISWAP+1
+            IF (ISWAP.GT.NHKK) ISWAP=2
+         ENDDO
+         WRITE(*,*)"ERROR: Can't find a nucleon to swap!"
+         ISWAP=IIMAIN
+ 25      CONTINUE
+         WRITE(*,*)'Swap nucleon# is: ', ISWAP,'ID= ',IDHKK(ISWAP)
+         WRITE(*,*)'ISTHKK, , PHKK(1-5), VHKK(1-3), IDRES, IDXRES,' 
+     &          ,'NOBAM, IDBAM, IDCH'     
+         WRITE(*,*)'BEFORE SWAP:'
+         WRITE(*,*)'Main: ',ISTHKK(IIMAIN),IDHKK(IIMAIN), 
+     &      PHKK(1,IIMAIN), PHKK(2,IIMAIN), PHKK(3,IIMAIN), 
+     &      PHKK(4,IIMAIN), PHKK(5,IIMAIN), VHKK(1,IIMAIN), 
+     &      VHKK(2,IIMAIN), VHKK(3,IIMAIN), IDRES(IIMAIN), 
+     &      IDXRES(IIMAIN), NOBAM(IIMAIN), IDBAM(IIMAIN), IDCH(IIMAIN)
+         WRITE(*,*)'Swap: ',ISTHKK(ISWAP),IDHKK(ISWAP), PHKK(1,ISWAP),
+     &      PHKK(2,ISWAP), PHKK(3,ISWAP), PHKK(4,ISWAP), 
+     &      PHKK(5,ISWAP), VHKK(1,ISWAP), VHKK(2,ISWAP),
+     &      VHKK(3,ISWAP), IDRES(ISWAP), IDXRES(ISWAP),
+     &      NOBAM(ISWAP), IDBAM(ISWAP), IDCH(ISWAP)
+         IF (ISWAP.NE.IIMAIN) THEN
+            IDHKK(ISWAP)=IDHKK(IIMAIN)
+            IDHKK(IIMAIN)=idNuc
+            DO I5=1,5 
+               DTEMP = PHKK(I5,IIMAIN)
+               PHKK(I5,IIMAIN)=PHKK(I5,ISWAP)
+               PHKK(I5,ISWAP) = DTEMP
+            ENDDO
+            ITEMP = NOBAM(IIMAIN)
+            NOBAM(IIMAIN)=NOBAM(ISWAP)
+            NOBAM(ISWAP)=ITEMP
+            ITEMP = IDBAM(IIMAIN)
+            IDBAM(IIMAIN)=IDBAM(ISWAP)
+            IDBAM(ISWAP)=ITEMP
+            ITEMP = IDCH(IIMAIN)
+            IDCH(IIMAIN)=IDCH(ISWAP)
+            IDCH(ISWAP)=ITEMP
+         ENDIF
+         WRITE(*,*)'AFTER SWAP:'
+         WRITE(*,*)'Main: ',ISTHKK(IIMAIN),IDHKK(IIMAIN), 
+     &      PHKK(1,IIMAIN), PHKK(2,IIMAIN), PHKK(3,IIMAIN), 
+     &      PHKK(4,IIMAIN), PHKK(5,IIMAIN), VHKK(1,IIMAIN), 
+     &      VHKK(2,IIMAIN), VHKK(3,IIMAIN), IDRES(IIMAIN), 
+     &      IDXRES(IIMAIN), NOBAM(IIMAIN), IDBAM(IIMAIN), IDCH(IIMAIN)
+         WRITE(*,*)'Swap: ',ISTHKK(ISWAP),IDHKK(ISWAP), PHKK(1,ISWAP),
+     &      PHKK(2,ISWAP), PHKK(3,ISWAP), PHKK(4,ISWAP), 
+     &      PHKK(5,ISWAP), VHKK(1,ISWAP), VHKK(2,ISWAP),
+     &      VHKK(3,ISWAP), IDRES(ISWAP), IDXRES(ISWAP),
+     &      NOBAM(ISWAP), IDBAM(ISWAP), IDCH(ISWAP)
+      ELSE
+         WRITE(*,*) 'KEEP! nucleon# is: ',IIMAIN,' ID=',
+     &    IDHKK(IIMAIN),' idNuc=',idNuc
+         WRITE(*,*)'ISTHKK, , PHKK(1-5), VHKK(1-3), IDRES, IDXRES,' 
+     &          ,'NOBAM, IDBAM, IDCH'     
+         WRITE(*,*)'Main: ',ISTHKK(IIMAIN),IDHKK(IIMAIN), 
+     &      PHKK(1,IIMAIN), PHKK(2,IIMAIN), PHKK(3,IIMAIN), 
+     &      PHKK(4,IIMAIN), PHKK(5,IIMAIN), VHKK(1,IIMAIN), 
+     &      VHKK(2,IIMAIN), VHKK(3,IIMAIN), IDRES(IIMAIN), 
+     &      IDXRES(IIMAIN), NOBAM(IIMAIN), IDBAM(IIMAIN), IDCH(IIMAIN)
+      ENDIF
+C     Calculate kinematics of actual eN collision w/o Fermi motion
+CC      MAscl = AZMASS(NINT(INUMOD),NINT(CHANUM))/INUMOD ! Done already
+C      WRITE(*,*) 'ebeamEnucl, INUMOD, CHANUM, AZMASS, AZMASS/A:',
+C     &            ebeamEnucl, ' ', INUMOD, ' ', CHANUM, ' ', 
+C     &            AZMASS(NINT(INUMOD),NINT(CHANUM)),' ',MAscl
+C      WRITE(*,*) 'sqrts(e+ A/A)  = ',sqrt(MAscl*MAscl+masse*masse+
+C     &                                    2.0*MAscl*ebeamEnucl)
+C      WRITE(*,*) 'masse = ',masse
+C      WRITE(*,*) 'Naive sqrtss(eN)= ',sqrt(
+C     &     ((2.0*ebeamEnucl+PHKK(5,IIMAIN))*PHKK(5,IIMAIN))+masse*masse)
+
+C      WRITE(*,*) 'Output current event ater possible swap'
+C      CALL DT_PYOUTEP(4)
+
+c...do quenching to scattered partons if requested      
+      if(QSWITCH.EQ.1 .OR. genShd.GE.2) then
+C-TEMP-TEMP-TEMP
+C         write(*,*) "DT_PYEVNTEP: Lab, z=p"
+C         CALL PYLIST(2)
+         CALL PYROBO(0,0,0.0D0,0.0D0,0.0D0,0.0D0,-pbeta)
+C         write(*,*) "DT_PYEVNTEP: TRF e=-z"
+C         CALL PYLIST(2)
+C...Rotate so that the gamma* is along +z            
+         DO ITRK=1,N
+            IF (K(ITRK,2).EQ.22 .AND. K(ITRK,1).EQ.21 
+     &           .AND. K(ITRK,3).EQ.1) THEN
+               PHIGAM=ULANGL(P(ITRK,1),P(ITRK,2))
+               PTGAM=DSQRT(P(ITRK,1)**2+P(ITRK,2)**2)
+               THEGAM=ULANGL(P(ITRK,3),PTGAM)
+               GOTO 30
+            ENDIF
+         ENDDO
+ 30      CONTINUE
+C            write(*,*) "TRF e=-z, g* theta, phi, COD, SID, COF, SIF: ",
+C     &        THEGAM," ",PHIGAM," ",DCOS(THEGAM)," ",DSIN(THEGAM),
+C     &                              DCOS(PHIGAM)," ",DSIN(PHIGAM)
+C... Rotate to TRF, gamma* along z, e' px>0, py=0
+         CALL PYROBO(0,0,0.0D0,PARU(1)-PHIGAM,0.D0,0.D0,0.D0)
+C         write(*,*) "DT_PYEVNTEP: After PYROBO(pi-phi), e' px>0 py=0"
+C         CALL PYLIST(2)
+         CALL PYROBO(0,0,THEGAM,0.0D0,0.D0,0.D0,0.D0)
+CC Check effect of PYROBO inaccuracy
+C         BETAFX=-P(2,3)/P(2,4)
+C         GAMMFX=P(2,4)/P(2,5)
+C         EEFIX=GAMMFX*(P(1,3)+BETAFX*P(1,4))
+C         PZEFIX=GAMMFX*(P(1,4)+BETAFX*P(1,3))
+C         WRITE(*,*) 'PYROBO-corrected EeTRF: ',EEFIX
+C         WRITE(*,*) 'w/Fermi: sqrts(eN)= ',sqrt(2.0*
+C     &        (  EEFIX*PHKK(4,IIMAIN)-P(1,1)*PHKK(1,IIMAIN)
+C     &          -P(1,2)*PHKK(2,IIMAIN)-PZEFIX*PHKK(3,IIMAIN))
+C     &          +P(1,5)*P(1,5)+PHKK(5,IIMAIN)*PHKK(5,IIMAIN) )
+C         write(*,*) 'DT_PYEVNTEP: After PYROBO(theta), TRF g*=z'
+C         CALL PYLIST(2)
+C...Struck "parton" is the (non e') particle with highest pz (along g*)
+         PZMAX=0.D0
+         IPARTN=0
+         DO ITRK=1,N
+            IF ( (1.LE.K(ITRK,1) .AND. K(ITRK,1).LE.3) .AND.
+     &           .NOT.(11.LE.K(ITRK,2) .AND. K(ITRK,2).LE.18) ) THEN
+               IF (P(ITRK,3).GT.PZMAX) THEN
+                  PZMAX=P(ITRK,3)
+                  IPARTN=ITRK
+               ENDIF
+            ENDIF
+         ENDDO
+c...  For the non-main interactions, just do a ptkick & recoil
+C...  Copy the recoiling nucleon to the PYTHIA event record 
+C...  and flag it as special
+         DO IINT=1,NINTS
+            IF (IINT.NE.IMAIN) THEN
+               N = N + 1
+               P(N,1) = PHKK(1,IINTER(IINT))
+               P(N,2) = PHKK(2,IINTER(IINT))
+               P(N,3) = PHKK(3,IINTER(IINT))
+               P(N,4) = PHKK(4,IINTER(IINT))
+               P(N,5) = PHKK(5,IINTER(IINT))
+               K(N,1) = INTFLG
+               K(N,2) = IDHKK(IINTER(IINT)) 
+               K(N,3) = 0
+               K(N,4) = 0
+               K(N,5) = 0
+C...  Note: Can't fill V(N,I) yet or PYROBO will boost it around.
+               NPOS(IINT) = N
+               PosAlt(IINT,1) = VHKK(1,IINTER(IINT))
+               PosAlt(IINT,2) = VHKK(2,IINTER(IINT))
+               PosAlt(IINT,3) = VHKK(3,IINTER(IINT))
+               PosAlt(IINT,4) = VHKK(4,IINTER(IINT))
+               MomAlt(IINT) = IINTER(IINT)
+               CALL KICKIT(P(IPARTN,1), P(IPARTN,2), P(IPARTN,3), 
+     &              P(IPARTN,4), P(IPARTN,5),
+     &                    P(N,1), P(N,2), P(N,3), P(N,4), P(N,5))
+            ENDIF
+         ENDDO            
+C         write(*,*) "DT_PYEVNTEP: TRF g*=z, after ptkick"
+C         CALL PYLIST(2)
+         IF (QSWITCH.EQ.1) THEN
+            call InterPos       ! Set the interaction position in nucleus
+            call ApplyQW(QHAT)  ! Compute QW
+         ENDIF
+C         write(*,*) 'DT_PYEVNTEP: TRF g*=z, After ApplyQW'
+C         CALL PYLIST(2)
+         CALL PYROBO(0,0,-THEGAM,PHIGAM-PARU(1),0.0D0,0.0D0,0.0D0)
+C         write(*,*) 'DT_PYEVNTEP: Back to TRF e=-z'
+C         CALL PYLIST(2)
+         CALL PYROBO(0,0,0.0D0,0.0D0,0.0D0,0.0D0,pbeta)
+C         write(*,*) 'DT_PYEVNTEP: Back in lab frame'
+C         CALL PYLIST(2)
+         MSTJ(1) = 1
+         CALL PYEXEC
+C         write(*,*) 'DT_PYEVNTEP: After  PYEXEC'
+C         CALL PYLIST(2)
+      endif
+
+      P3=PF(3)
+      P4=PF(4)
+      PF(3)=pgamma*(P3+pbeta*P4)
+      PF(4)=pgamma*(P4+pbeta*P3)
+c      write(*,*) PF(1),PF(2),PF(3),PF(4)
+
+c...Translate PYJETS into HEPEVT event record
+      CALL PYHEPC(1)
+
+c...Output part
+c...First loop to find exchanged boson
+      DO  J=1,NHEP
+c...output of event list from pythia for a temp check      
+c      WRITE(88,998) J,ISTHEP(J),IDHEP(J),JMOHEP(1,J),
+c     &          JMOHEP(2,J),JDAHEP(1,J),JDAHEP(2,J),
+c     &          PHEP(1,J),PHEP(2,J),PHEP(3,J),PHEP(4,J),
+c     &              PHEP(5,J)
+c  998      FORMAT(I5,I5,I8,4I5,5F17.5)
+
+c...change the sign of z to dpmjet convention and transform to 
+c...nuclear rest frame      
+c     P3=pgamma*(PHEP(3,J)-pbeta*PHEP(4,J))
+c     P4=pgamma*(PHEP(4,J)-pbeta*PHEP(3,J))
+c     PHEP(3,J)=-P3
+c     PHEP(4,J)=P4
+c...find the virtual photon to do LT from lab to gamma c.m.s      
+      PHEP(3,J)=-PHEP(3,J)
+c... Mark 2016-09-14 Flip px also to make it a rotation
+      PHEP(1,J)=-PHEP(1,J)  
+      IF((IDHEP(J).EQ.22).AND.(ISTHEP(J).EQ.3).AND.
+     & (JMOHEP(1,J).EQ.1)) THEN
+      GAMM(1)=PHEP(1,J)
+      GAMM(2)=PHEP(2,J)
+      GAMM(3)=PHEP(3,J)
+      GAMM(4)=PHEP(4,J)
+      GAMM(5)=PHEP(5,J)
+      ENDIF
+      ENDDO
+c...loop to find exchanged boson end
+
+**************copy entries from pythia to DTEVT1*************
+*********transform pythia entries from lab to c.m.s of gamma+p********
+      eveBETA(1)=-(PHEP(1,2)+GAMM(1))/(PHEP(4,2)+GAMM(4))
+      eveBETA(2)=-(PHEP(2,2)+GAMM(2))/(PHEP(4,2)+GAMM(4))
+
+**!!!!!!!!remember to change the sign of proton beam in LT*****      
+      eveBETA(3)=-(PHEP(3,2)+GAMM(3))/(PHEP(4,2)+GAMM(4))
+
+      eveBETA(4)=eveBETA(1)*eveBETA(1)+eveBETA(2)*eveBETA(2)+
+     & eveBETA(3)*eveBETA(3)
+
+      GAA=1./SQRT(1-eveBETA(4))
+      
+      eveBETA(1)=eveBETA(1)*GAA
+      eveBETA(2)=eveBETA(2)*GAA
+      eveBETA(3)=eveBETA(3)*GAA
+*  in the n rest frame rotate virtual photon  angles to +z axis
+*...COD=cos(theta) SID=sin(theta) COF=cos(phi) SIF=sin(phi)
+      call DT_DALTRA(GAA,eveBETA(1),eveBETA(2),eveBETA(3),
+     &GAMM(1),GAMM(2),GAMM(3),GAMM(4),PTOT,P1,P2,P3,P4)
+      PTOT=SQRT(P1**2+P2**2+P3**2)
+      COD = P3/PTOT
+      PPT = SQRT(P1**2+P2**2)
+      SID = PPT/PTOT
+      IF(P1.GT.ZERO) THEN
+         COF = ONE
+      ELSE
+         COF = -ONE
+      ENDIF
+      SIF = ZERO      
+      IF (PTOT*SID.GT.TINY10) THEN
+         COF = P1/(SID*PTOT)
+         SIF = P2/(SID*PTOT)
+         ANORF = SQRT(COF*COF+SIF*SIF)
+         COF = COF/ANORF
+         SIF = SIF/ANORF
+      ENDIF
+C-TEMP-TEMP-TEMP
+C      WRITE(*,*)'Transformation from Lab to HCMS'
+C      WRITE(*,*)'GAA,eveBETA(1-3): ',GAA,' ',eveBETA(1),' ',
+C     &               eveBETA(2),' ',eveBETA(3)
+C      WRITE(*,*)'Lab GAMM(1-4): ',GAMM(1),' ',GAMM(2),' ',GAMM(3),
+C     &                        GAMM(4)
+C      WRITE(*,*)'HCMS P1,P2,P3,P4: ',P1,' ',P2,' ',P3,' ',P4
+C      WRITE(*,*)'Photon angles in HCMS'
+C      WRITE(*,*)'COD,SID,COF,SIF: ',COD,' ',SID,' ',COF,' ',SIF
+
+c...Collector to get the sum of final state momentums other than 
+c...the scattered electron in gamma nucleon c.m.s frame
+      PP1=0.
+      PP2=0.
+      PP3=0.
+      PP4=0.
+C...Mark also charge 2016-09-10
+      QCHG=0.
+***************from HEPEVT to HKKEVT***************************
+      DO J=1,NHEP
+         I=J+NPOINT(1)+1
+         ISTHKK(I)=ISTHEP(J)
+         IDHKK(I)=IDHEP(J)
+         IF(JMOHEP(1,J).GE.1) JMOHKK(1,I)=JMOHEP(1,J)+NPOINT(1)+1
+         IF(JMOHEP(2,J).GE.1) JMOHKK(2,I)=JMOHEP(2,J)+NPOINT(1)+1
+         IF(JDAHEP(1,J).GE.1) JDAHKK(1,I)=JDAHEP(1,J)+NPOINT(1)+1
+         IF(JDAHEP(2,J).GE.1) JDAHKK(2,I)=JDAHEP(2,J)+NPOINT(1)+1
+**********rotate in nucleon c.m.s frame***********************         
+         call DT_DALTRA(GAA,eveBETA(1),eveBETA(2),eveBETA(3),
+     &   PHEP(1,J),PHEP(2,J),PHEP(3,J),PHEP(4,J),PTOT,P1,P2,P3,P4)
+         PHKK(1,I)=COD*(COF*P1+SIF*P2)-SID*P3
+C  Mark 2016-09-15 Make this a rotation, not a flip
+C        theta=phi=0 should be the identity transformation.
+C        Old line: PHKK(2,I)=SIF*P1-COF*P2
+         PHKK(2,I)=COF*P2-SIF*P1
+         PHKK(3,I)=SID*(COF*P1+SIF*P2)+COD*P3
+         PHKK(4,I)=P4
+c         call DT_LTNUC(P3,P4,PHKK(3,I),PHKK(4,I),3)
+*********LT from nucleon rest c.m.s**************************
+c         call DT_LTRANS(P1,P2,P3,P4,PHKK(1,I),PHKK(2,I),
+c     &    PHKK(3,I),PHKK(4,I),1,3)
+******rotate to virtual photon directing z+ ******************         
+         PHKK(5,I)=PHEP(5,J)
+c         PHKK(1,I)=P1
+c         PHKK(2,I)=P2
+C-TEMP-TEMP-TEMP
+C         WRITE(*,*)'Particle I, ISTHKK, IDHKK: ',I,' ',ISTHKK(I),
+C     &             ' ', IDHKK(I)
+C         WRITE(*,*)'Lab frame'
+C         WRITE(*,*),'PHEP(1-4): ',PHEP(1,J),' ',PHEP(2,J),' ',
+C     &                            PHEP(3,J),' ',PHEP(4,J)
+C         WRITE(*,*)'HCMS: z-boost from lab'
+C         WRITE(*,*)'P1,P2,P3,P4: ',P1,' ',P2,' ',P3,' ',P4
+C         WRITE(*,*)'HCMS: z along gamma*'
+C         WRITE(*,*),'PHKK(1-4): ',PHKK(1,I),' ',PHKK(2,I),' ',
+C     &                            PHKK(3,I),' ',PHKK(4,I)
+********get the position of particles in nucleon rest frame***         
+c... we simply use the position of involved nucleon for all the
+c... particles         
+c... Mark - 2016-08-24 treat recoiling extra nucleons differently
+         IF (ISTHEP(J).NE.INTFLG) THEN         
+            DO M=1,4
+               VHKK(M,I)=PosNuc(M)
+            ENDDO
+         ELSE
+c... Set VHKK for recoiling nucleons and reset their status to 1.
+            JPOINT = 0
+            DO MM=1,NINTS
+               IF (NPOS(MM).EQ.J) THEN
+                  JPOINT = MM
+               ENDIF
+            ENDDO
+            IF (JPOINT.GT.0) THEN
+               DO M=1,4
+                  VHKK(M,I)=PosAlt(JPOINT,M)
+               ENDDO
+               JMOHKK(1,I)=MomAlt(JPOINT)
+C               IDHKK(I)=IDAlt(JPOINT)
+            ENDIF
+            ISTHEP(J)=1
+            ISTHKK(I)=1
+         ENDIF
+
+c...set BAM ID for the particles         
+         IDBAM(I)=IDT_ICIHAD(IDHKK(I))
+c...change the IS of out e- from 1 to 99 in order to avoid its 
+c...interaction in cascade
+         IF( (ISTHEP(J).EQ.1).AND.(IDHEP(J).EQ.11).AND.
+     & (JMOHEP(1,J).EQ.3) ) THEN
+            ISTHKK(I)=99
+            JMOHKK(1,I)=JMOHEP(1,J)
+         ENDIF
+         NHKK=NHKK+1
+
+c...collect final state momentum in gamma*p cms frame
+         IF( ISTHKK(I).EQ.1 ) THEN
+            PP1=PHKK(1,I)+PP1
+            PP2=PHKK(2,I)+PP2
+            PP3=PHKK(3,I)+PP3
+            PP4=PHKK(4,I)+PP4
+            QCHG=QCHG+PYCHGE(IDHKK(I))/3D0
+C            print*,'I=',I,' ID=',IDHKK(I),' IS=',ISTHKK(I)
+C            print*,'BAM=',IDBAM(I),' P1=',PHKK(1,I),' P2=',PHKK(2,I)
+C            print*,'NOBAM=',NOBAM(I),' P3=',PHKK(3,I),' P4=',PHKK(4,I)
+         ENDIF
+C      WRITE(89,997) I,ISTHKK(I),IDHKK(I),JMOHKK(1,I),
+C     &          JMOHKK(2,I),JDAHKK(1,I),JDAHKK(2,I),
+C     &          PHKK(1,I),PHKK(2,I),PHKK(3,I),PHKK(4,I),
+C     &              PHKK(5,I)
+C  997      FORMAT(I5,I5,I8,4I5,5F17.5)
+      ENDDO
+
+C-TEMP-TEMP-TEMP commenting in
+C      print*,'4-momentum & charge totals for Status=1:'
+C      print*,'PP1=',PP1,' PP2=',PP2,' PP3=',PP3,' PP4=',PP4,
+C     &       ' QCHG=',QCHG
+      call DT_DALTRA(GAA,eveBETA(1),eveBETA(2),eveBETA(3),
+     &PF(1),PF(2),PF(3),PF(4),PTOT,P1,P2,P3,P4)
+      PF(1)=COD*(COF*P1+SIF*P2)-SID*P3
+      PF(2)=SIF*P1-COF*P2
+      PF(3)=SID*(COF*P1+SIF*P2)+COD*P3
+      PF(4)=P4
+
+c      DO M=1,4
+c         print*,'P1(',M,')=',PHKK(M,NPOINT(1)+5),'
+c     &    P2(',M,')=',PHKK(M,NPOINT(1)+6)
+c      ENDDO
+c      print*,'NPOINT1=',NPOINT(1)
+c      print*,'ID1=',IDHKK(NPOINT(1)+5),' ID2=',IDHKK(NPOINT(1)+6)
+
+      !!!PAUX is used to balance the PFSP used to estimate 
+      !!!total final state particle information
+      !!!if energy loss, the lost momenta must be saved for 
+      !!!to correctly calculate the nucleus remnant mass
+      !!!in the DPMJET routines, where only evaporation energy
+      !!!should be considered
+      PAUX(1)=PHKK(1,NPOINT(1)+5)+PHKK(1,NPOINT(1)+6)-PP1
+      PAUX(2)=PHKK(2,NPOINT(1)+5)+PHKK(2,NPOINT(1)+6)-PP2
+      PAUX(3)=PHKK(3,NPOINT(1)+5)+PHKK(3,NPOINT(1)+6)-PP3
+      PAUX(4)=PHKK(4,NPOINT(1)+5)+PHKK(4,NPOINT(1)+6)-PP4
+C-TEMP-TEMP-TEMP
+      print*,'PA1=',PAUX(1),' PA2=',PAUX(2),' PA3=',PAUX(3),
+     &' PA4=',PAUX(4)
+c      print*,'PF1=',PF(1),' PF2=',PF(2),' PF3=',PF(3),' PF4=',PF(4)
+c*******test region*************
+c     call DT_DALTRA(GAA,eveBETA(1),eveBETA(2),eveBETA(3),
+c    &GAMM(1),GAMM(2),GAMM(3),GAMM(4),PTOT,P1,P2,P3,P4)
+c     write(87,*) 'before LT'
+c     write(87,*) GAMM(1),' ',GAMM(2),' ',GAMM(3),' ',GAMM(4)
+c     write(87,*) 'after LT before rotate '
+c     write(87,*) P1,' ',P2,' ',P3,' ',P4
+c     PP1=COD*(COF*P1+SIF*P2)-SID*P3
+c     PP2=SIF*P1-COF*P2
+c     PP3=SID*(COF*P1+SIF*P2)+COD*P3
+c     PP4=P4
+c     write(87,*) 'after rotate'
+c     write(87,*) PP1,' ',PP2,' ',PP3,' ',PP4
+c     write(87,*) 'from dpmjet'
+c     write(87,*) PPG(1),' ',PPG(2),' ',PPG(3),' ',PPG(4)
+c     write(87,*) PGAMM(1),' ',PGAMM(2),' ',PGAMM(3),' ',PGAMM(4)
+c     write(87,*) 'VIRT ',VIRT,' GAMM(5) ',GAMM(5),' ',' VINT(307)',
+c    &VINT(307) 
+c     write(87,*) 'rotate back'
+c     write(87,*) P1,' ',P2,' ',P3,' ',P4
+c     call DT_DALTRA(GAA,-eveBETA(1),-eveBETA(2),-eveBETA(3),
+c    &P1,P2,P3,P4,PTOT,PP1,PP2,PP3,PP4)
+c     write(87,*) 'LT back'
+c     write(87,*) PP1,' ',PP2,' ',PP3,' ',PP4
+c****************************************
+
+C-TEMP-TEMP-TEMP
+C      WRITE(*,*) 'End of DT_PYEVNTEP - mode 2'
+C      CALL DT_PYOUTEP(4)
+
+      LFIRST=.TRUE.
+      RETURN
+
+9999  CONTINUE
+      IREJ=1
+
+      END
+
+
+*=====dt_pyout=========================================================
+*used for the output of pythia event list and statistics information
+      SUBROUTINE DT_PYOUTEP(MODE)     
+ 
+*     input:
+*           MODE: 1:reject statistics
+*                 2:event output
+*                 3:total statistics print
+*                 4:event output to screen (for debugging) Mark 08/17/2016
+
+      include 'pythia.inc'              ! All PYTHIA commons blocks
+      include "mc_set.inc"
+      include "py6strf.inc"
+      include "mcRadCor.inc"
+      include "radgen.inc"
+      include "phiout.inc"
+
+      EXTERNAL PYCHGE, NBARY
+      INTEGER NBARY
+* event history
+
+      PARAMETER (NMXHKK=200000)
+   
+      LOGICAL ISHADR
+      EXTERNAL ISHADR
+
+      COMMON /DTEVT1/ NHKK,NEVHKK,ISTHKK(NMXHKK),IDHKK(NMXHKK),
+     &                JMOHKK(2,NMXHKK),JDAHKK(2,NMXHKK),
+     &                PHKK(5,NMXHKK),VHKK(4,NMXHKK),WHKK(4,NMXHKK)
+
+* extended event history
+      COMMON /DTEVT2/ IDRES(NMXHKK),IDXRES(NMXHKK),NOBAM(NMXHKK),
+     &                IDBAM(NMXHKK),IDCH(NMXHKK),NPOINT(10)
+c     &                IHIST(2,NMXHKK)
+
+      PARAMETER (ZERO=0.0D0,ONE=1.0D0,TINY10=1.0D0-10,MAXNCL=260)
+
+C     MDB 2017-01-06 BeAGLE-specific output information
+      INTEGER KSOUT,BAMOUT,JM2OUT,JM1OUT,JD1OUT,JD2OUT,AOUT,ZOUT
+      COMMON /BEAEVT/ BBEA,PHIB,THKB,THKSCL,NCOLLT,NCOLLI,NNEVAP,NPEVAP,
+     &                AREMN,NINC,NINCCH,DFIRST,DAVG,PXF,PYF,PZF,PZLEP,
+     &                PZTARG,PZNUCL,RAEVT,USER1,USER2,USER3,OLDOUT,LTYPE
+      DOUBLE PRECISION BBEA,PHIB,THKB,THKSCL,DFIRST,DAVG,PXF,PYF,PZF
+      DOUBLE PRECISION RAEVT,USER1,USER2,USER3,PZLEP,PZTARG,PZNUCL
+      INTEGER NCOLLT,NCOLLI,NNEVAP,NPEVAP,AREMN,NINC,NINCCH,LTYPE
+      LOGICAL OLDOUT
+
+* Glauber formalism: collision properties
+      COMMON /DTGLCP/ RPROJ,RTARG,BIMPAC,
+     &                NWTSAM,NWASAM,NWBSAM,NWTACC,NWAACC,NWBACC
+
+C...MDB 2016-11-10 Add pbeamP and pbeamN, idNuc, lName
+C...MDB 2017-01-25 Add MAscl
+C...Information about LT from lab to nucleon rest frame
+      COMMON /LABTONR/ MAscl,pgamma,pbeta,pbeamP,pbeamN,idNuc,lName
+      DOUBLE PRECISION MAscl,pgamma, pbeta
+      REAL pbeamP, pbeamN
+      INTEGER idNuc
+      CHARACTER*10 lName
+
+C...Pythia event counter (since we keep PYINITing) Mark 2017-01-31
+      COMMON /PYCNTR/ MYNGEN
+      INTEGER MYNGEN
+      SAVE /PYCNTR/
+
+* lorentz transformation parameter
+      COMMON /LTPARA/ BGTA(4), GAMM(5), eveBETA(4), GAA
+      COMMON /ROTATE/ COF,COD,SIF,SID
+
+* event flag
+      COMMON /DTEVNO/ NEVENT,ICASCA 
+
+* added by liang to store the output event variables 1/20/12
+      COMMON /EVTOUT/ XBJOUT,YYOUT,W2OUT,NUOUT,Q2OUT
+      DOUBLE PRECISION XBJOUT,YYOUT,W2OUT,NUOUT,Q2OUT
+
+C...Added by liang 1/6/12
+C...Switches for nuclear correction
+      COMMON /PYNUCL/ INUMOD,CHANUM,ORDER,genShd
+      SAVE /PYNUCL/
+      DOUBLE PRECISION INUMOD,CHANUM
+      INTEGER ORDER,genShd
+
+* treatment of residual nuclei: 4-momenta
+      LOGICAL LRCLPR,LRCLTA
+      COMMON /DTRNU1/ PINIPR(5),PINITA(5),PRCLPR(5),PRCLTA(5),
+     &                TRCLPR(5),TRCLTA(5),LRCLPR,LRCLTA
+
+* treatment of residual nuclei: properties of residual nuclei
+      COMMON /DTRNU2/ AMRCL0(2),EEXC(2),EEXCFI(2),
+     &                NTOT(2),NPRO(2),NN(2),NH(2),NHPOS(2),NQ(2),
+     &                NTOTFI(2),NPROFI(2)
+
+* properties of interacting particles
+      COMMON /DTPRTA/ IT,ITZ,IP,IPZ,IJPROJ,IBPROJ,IJTARG,IBTARG
+c...target/proj mass, charge and projectile internal ID
+      integer IT, ITZ, IP, IPZ, IJPROJ
+
+* added by liang to check the photon flux 12/28/11
+      COMMON /FLCHK/ PFXCHK
+      DOUBLE PRECISION PFXCHK
+
+C...output file name definition
+      COMMON /OUNAME/ outname
+
+      CHARACTER*256 outname
+
+      DOUBLE PRECISION P1, P2, P3, P4, PTOT, PP1, PP2, PP3, PP4
+
+      integer NEV, NPRT, ievent, genevent, I, tracknr
+      integer lastgenevent, idum1, idum2, initseed, nrtrack
+      REAL trueX, trueW2, trueNu
+      DOUBLE PRECISION sqrts, radgamE, radgamp, radgamEnucl
+      DOUBLE PRECISION pbeamE, ebeamE, epznucl
+      CHARACTER PARAM*100
+      LOGICAL UseLut, GenLut
+
+      INTEGER MODE
+
+      LOGICAL FIRST
+      SAVE FIRST
+      DATA FIRST /.TRUE./
+
+      pbeamE=sqrt(pbeam**2+massp**2)
+      ebeamE=sqrt(ebeam**2+masse**2)
+      sqrts=sqrt((pbeamE+ebeamE)**2-(pbeam-ebeam)**2)
+      trueX =  VINT(307)/VINT(309)/(sqrts)
+      trueW2 = massp**2 + VINT(307)*(1/trueX-1)
+      trueNu = (trueW2 + VINT(307) - massp**2)/(2.*massp)
+      if (mcRadCor_EBrems.gt.0.) then
+         radgamEnucl=sqrt(dplabg(1)**2+dplabg(2)**2+dplabg(3)**2)
+         radgamE=pgamma*radgamEnucl-pgamma*pbeta*dplabg(3)
+         radgamp=-pgamma*pbeta*radgamEnucl+pgamma*dplabg(3)
+C         write(*,*) radgamEnucl, radgamE, dplabg(3), radgamp
+      else
+        radgamEnucl=0D0
+        radgamE=0D0
+        radgamp=0D0 
+      endif
+
+      if ((msti(1).ge.91).and.(msti(1).le.94)) msti(16)=0
+
+      ievent = NEVENT
+
+      GOTO (1,2,3,4) MODE
+
+c...mode 1 is used to update the reject statistics in pythia
+1     CONTINUE      
+c      write(99,*),'event ',ievent,' rejected,',' proces=',
+c     & msti(1),', X=',XBJOUT,' Q2=',Q2OUT 
+         
+      RETURN
+
+c...mode 2 is used to output the event list
+2     CONTINUE
+
+      IF(FIRST) open(29, file=outname,STATUS='UNKNOWN')
+
+      AREMN = 0
+      NNEVAP = 0
+      NPEVAP = 0
+      NINC = 0
+      NINCCH = 0
+**************check HKKEVT***********************************
+      DO  J=1,NHKK
+********rotate back from the gamma* +z direction***********
+         IF(J.GT.(NPOINT(1)+1)) THEN
+            P1=COF*(COD*PHKK(1,J)+SID*PHKK(3,J))+SIF*PHKK(2,J)
+            P2=SIF*(COD*PHKK(1,J)+SID*PHKK(3,J))-COF*PHKK(2,J)
+            P3=COD*PHKK(3,J)-SID*PHKK(1,J)
+            P4=PHKK(4,J)
+c**************transform back to the lab frame**************      
+            call DT_DALTRA(GAA,-eveBETA(1),-eveBETA(2),-eveBETA(3),
+     &           P1,P2,P3,P4,PTOT,PP1,PP2,PP3,PP4)
+c     WRITE(89,996) J,ISTHKK(J),IDHKK(J),JMOHKK(1,J),
+c     &          JMOHKK(2,J),JDAHKK(1,J),JDAHKK(2,J),
+c     &          PP1,PP2,-PP3,PP4, !remember to change the sign of z back
+c     &              PHKK(5,J)
+c  996      FORMAT(I5,I5,I8,4I5,5F17.5)
+            PHKK(1,J)=PP1
+            PHKK(2,J)=PP2      
+            PHKK(3,J)=-PP3
+            PHKK(4,J)=PP4
+c     PHKK(3,J)=pgamma*(P3+pbeta*P4)
+c     PHKK(4,J)=pgamma*(P4+pbeta*P3)
+c...find the exchanged boson and out e- to make it fit root tree making rules
+c...in the following steps
+            IF((ISTHKK(J).EQ.3).AND.(IDHKK(J).EQ.22).AND.
+     &           (JMOHKK(1,J).EQ.(NPOINT(1)+2))) THEN
+               IBOSON=J
+            ELSEIF(ISTHKK(J).EQ.99) THEN
+               ISTHKK(J)=1
+C               JMOHKK(1,J)=3   ! Do this later. Don't change internal record.
+               ILEPT=J
+c...2017-01-02 MDB Fill some new event variables
+            ELSEIF (.NOT. OLDOUT) THEN
+               IF (ISTHKK(J).EQ.1001) THEN
+                  AREMN = IDRES(J)
+               ELSEIF (ISTHKK(J).EQ.-1) THEN
+                  IF (IDHKK(J).EQ.2212) THEN
+                     NPEVAP=NPEVAP+1
+                  ELSEIF (IDHKK(J).EQ.2112) THEN
+                     NNEVAP=NNEVAP+1
+                  ENDIF
+               ELSEIF (ISTHKK(J).EQ.1.AND.NOBAM(J).EQ.0) THEN
+                  IF (ISHADR(IDHKK(J))) THEN
+                     NINC = NINC + 1
+                     IF (PYCHGE(IDHKK(J)).NE.0) NINCCH = NINCCH + 1
+                  ENDIF
+               ENDIF
+            ENDIF
+         ENDIF ! (J.GT.(NPOINT(1)+1))
+      ENDDO ! J=1,NHKK
+*************check HKKEVT end***************************      
+
+      genevent=MYNGEN-lastgenevent
+      tracknr = NHKK
+      if (mcRadCor_EBrems.gt.0.) then
+         nrtrack=tracknr+1
+      else
+         nrtrack=tracknr
+      endif
+
+c...print a title for the event file
+      If (FIRST) then
+        write(29,*)' PYTHIA EVENT FILE '
+        write(29,*)'============================================'
+        if (OLDOUT) then
+           write(29,30)
+        else
+           write(29,31) 
+        endif
+ 30     format('I, ievent, genevent, subprocess, nucleon,
+     &  targetparton, xtargparton, beamparton, xbeamparton,
+     &  thetabeamprtn, truey, trueQ2, truex, trueW2, trueNu, leptonphi, 
+     &  s_hat, t_hat, u_hat, pt2_hat, Q2_hat, F2, F1, R, sigma_rad, 
+     &  SigRadCor, EBrems, photonflux, nrTracks')
+ 31     format('I, ievent, genevent, lepton, Atarg, Ztarg, pzlep, pztarg,
+     &  pznucl, subprocess, 
+     &  nucleon, targetparton, xtargparton, beamparton, xbeamparton,
+     &  thetabeamprtn, truey, trueQ2, truex, trueW2, trueNu, leptonphi, 
+     &  s_hat, t_hat, u_hat, pt2_hat, Q2_hat, F2, F1, R, sigma_rad, 
+     &  SigRadCor, EBrems, photonflux, b, Phib, Thickness, ThickScl, 
+     &  Ncollt, Ncolli, Nnevap, Npevap, Aremn, NINC, NINCch, d1st, davg,
+     &  pxf, pyf, pzf, Eexc, RAevt, User1, User2, User3, nrTracks')
+        write(29,*)'============================================'
+
+c...similar to the dpmjet track wide title 
+      write(29,*)'I  ISTHKK(I)  IDHKK(I)  JMOHKK(2,I)  JMOHKK(1,I)
+     & JDAHKK(1,I)  JDAHKK(2,I)  PHKK(1,I)  PHKK(2,I)  PHKK(3,I)
+     & PHKK(4,I)  PHKK(5,I)  VHKK(1,I) VHKK(2,I) VHKK(3,I) IDRES(I)
+     & IDXRES(I) NOBAM(I)'
+
+c        write(29,*)' I  K(I,1)  K(I,2)  K(I,3)  K(I,4)  K(I,5)
+c     &  P(I,1)  P(I,2)  P(I,3)  P(I,4)  P(I,5)  V(I,1)  V(I,2)  V(I,3)'
+        write(29,*)'============================================'
+         FIRST=.FALSE.
+      endif
+
+***************standard output for event info***************************
+      if (OLDOUT) then
+         write(29,32) 0, ievent, genevent, msti(1), msti(12), 
+     &        msti(16), pari(34), msti(15), pari(33), pari(53), 
+c     &        VINT(309), VINT(307), trueX, trueW2, trueNu,
+     &        YYOUT, Q2OUT, XBJOUT, W2OUT, NUOUT,
+     &        VINT(313), pari(14), pari(15), pari(16), 
+     &        pari(18),  pari(22), sngl(py6f2), sngl(py6f1), 
+     &        py6r, mcRadCor_Sigrad, mcRadCor_sigcor, radgamEnucl,
+     &        VINT(319), nrtrack 
+      else
+C        Note: nrtrack is still # of tracks-4. So add 4.
+C        Set USER1,USER2,USER3 
+         USER1 = 1.0
+         USER2 = 2.0
+         USER3 = 3.0
+         write(29,33) 0, ievent, genevent, ltype, it, itz, pzlep, 
+     &        pztarg, pznucl, msti(1), msti(12), msti(16), pari(34), 
+     &        msti(15), pari(33), pari(53), 
+     &        YYOUT, Q2OUT, XBJOUT, W2OUT, NUOUT,
+     &        VINT(313), pari(14), pari(15), pari(16), 
+     &        pari(18),  pari(22), sngl(py6f2), sngl(py6f1), 
+     &        py6r, mcRadCor_Sigrad, mcRadCor_sigcor, radgamEnucl,
+     &        VINT(319), BBEA, PHIB, THKB, THKSCL, NCOLLT, NCOLLI,
+     &        NNEVAP, NPEVAP, AREMN, NINC, NINCCH, DFIRST, DAVG,
+     &        PXF, PYF, PZF, EEXC(2), RAEVT, USER1, USER2, USER3, 
+     &        nrtrack+4 
+      endif
+ 32   format((I4,1x,$),(I10,1x,$),3(I4,1x,$),(I10,1x,$),f9.6,1x,$,
+     &     I12,1x,$,2(f12.6,1x,$),7(f18.11,3x,$),11(f19.9,3x,$),I12,/)
+ 33   format((I4,1x,$),(I10,1x,$),4(I4,1x,$),3(f12.6,1x,$),2(I4,1x,$),
+     &     I6,1x,$,f9.6,1x,$,I6,1x,$,2(f12.6,1x,$),7(f18.11,3x,$),
+     &     11(f19.9,3x,$),4(f10.6,1x,$),7(I5,1x,$),2(f10.6,1x,$),
+     &     3(f15.6,1x,$),2(f9.6,1x,$),3(e17.8,1x,$),I6,/)
+      write(29,*)'============================================'
+
+***************standard output for particle info************************
+c...add 2 beam information at first to fit into root tree making rule      
+      I=NPOINT(1)+2   
+      write(29,34) 1,21,11,0,0,I+4,0,
+     &     PHKK(1,I),PHKK(2,I),PHKK(3,I),PHKK(4,I),PHKK(5,I),
+     &     VHKK(1,I),VHKK(2,I),VHKK(3,I)
+     &     ,0,0,0
+c...nuclear beam (if nucleus) needs to be made with modification
+      PP1=0
+      PP2=0
+c         IF(INUMOD.GT.1) THEN
+c            PP5 = PINITA(5)
+c            call DT_LTNUC(PINITA(3),PINITA(4),PP3,PP4,-3)
+c            !!Lorentz Transformation
+c            !!E = gama*(E-beta*pz); pz = gamma*(pz-beta*E)
+c            P4 = pgamma*PP4 - pgamma*(-pbeta)*PP3
+c            P3 = -pgamma*(-pbeta)*PP4 + pgamma*PP3
+c         ELSE
+      PP5 = PHKK(5,I+1)
+      P4 = PHKK(4,I+1)
+      P3 = PHKK(3,I+1)
+c         ENDIF
+      IF (OLDOUT) THEN
+         AOUT = 0
+         ZOUT = 0
+      ELSE 
+         AOUT = 1
+         ZOUT = 1
+      ENDIF
+      write(29,34) 2,21,2212,0,0,I+5,0,PP1,PP2,P3,P4,PP5,
+     &        VHKK(1,I+1),VHKK(2,I+1),VHKK(3,I+1),AOUT,ZOUT,0
+c...add the exchanged boson from the 
+      write(29,34) 3,21,11,0,1,ILEPT+4,0,
+     &     PHKK(1,ILEPT),PHKK(2,ILEPT),PHKK(3,ILEPT),
+     &     PHKK(4,ILEPT),PHKK(5,ILEPT),VHKK(1,ILEPT),
+     &     VHKK(2,ILEPT),VHKK(3,ILEPT)
+     &     ,0,0,0
+c...add the exchanged boson from the 
+      write(29,34) 4,21,22,0,1,IBOSON+4,0,
+     &     PHKK(1,IBOSON),PHKK(2,IBOSON),PHKK(3,IBOSON),
+     &     PHKK(4,IBOSON),PHKK(5,IBOSON),VHKK(1,IBOSON),
+     &     VHKK(2,IBOSON),VHKK(3,IBOSON)
+     &     ,0,0,0
+ 
+      DO I=1,tracknr
+c         if (K(I,3).le.nrtrack) then
+c...make the mother daughter relation consistent with 2 beam particles
+c...and virtual photon added on   
+         JM1OUT = 0
+         JM2OUT = 0
+         JD1OUT = 0
+         JD2OUT = 0
+         AOUT = 0
+         ZOUT = 0
+c 2016-12-30 MDB Don't actually change JMOHKK & JDAHKK since we
+C                didn't change PHKK etc.
+C                Also fix bug where Mother2 wasn't offset
+         IF(I.NE.ILEPT) THEN
+C               IF(JMOHKK(1,I).GT.0) JMOHKK(1,I)=JMOHKK(1,I)+4
+C               IF(JDAHKK(1,I).GT.0) JDAHKK(1,I)=JDAHKK(1,I)+4
+C               IF(JDAHKK(2,I).GT.0) JDAHKK(2,I)=JDAHKK(2,I)+4
+            IF(JMOHKK(1,I).GT.0) JM1OUT = JMOHKK(1,I)+4
+            IF(JMOHKK(2,I).GT.0) JM2OUT = JMOHKK(2,I)+4
+            IF(JDAHKK(1,I).GT.0) JD1OUT = JDAHKK(1,I)+4
+            IF(JDAHKK(2,I).GT.0) JD2OUT = JDAHKK(2,I)+4
+         ELSE
+C     Special treatment for scattered lepton
+            JM1OUT = 3
+         ENDIF
+         KSOUT = ISTHKK(I)
+         BAMOUT = NOBAM(I)
+         IF (IDHKK(I).EQ.80000) THEN
+            ZOUT = IDXRES(I)
+            AOUT = IDRES(I)
+         ELSEIF (.NOT. OLDOUT) THEN
+            AOUT = NBARY(IDHKK(I))
+            IF (MOD(AOUT,3).EQ.0) THEN
+               AOUT = AOUT/3
+            ELSE
+               AOUT = 0
+            ENDIF
+            ZOUT = PYCHGE(IDHKK(I))
+            IF (MOD(ZOUT,3).EQ.0) THEN
+               ZOUT = ZOUT/3
+            ELSE
+               ZOUT = 0
+            ENDIF
+         ENDIF
+         IF (.NOT.OLDOUT) THEN
+!!!dump nuclear remnants into final state particles
+            IF (ISTHKK(I).EQ.-1) THEN
+               KSOUT = 1
+               BAMOUT = 3
+            ELSEIF (ISTHKK(I).EQ.1001) THEN
+               KSOUT = 1
+               BAMOUT = 4
+            ENDIF
+         ENDIF
+         write(29,34) I+4, KSOUT, IDHKK(I), JM2OUT, JM1OUT, 
+     &        JD1OUT, JD2OUT, PHKK(1,I), PHKK(2,I), PHKK(3,I),
+     &        PHKK(4,I), PHKK(5,I), VHKK(1,I), VHKK(2,I), VHKK(3,I),
+     &        AOUT, ZOUT, BAMOUT
+         ENDDO
+c         if (mcRadCor_EBrems.gt.0.) then
+c            write(29,34) nrtrack, 55, 22, 1, 0, 0,
+c     &      sngl(dplabg(1)),sngl(dplabg(2)),sngl(-radgamp),
+c     &      sngl(radgamE), 0., 0., 0., 0.
+c         endif
+C 34      format(2(I6,1x,$),I10,1x,$,3(I8,1x,$),5(f15.6,1x,$),
+C     &      3(e15.6,1x,$)/)
+ 34      format(2(I6,1x,$),I10,1x,$,4(I8,1x,$),5(f15.6,1x,$),
+     &       3(e15.6,1x,$),3(I8,1x,$)/)
+
+         write(29,*)'=============== Event finished ==============='
+
+         lastgenevent=MYNGEN
+
+c         print*,'output finished'
+      RETURN
+
+c...mode 3 is used to print the whole statistics information
+3     CONTINUE
+      CALL PYSTAT(1)
+      CALL PYSTAT(4)
+
+      WRITE(*,*)'The charm mass used is: ', PMAS(4,1)
+         
+C...Print the Pythia cross section which is needed to get an absolute
+C   normalisation the number is in microbarns
+      write(*,*)'==================================================='
+      write(*,*)'FROM PYTHIA (just last few events due to PYINITs!):'
+      write(*,*)'Pythia total cross section normalisation:',
+     &            pari(1)*1000, ' microbarn'
+      write(*,*)'Total Number of generated events pythia', MSTI(5)
+      write(*,*)'==================================================='
+      write(*,*)'Actual totals from BeAGLE:'
+      write(*,*)'Total Number of generated events', NEVENT
+      write(*,*)'Total Number of trials', MYNGEN
+      write(*,*)'==================================================='
+      close(29)
+
+C...Check pdf status       
+      call PDFSTA
+      
+      RETURN
+
+c...mode 4 is used to output the event list to screen in current frame
+c...without a lot of reformatting and rearranging (Mark 08/17/2016)
+c...using the old event header (Mark 01/02/2017)
+4     CONTINUE
+
+      genevent=MYNGEN-lastgenevent
+      tracknr = NHKK
+      if (mcRadCor_EBrems.gt.0.) then
+         nrtrack=tracknr+1
+      else
+         nrtrack=tracknr
+      endif
+
+c...print a title for the event file - use formats from case 2
+      write(*,*)' DUMP of /DTEVT1/'
+      write(*,*)'============================================'
+      if (OLDOUT) then
+         write(*,30) 
+      else
+         write(*,31)
+      endif 
+      write(*,*)'============================================'
+      write(*,*)' NPOINT(1-4):'
+      write(*,*) NPOINT(1),' ',NPOINT(2),' ',NPOINT(3),' ',NPOINT(4)
+      write(*,*)'============================================'
+
+***************standard output for event info***************************
+      if (OLDOUT) then
+         write(*,32) 0, ievent, genevent, msti(1), msti(12), 
+     &        msti(16), pari(34), msti(15), pari(33), pari(53), 
+c     &        VINT(309), VINT(307), trueX, trueW2, trueNu,
+     &        YYOUT, Q2OUT, XBJOUT, W2OUT, NUOUT,
+     &        VINT(313), pari(14), pari(15), pari(16), 
+     &        pari(18),  pari(22), sngl(py6f2), sngl(py6f1), 
+     &        py6r, mcRadCor_Sigrad, mcRadCor_sigcor, radgamEnucl,
+     &        VINT(319), nrtrack 
+      else
+C        Note: nrtrack is still # of tracks-4. So add 4.
+C        Set USER1,USER2,USER3 
+         USER1 = 1.0
+         USER2 = 2.0
+         USER3 = 3.0
+         write(*,33) 0, ievent, genevent, ltype, it, itz, pzlep, 
+     &        pztarg, pznucl, msti(1), msti(12), msti(16), pari(34), 
+     &        msti(15), pari(33), pari(53), 
+     &        YYOUT, Q2OUT, XBJOUT, W2OUT, NUOUT,
+     &        VINT(313), pari(14), pari(15), pari(16), 
+     &        pari(18),  pari(22), sngl(py6f2), sngl(py6f1), 
+     &        py6r, mcRadCor_Sigrad, mcRadCor_sigcor, radgamEnucl,
+     &        VINT(319), BBEA, PHIB, THKB, THKSCL, NCOLLT, NCOLLI,
+     &        NNEVAP, NPEVAP, AREMN, NINC, NINCCH, DFIRST, DAVG,
+     &        PXF, PYF, PZF, EEXC(2), RAEVT, USER1, USER2, USER3, 
+     &        nrtrack+4 
+      endif
+      write(*,*)'============================================'
+
+***************standard output for particle info************************
+c...use the dpmjet track wide title - EXTENDED!
+      write(*,*)'I  ISTHKK(I)  IDHKK(I)  JMOHKK(2,I)  JMOHKK(1,I)
+     & JDAHKK(1,I)  JDAHKK(2,I)  PHKK(1,I)  PHKK(2,I)  PHKK(3,I)
+     & PHKK(4,I)  PHKK(5,I)  VHKK(1,I) VHKK(2,I) VHKK(3,I) IDRES(I)
+     & IDXRES(I)  NOBAM(I), IDBAM(I), IDCH(I)'
+      write(*,*)'============================================'
+      DO I=1,tracknr
+         write(*,35) I,ISTHKK(I),IDHKK(I),JMOHKK(2,I),JMOHKK(1,I),
+     &        JDAHKK(1,I),JDAHKK(2,I),PHKK(1,I),PHKK(2,I),PHKK(3,I),
+     &        PHKK(4,I),PHKK(5,I),VHKK(1,I),VHKK(2,I),VHKK(3,I),
+     &        IDRES(I),IDXRES(I),NOBAM(I),IDBAM(I),IDCH(I)
+      ENDDO
+      write(*,*)'=============== Event finished ==============='
+c     35 is similar to 34, but with 2 extra integers at the end.
+c     Shortened some fields 
+ 35   format(2(I4,1x,$),I15,1x,$,4(I5,1x,$),5(f13.6,1x,$),
+     &       3(e14.6,1x,$),5(I4,1x,$)/)
+      
+      RETURN
+
+      END 
+
+
+*=====dt_pyf2qpm=========================================================
+*used for the calculation of F2 for pythia events sampling in QPM
+*formalism
+      SUBROUTINE DT_PYF2QPM(Q2,X,F2) 
+
+C...Double precision and integer declarations.
+      IMPLICIT DOUBLE PRECISION(A-H, O-Z)
+      IMPLICIT INTEGER(I-N)
+     
+c...Local variables
+      DIMENSION XPQ(-25:25)
+      DOUBLE PRECISION Q2,F2,X
+
+      INTEGER i,j,iter
+
+      call PYPDFU(2212,X,Q2,XPQ)
+      F2=4.0*(XPQ(2)+XPQ(-2)+XPQ(4)+XPQ(-4))/9.0+
+     &   (XPQ(1)+XPQ(-1)+XPQ(3)+XPQ(-3))/9.0
+   
+      RETURN
+
+      END    
+       
