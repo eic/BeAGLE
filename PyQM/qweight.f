@@ -124,7 +124,7 @@ c            print*, 'pi = ', pi
 
             print*, 'Wc = ', QW_wc
             print*, 'w = ', QW_w
-            print*, 'w/wc = ', QW_w/QW_wc
+c            print*, 'w/wc = ', QW_w/QW_wc
             print*, 'N_const = ', N_const
             print*, 'w_hard = ', w_int
             print*, 'w_soft = ', QW_w-w_int
