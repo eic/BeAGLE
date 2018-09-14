@@ -1,0 +1,52 @@
+      SUBROUTINE REINIT(NEWID)
+
+      include "pythia.inc"
+      include "mc_set.inc"
+      include "beagle.inc"
+
+      INTEGER NEWID
+
+C...MDB 2016-11-10 Add pbeamP and pbeamN, idNuc, lName
+C...MDB 2017-01-25 Add MAscl
+C...MDB 2017-02-27 Add idNucBAM
+C...Information about LT from lab to nucleon rest frame
+      COMMON /LABTONR/ MAscl,pgamma,pbeta,pbeamP,pbeamN,idNuc,idNucBAM,
+     &                 lName
+      DOUBLE PRECISION MAscl,pgamma, pbeta
+      REAL pbeamP, pbeamN
+      INTEGER idNuc, idNucBAM
+      CHARACTER*10 lName
+
+      idNuc=NEWID
+      massp=PYMASS(idNuc)
+      P(1,1) = 0.0
+      P(1,2) = 0.0
+      P(1,3) = PZLEP
+      P(2,1) = 0.0
+      P(2,2) = 0.0
+
+      IF (NEWID.EQ.2212) THEN
+         idNucBAM=1
+         P(2,3) = pbeamP
+         pbeam  = P(2,3)
+         PZNUCL = pbeam
+         call pyinit('3MOM', lName, 'p+', WIN)
+      ELSEIF (NEWID.EQ.2112) THEN
+         idNucBAM=8
+         P(2,3) = pbeamN
+         pbeam  = P(2,3)
+         PZNUCL = pbeam
+         call pyinit('3MOM', lName, 'n0', WIN)
+      ELSE
+         WRITE(*,*) "ERROR: Can't initialize with ID: ",NEWID
+      ENDIF
+ 
+C Note: Radgen not tested in BeAGLE
+C Does it need reinitializing?
+      if (iModel.eq.1 .and. qedrad.eq.1) then
+         MSTP(199)=1
+         call radgen_init(.true.,.false.)
+      endif
+
+      RETURN
+      END

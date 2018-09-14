@@ -1,0 +1,87 @@
+      DOUBLE PRECISION FUNCTION DCALC(Z0)
+C... MDB 2017-03-09
+C... Use PyQM routines to calculate d = integral_z0^infinity rho(b,z) dz
+C... Where rho is normalized to be 1 at r=0.
+C... Note: This won't work quite right for Ca. Have to think about it.
+      implicit none
+C      include 'common.f'
+      double precision RR,a0,c0
+      common/ woodssaxon/ RR,a0,c0
+      double precision RHOOFZ, z0, zinfty, dgauss11
+      external dgauss11, rhoofz
+
+      zinfty = RR + 10.0d0*a0
+      DCALC = DGAUSS11(RHOOFZ,z0,zinfty,1d-5)
+
+      RETURN
+      END
+C
+      DOUBLE PRECISION FUNCTION RHOOFZ(Z)
+C... MDB 2017-03-09 rho(b,z) for fixed b to integrate
+C... Note: rho is normalized to be 1 at r=0.
+C... Note: This won't work quite right for Ca. Have to think about it.
+      implicit none
+      include 'common.f'
+      double precision RR,a0,c0
+      common/ woodssaxon/ RR,a0,c0
+
+      double precision SCLFAC, nucdens, z, r, TINY6
+      external nucdens, SCLFAC
+      parameter (TINY6=1.0d-6)
+      integer IDUM
+
+C     MDB 2017-08-26 BeAGLE-specific output information
+      INTEGER KSOUT,BAMOUT,JM2OUT,JM1OUT,JD1OUT,JD2OUT,AOUT,ZOUT
+      COMMON /BEAEVT/ BBEA,PHIB,THKB,THKSCL,DFIRST,DAVG,PXF,PYF,PZF,EKF,
+     &     RAEVT,USER1,USER2,USER3,PZLEP,PZTARG,PZNUCL,CRANG,SIGEFF,
+     &     NCOLLT,NCOLLI,NNEVAP,NPEVAP,AREMN,NINC,NINCCH,LTYPE,USERSET,
+     &     CRORI,NWOUND,NWDCH,OLDOUT
+      DOUBLE PRECISION BBEA,PHIB,THKB,THKSCL,DFIRST,DAVG,PXF,PYF,PZF,EKF
+      DOUBLE PRECISION RAEVT,USER1,USER2,USER3,PZLEP,PZTARG,PZNUCL,CRANG
+      DOUBLE PRECISION SIGEFF
+      INTEGER NCOLLT,NCOLLI,NNEVAP,NPEVAP,AREMN,NINC,NINCCH,LTYPE
+      INTEGER CRORI,NWOUND,NWDCH,USERSET
+      LOGICAL OLDOUT
+
+* properties of interacting particles
+c...target/proj mass, charge and projectile internal ID
+      INTEGER IT,ITZ,IP,IPZ,IJPROJ,IBPROJ,IJTARG,IBTARG,ITMODE 
+      COMMON /DTPRTA/ IT,ITZ,IP,IPZ,IJPROJ,IBPROJ,IJTARG,IBTARG,ITMODE
+
+      r = dsqrt(z*z+bbea*bbea)
+      rhoofz = DBLE(IT)*nucdens(r, ITZ, IT, 1, 1)/SCLFAC(IDUM)
+C      rhoofz = nucdens(r, ITZ, IT, 1, 1)/density_table(1)
+C      if (abs(density_table(1)-density_table(100)).gt.TINY6 .OR. 
+C     &   abs(c0).gt.TINY6 )
+C     &   write(*,*) "RHOOFZ WARNING: nuclear density not flat near r=0"
+
+      RETURN
+      END
+C
+      DOUBLE PRECISION FUNCTION SCLFAC(IDUM)
+      implicit none
+      include 'common.f'
+     
+* properties of interacting particles
+      COMMON /DTPRTA/ IT,ITZ,IP,IPZ,IJPROJ,IBPROJ,IJTARG,IBTARG,ITMODE
+c...target/proj mass, charge and projectile internal ID
+      integer IT,ITZ,IP,IPZ,IJPROJ,IBPROJ,IJTARG,IBTARG,ITMODE
+
+      integer idum
+      logical first 
+      data first /.TRUE./
+
+
+      IF (first) THEN
+         first = .FALSE.
+         SCLFAC = density_table(1)*DBLE(IT)
+         WRITE(*,*) 'SCLFAC: A=',IT,' Nuclear density at origin: ', 
+     &        SCLFAC, 'nucleons/fm^3'
+         IF (IT.NE.208) 
+     &      WRITE(*,*) 'SCLFAC: Using Pb density for consistency: ',
+     &      '0.1603902 nucleons/fm^3'
+      ENDIF
+      SCLFAC = 0.1603902d0
+
+      RETURN
+      END
