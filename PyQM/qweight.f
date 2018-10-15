@@ -33,8 +33,8 @@ c      integer PYQ_IPTF, PYQ_IEG
 c      COMMON /PQCTRL/ PQRECF, PYQ_SUPF, PYQ_IPTF, PYQ_IEG
 
       double precision ptot,pt,pt2,mmmm
-      double precision w_h, w_s, w_tot, N_const, w_n, w_high, w_mean
-      double precision w_temp, w_sub, w_int, w_limit
+      double precision N_const, w_n, w_high, w_mean
+      double precision w_sum, w_hard, w_soft
       integer n_w
 
       alphas = 1d0/3d0
@@ -116,76 +116,46 @@ c          print*, '-----------------------------'
           endif
           
           if(QW_w.gt.0) then
+ 
+            N_const=(2d0*alphas*cr*sqrt(2d0*QW_wc))/(pi)
+            
+            print*, '==========='
+            print*, 'w = ', QW_w
+            print*, 'Wc = ', QW_wc
+            print*, 'w/wc = ', QW_w/QW_wc
             print*, 'alpha_s = ', alphas 
             print*, 'C_R = ', cr
-c            print*, 'pi = ', pi
-            N_const=(2*alphas*cr*sqrt(2*QW_wc))/(pi)
-            w_int=1d0/4d0*(2*sqrt(QW_w)-(1/(2*N_const)))**2
+            print*, 'A = ', N_const
+            print*, '==========='
+            print*, 'case 1: 1 hard / 1soft'
 
-            print*, 'Wc = ', QW_wc
-            print*, 'w = ', QW_w
-            print*, 'w/wc = ', QW_w/QW_wc
-            print*, 'N_const = ', N_const
-            print*, 'w_hard = ', w_int
-            print*, 'w_soft = ', QW_w-w_int
+            w_hard = (sqrt(QW_w)-(1/(4d0*N_const)))**2
+            if(w_hard.lt.ieg) then
+              print*, 'w_hard less than ieg'
+            endif
+            w_soft = QW_w - w_hard
+
+            print*, 'w_hard = ', w_hard
+            print*, 'w_soft = ', w_soft
 
             print*, '==========='
-c            w_high = sqrt(QW_w -(1/(2*N_const)))
-            w_n = 1
-            w_limit = (sqrt(QW_w)-(1/(2*N_const)))**2
+            print*, 'case 2: n hard / 1 soft'
+            
+            n_w = 1
             w_mean = (sqrt(QW_w)-(1/(4*N_const)))**2
-            w_sub = w_mean
-c            print*, 'gluon', ,'w', ,'w_sub', ,'limit'
-            do while(w_limit>iet)
-              print*, w_n, w_mean,w_sub, w_limit
-              w_high = w_limit
-              w_limit = (sqrt(w_high)-(1/(2*N_const)))**2
-              w_sub = w_mean
+            w_sum = w_mean
+            w_high = QW_w
+            do while(w_mean>iet)
+              print*, n_w, w_mean, w_high
+              w_high = w_high-w_mean
               w_mean = (sqrt(w_high)-(1/(4*N_const)))**2
-              w_sub = w_sub-w_mean
+              w_sum = w_sum + w_mean
               
-c              w_int=1d0/4d0*(2*sqrt(QW_w)-(n_w/(2*N_const)))**2
-c              w_low = (sqrt(QW_w)-(w_n/(2*N_const)))**2
-              w_n = w_n + 1
+              n_w = n_w + 1
             enddo
 
-c            w_high = QW_w
-c            w_sub = QW_w
-c                        
-c            w_n = (N_const)**2
-c            n_w = 1
-c            if(w_n.le.iet) then
-c              print*, 'no gluons before cutoff'
-c            else if(w_n.gt.QW_w) then
-c              print*, 'w_1 > w'
-c            else
-c              do while (w_n.ge.iet)
-c                w_n = (N_const/n_w)**2
-c                w_low =w_n
-c                if(w_n.ge.iet) then
-c                  print*, 'limit ', n_w, ' with w = ', w_n
-c                  w_temp = (1.d0/4.d0)*(sqrt(w_high)+sqrt(w_low))**2
-c                  print*, 'gluon ', n_w, ' with w = ', w_temp
-c                  w_sub = w_sub - w_temp
-c                endif
-c                w_high = w_n
-c                n_w = n_w+1
-c                enddo
-c            endif 
-c
-c            print*, 'w_sub = ', w_sub 
-            
+            print*, 'w_soft = ', QW_w-w_sum
 
-c          if(iEg.eq.2) then
-c            w_h = (1.d0/4.d0)*(sqrt(QW_w)+sqrt(iet*0.001))**2
-c            w_s = (1.d0/4.d0)*(sqrt(w_h)+sqrt(iet*0.001))**2
-c          endif
-
-c            w_tot = w_s+w_h
-c          
-c            print*, 'w_hard = ', w_h
-c            print*, 'w_soft = ', w_s
-c            print*, 'w_tot = ', w_tot
           endif
 
 c          write(*,*) 'parton...',ip
