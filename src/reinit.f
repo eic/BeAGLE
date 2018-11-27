@@ -1,5 +1,9 @@
       SUBROUTINE REINIT(NEWID)
 
+C     Mark D. Baker  2018-02-24 Initial Version
+C
+C     Reinitializes Pythia and DPMJET for ep vs. en hard collisions
+C
       include "pythia.inc"
       include "mc_set.inc"
       include "beagle.inc"

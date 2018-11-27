@@ -16,20 +16,31 @@ C
 C...  MDB 2018-01-24 Information about LT from lab to nucleon rest frame
 C
       COMMON /LABTONR/ MAscl,pgamma,pbeta,pbeamP,pbeamN,pbeamdbl,
-     &	               idNucPY,idNucBAM, lName
+     &                 idNucPY,idNucBAM, lName
       DOUBLE PRECISION MAscl,pgamma, pbeta, pbeamP, pbeamN, pbeamdbl
       INTEGER idNucPY, idNucBAM
       CHARACTER*10 lName
 C
-C...  MDB 2018-02-03 Control flags input from DPMJET input file
+C...  MDB 2018-08-08 Control flags input from DPMJET input file
       LOGICAL LEMCCK,LHADRO,LSEADI,LEVAPO
       INTEGER IFRAG,IRESCO,IMSHL,IRESRJ,IOULEV,IFRAME,ITRSPT,IFERPY
+      INTEGER IFMDIST,IFMPOST
       COMMON /DTFLG1/ IFRAG(2),IRESCO,IMSHL,IRESRJ,IOULEV(6),LEMCCK, 
-     &                LHADRO(0:9),LSEADI,LEVAPO,IFRAME,ITRSPT,IFERPY
+     &                LHADRO(0:9),LSEADI,LEVAPO,IFRAME,ITRSPT,IFERPY,
+     &                IFMDIST,IFMPOST
 C
 C...  MDB 2018-04-19 Glauber 3D parameters
       LOGICAL USER3D, USEB3D, USEFX3D
       DOUBLE PRECISION RG3D, AG3D, WG3D, B2G3D, B4G3D, RATMAX3D
-      DOUBLE PRECISION XORIENT, YORIENT, ZORIENT, DENSFAC	
+      DOUBLE PRECISION XORIENT, YORIENT, ZORIENT, DENSFAC
       COMMON /BEGL3D/ RG3D, AG3D, WG3D, B2G3D, B4G3D, RATMAX3D,
      &     XORIENT, YORIENT, ZORIENT, USER3D, USEB3D, USEFX3D, DENSFAC
+
+C...  MDB 2018-06-12 Update event-generator model common block
+* nucleon-nucleon event-generator
+      CHARACTER*8 CMODEL
+      DOUBLE PRECISION ELOJET
+      INTEGER MCGENE
+      LOGICAL LPHOIN
+c      COMMON /DTMODL/ CMODEL(4),ELOJET,MCGENE,LPHOIN
+      COMMON /DTMODL/ CMODEL(6),ELOJET,MCGENE,LPHOIN

@@ -35,8 +35,10 @@
        character*(*) chopt
        character*1 c1opt
 
+C MDB 2018-06-17 Remove RNDM. It's redefined in RAPGAP.
 ! ... force redefined random number generators to be taken from here
-       external rndm, irndm, nran, rannor, ranf, rlu, ranums
+C       external rndm, irndm, nran, rannor, ranf, rlu, ranums
+       external irndm, nran, rannor, ranf, rlu, ranums
 
 ! Parse option string
 
@@ -66,22 +68,23 @@
        return
        end
 
-!-----------------------------------------------------------------
-! Replace the obsolete CERNLIB RNDM functions
-
-       real function rndm (dummy)
-
-       implicit none
-
-       real dummy, r
-
-        call ranlux(r,1)
-
-       rndm = r
-
-       return
-       end
-       
+C MDB 2018-06-17 Remove RNDM. It's redefined in RAPGAP.
+C!-----------------------------------------------------------------
+C! Replace the obsolete CERNLIB RNDM functions
+C
+C       real function rndm (dummy)
+C
+C       implicit none
+C
+C       real dummy, r
+C
+C        call ranlux(r,1)
+C
+C       rndm = r
+C
+C       return
+C       end
+C       
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
        integer function irndm (dummy)
 

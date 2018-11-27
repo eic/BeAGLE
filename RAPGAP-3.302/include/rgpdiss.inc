@@ -1,0 +1,14 @@
+cy **** PDISS alterations
+      DOUBLE PRECISION MY2,MY2MIN,MY2MAX,MYMIN,MYMAX
+c      INTEGER ITERB, ITERS
+c      COMMON/ITCOUNT/ ITERB,ITERS
+c      integer count
+c      common/counter/ count
+      common/pdisskin/MY2
+	integer ifragp,ijetset,I_glu
+      common/pdissel/ifragp,ijetset,I_glu
+	Double Precision peps,prn2
+      common/pdispar/peps,prn2
+	Double Precision wghtt
+      common/pdisval/wghtt
+	
