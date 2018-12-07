@@ -2,12 +2,13 @@
       implicit none
 
       include 'common.f'
+      include 'bea_pyqm.inc'
 
       integer ip,iq,ir ! For do
       integer iloop !current entry number
       integer iEg,iPtF,iqg
 
-      double precision qhat,SupFac,ehat
+      double precision qhat,SupFac,ehat,iet
 
       double precision th,ph
 
@@ -18,19 +19,13 @@
       double precision ipt,iptx,ipty,iptz
       double precision iE
 
-      double precision iptot,ipl,ptg,plg
+      double precision iptot,ipl,ptg,plg, cr
       double precision cutoff,sca
 
-C     PYQM Recoil momentum - don't call it PF
-      double precision PYQREC
-      COMMON /CORECT/ PYQREC(4)
-
-C     MDB 2017-08-09 PYQM control from BeAGLE
-      double precision PQRECF, PYQ_SUPF
-      integer PYQ_IPTF, PYQ_IEG
-      COMMON /PQCTRL/ PQRECF, PYQ_SUPF, PYQ_IPTF, PYQ_IEG
-
-      double precision ptot,pt,pt2
+      double precision ptot,pt,pt2,mmmm
+      double precision N_const, w_n, w_high, w_mean
+      double precision w_sum, w_hard, w_soft
+      integer n_w
 
       alphas = 1d0/3d0
       iqw = 1
@@ -38,19 +33,26 @@ C     MDB 2017-08-09 PYQM control from BeAGLE
       ncor = 0
       sfthrd = 1
 
-      cutoff =0.4 !energy cut off
+      cutoff = 0.4 !energy cut off
 C      iEg = 0
 C      iPtF = 3
       iEg = PYQ_IEG
       iPtF = PYQ_IPTF
+      iet = PYQ_IET
       iqg = 1
       SupFac = 1
       ehat = 0
+      cr=0
 
       iloop = N
 
       ip = 1
-
+c      print*, 'PYQ_HQ = ', pyq_hq
+      if (PYQ_VERB.GT.0) then
+         print*, 'PYQ_IET = ', pyq_iet
+         print*, 'iet = ', iet
+         print*, 'cutoff = ', cutoff
+      endif
 
       do while (ip.le.iloop)
 c      do ip =1,N
@@ -75,17 +77,76 @@ c...Added by liang
 c          if( sqrt(ipix**2+ipiy**2).gt.0.1 ) goto 9999
 
           iE = P(ip,4)
+          mmmm = P(ip,5)/iE
 c          write(*,*) 'Init parton ',tot,ipix,ipiy,ipiz
 
 c       Compute weight
           QW_nb = QW_nb + 1
 c          write(*,*) 'Init: ',qhat,P(ip,1),P(ip,2)
 c          write(*,*) 'Init: ',P(ip,3),P(ip,4),K(ip,2)
+c          print*, '================================'
+c          print*, 'initial parton'
+c          print*, 'K(ip,2) = ', K(ip,2)
+c          print*, 'P(ip,1) = ', P(ip,1) , 'P(ip,2) = ', P(ip,2)
+c          print*, 'P(ip,3) = ', P(ip,3), 'P(ip,4) = ', P(ip,4)
+c          print*, '-----------------------------'          
 
 111       continue
-          
-          call QWComput(qhat,P(ip,1),P(ip,2),P(ip,3),P(ip,4),K(ip,2))
 
+
+          call QWComput(qhat,P(ip,1),P(ip,2),P(ip,3),
+     &P(ip,4),mmmm,K(ip,2))
+
+
+
+          if(K(ip,2).lt.10) then
+            cr = 4d0/3d0
+          else if(K(ip,2).eq.21) then
+            cr=3d0
+          endif
+          
+          if(QW_w.gt.0) then
+ 
+            N_const=(2d0*alphas*cr*sqrt(2d0*QW_wc))/(pi)
+            
+            print*, '==========='
+            print*, 'w = ', QW_w
+            print*, 'Wc = ', QW_wc
+            print*, 'w/wc = ', QW_w/QW_wc
+            print*, 'alpha_s = ', alphas 
+            print*, 'C_R = ', cr
+            print*, 'A = ', N_const
+            print*, '==========='
+            print*, 'case 1: 1 hard / 1soft'
+
+            w_hard = (sqrt(QW_w)-(1/(4d0*N_const)))**2
+            if(w_hard.lt.ieg) then
+              print*, 'w_hard less than ieg'
+            endif
+            w_soft = QW_w - w_hard
+
+            print*, 'w_hard = ', w_hard
+            print*, 'w_soft = ', w_soft
+
+            print*, '==========='
+            print*, 'case 2: n hard / 1 soft'
+            
+            n_w = 1
+            w_mean = (sqrt(QW_w)-(1/(4*N_const)))**2
+            w_sum = w_mean
+            w_high = QW_w
+            do while(w_mean>iet)
+              print*, n_w, w_mean, w_high
+              w_high = w_high-w_mean
+              w_mean = (sqrt(w_high)-(1/(4*N_const)))**2
+              w_sum = w_sum + w_mean
+              
+              n_w = n_w + 1
+            enddo
+
+            print*, 'w_soft = ', QW_w-w_sum
+
+          endif
 
 c          write(*,*) 'parton...',ip
 c          write(*,*) 'Px=',P(ip,1),' Py=',P(ip,2),' Pz=',P(ip,3),
@@ -171,7 +232,7 @@ c         Fill Pythia array
             P(ip,2) = ipy
             P(ip,3) = ipz
             P(ip,4) = sqrt(P(ip,5)**2+ipx**2+ipy**2+ipz**2)
-c            print*,'delta E=',P(ip,4)-iE
+            print*,'delta E=',P(ip,4)-iE
 
 c           print*,'ptot=',sqrt(ipx**2+ipy**2+ipz**2),
 c    &       ' QW_w=',QW_w,' QW_th=',QW_th
@@ -237,6 +298,10 @@ c           print*,'sum=',th+acos(-ptg/ipg)
 c           print*,'theta_0=',th
 c           print*,'--------------------------------------'
 
+c            print*,'--------------------------------------'
+c            print*, 'PYLIST(1) before iEg1'
+c            call PYLIST(1)
+c            print*,'--------------------------------------'
 
 c Add gluon if requested
             if (iEg.eq.1) then
@@ -256,10 +321,26 @@ c Calculate the gluon kinematic
               ipgy = ptg*ipty+plg*ipiy
               ipgz = ptg*iptz+plg*ipiz
 
+c              print*, '-----------------------------'          
+c              print*, 'ip = ', ip
+c              print*, 'K(ip,2)', K(ip,2)
+c              print*, 'P(ip,1) = ', P(ip,1) , 'P(ip,2) = ', P(ip,2)
+c              print*, 'P(ip,3) = ', P(ip,3), 'P(ip,4) = ', P(ip,4)
+c              print*, '-----------------------------'          
+c              print*, 'Gluon emitted'
+c              print*, 'Px = ', ipgx, ', Py = ', ipgy, ', Pz = ', ipgz
+c              print*, 'E = ', ipg
+
 c Add the gluon in PYTHIA list
+
+              print*, 'ip = ', ip, ', N = ', N
+              print*, ' '
               do iq=ip,N
                 ir = ip+N-iq
                 if (K(ip-1,1).eq.2 .or. ir.ne.ip) then
+                  print*, 'if K(', ip-1, ',1) = 2 || '
+                  print*, 'ir (=', ir, ' != ip (=', ip, ')'
+                  print*, ' ' 
                   P(ir+1,1) = P(ir,1)
                   P(ir+1,2) = P(ir,2)
                   P(ir+1,3) = P(ir,3)
@@ -273,6 +354,7 @@ c Add the gluon in PYTHIA list
                 endif
               enddo
               if(K(ip-1,1).eq.2) then
+                print*, 'second if K(', ip-1, ',1) = 2'
                 P(ip,1) = ipgx
                 P(ip,2) = ipgy
                 P(ip,3) = ipgz
@@ -284,6 +366,7 @@ c Add the gluon in PYTHIA list
                 K(ip,3) = ip
                 ip = ip + 1
               else
+                print*, 'else'
                 ip = ip + 1
                 P(ip,1) = ipgx
                 P(ip,2) = ipgy
@@ -297,8 +380,13 @@ c Add the gluon in PYTHIA list
               endif
               N = N + 1
             endif
+
           endif
-        endif
+       endif
+c       print*,'--------------------------------------'
+c       print*, 'PYLIST(1) post iEg1'
+c       call PYLIST(1)
+c       print*,'--------------------------------------'
 
 9999    continue        
         ip = ip + 1
@@ -306,10 +394,11 @@ c Add the gluon in PYTHIA list
 
       end
 
-      subroutine QWComput(qhat,ipx,ipy,ipz,E,id)
+      subroutine QWComput(qhat,ipx,ipy,ipz,E,mmmm,id)
       implicit none
 
       include 'common.f'
+      include 'bea_pyqm.inc'
 
       double precision ipx,ipy,ipz,E !input energy momentum of the particle
       double precision partmass !mass of the particle (for conservation purpose)
@@ -330,7 +419,7 @@ c Add the gluon in PYTHIA list
       double precision qhateff
       double precision qhat,ehat
 
-      double precision M !mass of the incoming parton
+      double precision mmmm !mass/energy of the incoming parton
       integer irej !used for test
 
       QW_w = 0.
@@ -340,6 +429,9 @@ c Add the gluon in PYTHIA list
       d = 0.
       ehat = 0.
       qhateff = qhat + ehat
+
+      cont=0d+0
+      disc=0d+0
 
 ccc Init for qweight
       if (id.eq.21) then
@@ -397,13 +489,15 @@ ccccc Calculate the energy loss probability
       total = 0.
       do i=1,nb_step
         xx = step_QW * i
-        call qweight(ipart,dble(QW_R),xx,yy,cont(i),disc)
+        call qweight(ipart,id,mmmm,dble(QW_R),xx,yy,cont(i),disc)
         total = total + cont(i)*step_QW
       enddo
 
       total = total + disc
       disc = disc/total
 
+c      print*,'total=',total
+c      print*,'disc=',disc
       do i=1,nb_step
         cont(i) = cont(i) / total
       enddo
@@ -411,6 +505,7 @@ ccccc Calculate the energy loss probability
 ccccc Pick randomely a quenching in the table
       if(disc .lt. 1.) then
         randnum = ranf(0)
+c        print*, 'total < 1'
         if(randnum.gt.disc) then
           total = disc
           i = 1
@@ -483,7 +578,7 @@ ccccc Scattering angle set to 0
 
 **************************************************************************
 *     Quenching weights interface to Arleo and Salgado-Wiedemann routines
-      subroutine qweight(ipart,rrrr,xx,yy,cont,disc)
+      subroutine qweight(ipart,id,mmmm,rrrr,xx,yy,cont,disc)
 *     Programmer: A.Accardi
 *     Date: Jul 04  (v1)
 *           Dec 04  (v2)
@@ -600,9 +695,12 @@ ccccc Scattering angle set to 0
 *  B. DECLARATIONS 
 *
       implicit none
+      include 'bea_pyqm.inc'
 
       integer ipart
       double precision rrrr,xx,yy,cont,disc
+      double precision mmmm
+      integer id
 
       double precision rrin,frac,kk
 
@@ -669,8 +767,18 @@ c     write(*,*) alphas,iqw,scor,ncor,sfthrd,irw
       else if (iqw.eq.1) then
 *       ... initialization
          if ((sfthrd.eq.1).and.(firstmult)) then
-            call initmult(alphas)
-            firstmult = .false.
+            if(pyq_hq.eq.0) then
+              call initmult(alphas)
+            else if(pyq_hq.eq.1) then
+              call  initmassmult
+            else if(pyq_hq.eq.2) then
+              if(id.le.3) then
+                call initmult(alphas)
+              else if(id.ge.4) then
+                call initmassmult
+              end if
+            end if
+         firstmult = .false.
          end if
          if ((sfthrd.eq.2).and.(firstlin)) then
             call initlin(alphas)
@@ -685,10 +793,31 @@ c     write(*,*) alphas,iqw,scor,ncor,sfthrd,irw
 *       ... calls Salgado-Wiedemann routine
          if (sfthrd.eq.1) then
             if (xx.le.xxmultmax) then
-               call swqmult(ipart,rrin,xx,cont,disc)
+              if(pyq_hq.eq.0) then
+                call swqmult(ipart,rrin,xx,cont,disc)
+              else if(pyq_hq.eq.1) then
+                call qwmassmult(mmmm,rrin,xx,cont,disc)
+              else if(pyq_hq.eq.2) then
+                if(id.le.3) then
+                  call swqmult(ipart,rrin,xx,cont,disc)
+                else if(id.ge.4) then
+                  call qwmassmult(mmmm,rrin,xx,cont,disc)
+                end if
+              end if
             else
+              if(pyq_hq.eq.0) then
+                call swqmult(ipart,rrin,xxmultmax,cont,disc)
+              else if(pyq_hq.eq.1) then
+                call qwmassmult(mmmm,rrin,xxmultmax,cont,disc)
+              else if(pyq_hq.eq.2) then
+                if(id.le.3) then
+                  call swqmult(ipart,rrin,xxmultmax,cont,disc)
+                else if(id.ge.4) then
+                  call qwmassmult(mmmm,rrin,xxmultmax,cont,disc)
+                end if
+              end if
 *             ...puts cont=0 if xx exceeds the max value
-               call swqmult(ipart,rrin,xxmultmax,cont,disc)
+c               call swqmult(ipart,rrin,xxmultmax,cont,disc)
                cont = 0d0
             end if
          else 
@@ -1218,5 +1347,3 @@ C     &        STATUS='OLD',ERR=91)
  888  continue
 
       end
-
-

@@ -1771,8 +1771,8 @@ C    &              IP,IT,PPN,SIGAV/DBLE(NEVFIT),XPARA
 *                                                    default: -1    *
 *       what (3) =  internal warning messages        default: -1    *
 *       what (4) =  debug printouts                  default: -1    *
-*       what (5) =  number of events to print debug  default:0            
-*       what (5..6), sdum    not yet used                           *
+*       what (5) =  number of events to print debug  default:  0    *
+*       what (6) =  debug printouts for PyQM         default: -1    *
 *                                                                   *
 *********************************************************************
 
@@ -1780,6 +1780,7 @@ C    &              IP,IT,PPN,SIGAV/DBLE(NEVFIT),XPARA
       DO 481 K=1,6
          IOULEV(K) = INT(WHAT(K))
   481 CONTINUE
+      PYQ_VERB = IOULEV(6)
       GOTO 10
 
 *********************************************************************
@@ -2238,9 +2239,17 @@ C        WRITE(LOUT,*) 'CMENER = ',CMENER
 *                  2: DPt2 proportional to energy loss QW_w         *
 *                  3: No Pt broadening due to collinear gluons      *
 *                                                                   *
-*       what (3) = Emit recoil as a single gluon? 1=yes, 0=no=def.  *
+*       what (3) = Emit recoil as a single gluon?                   *
+*                  0: No gluons (def)                               *
+*                  1: single hard gluon                             *
+*                  2: one hard gluon + soft                         *
+*                  3: n hard gluons + soft                          *
 *                                                                   *
 *       what (4) = SupFactor (needed for iPtF=2)  default=1.0       *
+*                                                                   *
+*       what (5) = New SW calculation for heavy quarks              *
+*                  0: No                                            *  
+*                  1: Yes                                           * 
 *                                                                   *
 *********************************************************************
 
@@ -2249,6 +2258,8 @@ C        WRITE(LOUT,*) 'CMENER = ',CMENER
       PYQ_IPTF = NINT(WHAT(2))
       PYQ_IEG = NINT(WHAT(3))
       PYQ_SUPF = WHAT(4)
+      PYQ_HQ = NINT(WHAT(5))
+      PYQ_IET = WHAT(6)
       GOTO 10
 
 *********************************************************************
@@ -2933,6 +2944,18 @@ C     COMMON /PQCTRL/ PQRECF, PYQ_SUPF, PYQ_IPTF, PYQ_IEG
       PYQ_IPTF = 3
       PYQ_IEG = 0
       PYQ_SUPF = ONE
+      PYQ_HQ = 0
+      PYQ_IET = 0
+
+* common /DTFLG1/ in beagle.inc
+      IOULEV(1) = -1
+      IOULEV(2) = -1
+      IOULEV(3) = -1
+      IOULEV(4) = -1
+      IOULEV(5) = 0
+      IOULEV(6) = -1
+      IFMDIST = 0
+      IFMPOST = 0
 
 * common /DTNPOT/
       DO 10 I=1,2
@@ -2957,10 +2980,6 @@ C     COMMON /PQCTRL/ PQRECF, PYQ_SUPF, PYQ_IPTF, PYQ_IEG
       ETACOU(2) = ZERO
       ICOUL     = 1
       LFERMI    = .TRUE.
-
-* Fermi momentum controls in DTFLG1
-      IFMDIST = 0
-      IFMPOST = 0
 
 * common /HNTHRE/
       EHADTH = -99.0D0
@@ -18358,6 +18377,9 @@ C     ENDIF
      &           ZERO=0.0D0,ONE=1.0D0,TWO=2.0D0)
 
       INCLUDE 'beagle.inc'
+
+* event flag
+      COMMON /DTEVNO/ NEVENT,ICASCA
 
 * Lorentz-parameters of the current interaction
       COMMON /DTLTRA/ GACMS(2),BGCMS(2),GALAB,BGLAB,BLAB,

@@ -20,6 +20,7 @@ C...intialize pythia when using dpmjet
       include "radgen.inc"
       include "phiout.inc"
       include "beagle.inc"
+      include "bea_pyqm.inc"
 
 * properties of interacting particles
       COMMON /DTPRTA/ IT,ITZ,IP,IPZ,IJPROJ,IBPROJ,IJTARG,IBTARG,ITMODE
@@ -57,11 +58,6 @@ C...Parameters and switch for energy loss
       DOUBLE PRECISION QHAT
       INTEGER QSWITCH
       COMMON /QUENCH/ QHAT, QSWITCH
-
-C     MDB 2017-08-09 PYQM control from BeAGLE
-      double precision PQRECF, PYQ_SUPF
-      integer PYQ_IPTF, PYQ_IEG
-      COMMON /PQCTRL/ PQRECF, PYQ_SUPF, PYQ_IPTF, PYQ_IEG
 
 C...output file name definition
       COMMON /OUNAME/ outname
@@ -412,6 +408,9 @@ C     GenNucDens is used even without quenching.
          print*,'      Ptmodel iPtF: ',PYQ_IPTF
          print*,'      EmitGluon iEg:',PYQ_IEG
          print*,'      SupFactor:    ',PYQ_SUPF
+         print*,'      Heavy Quarks: ',PYQ_HQ
+         print*,'      Energy Thres: ',PYQ_IET
+
 c...when quenching is used switch off internal parton shower
          MSTP(61)=0
          MSTP(71)=0
@@ -611,7 +610,6 @@ C...Pythia eA shadowing common block from Mark 2017-06-30
       INTEGER NKNOTS,RDUMMY
 
 C  Local
-c      DOUBLE PRECISION PTSTSM
 
       LOGICAL LFIRST
       INTEGER IREJ
@@ -1105,10 +1103,19 @@ C Decay particles (like a J/psi) from the event skeleton
          WRITE(*,*)"PYLIST: After PYEXEC"
          CALL PYLIST(2)
       endif
+         if(IOULEV(6).GE.1) print*, 'Event ', NEVENT
 c...  do quenching to scattered partons if requested      
       IF (QSWITCH.EQ.1) THEN
          call InterPos          ! Set the interaction position in nucleus
+         if(IOULEV(6).GE.1) then
+            print*, 'before pyqm'
+            call PYLIST(1)
+         endif
          call ApplyQW(QHAT)     ! Compute QW (also fill PYQREQ(mu))
+         if(IOULEV(6).GE.1) then
+            print*,'after pyqm'
+            call PYLIST(1)
+         endif 
 C     2017-08-26 MDB For Userset1, use PYQREC in TRF z along gamma*
          IF (USERSET.EQ.1 .OR. USERSET.EQ.2) THEN
             USER3 = PYQREC(4)
@@ -1776,11 +1783,6 @@ C      <Q_T> assumes all ID=80000 are absorbed in target
          USER2 = YYSPLAT
       ELSEIF (USERSET.EQ.5) THEN         
          USER2 = SIGEFF
-      ELSEIF (USERSET.LT.0.AND.USERSET.GT.6) THEN
-         WRITE(*,*)'WARNING: Unknown USERSET:',USERSET,'USER1,2,3=0'
-         USER1=0.0D0
-         USER2=0.0D0
-         USER3=0.0D0
       ENDIF
 
       IF (NCOLLT.NE.NTW0)
