@@ -4885,9 +4885,13 @@ C            ENDIF
 * Special treatment for Deuteron, where IFMDIST can be 1 or 2 at the moment.
 * Proton and neutron are back-to-back in the rest frame
       IF (NMASS.EQ.2 .AND. IFMDIST .GT. 0) THEN
-        DO 7 K=1,4
-            PHKK(K,1) = -1.0D0*PHKK(K,0)
-    7   CONTINUE
+         DO K=1,3
+            PHKK(K,3) = -1.0D0*PHKK(K,2)
+         ENDDO
+         PHKK(4,2) = SQRT(PHKK(5,2)**2+PHKK(1,2)**2+
+     &                    PHKK(2,2)**2+PHKK(3,2)**2)
+         PHKK(4,3) = SQRT(PHKK(5,3)**2+PHKK(1,3)**2+
+     &                    PHKK(2,3)**2+PHKK(3,3)**2)
       ENDIF
 
       RETURN
