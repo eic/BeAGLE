@@ -2757,7 +2757,7 @@ C         CALL DT_PYOUTEP(4)
             CALL DT_FICONF(IJPROJ,IP,IPZ,IT,ITZ,NLOOP,IREJ1)
             !pythia model produces the event out this subroutine
             !if failed jump out directly, added by liang
-            IF ((MCGENE.EQ.5).AND.(IREJ1.GE.1)) THEN
+            IF ((MCGENE.EQ.5 .OR. MCGENE.EQ.6).AND.(IREJ1.GE.1)) THEN
                WRITE(*,*) 'KKINC: Event',NEVHKK,'rejected in DT_FICONF.'
                GOTO 9999         
             ENDIF 
@@ -3302,7 +3302,7 @@ C   general process information
 * added by liang to store the output event variables 1/20/12
       COMMON /EVTOUT/ XBJOUT,YYOUT,W2OUT,NUOUT,Q2OUT
       DOUBLE PRECISION XBJOUT,YYOUT,W2OUT,NUOUT,Q2OUT
-      
+
 C...Pythia event counter (since we keep PYINITing) Mark 2017-01-31
       COMMON /PYCNTR/ MYNGEN
       INTEGER MYNGEN
@@ -3446,11 +3446,11 @@ C...modified by liang to include pythia mode
       WRITE(LOUT,'(9X,A,F8.3,A)') 'Sigma_tot (max) =',SIGMAX,' mb'
 
 * plot photon flux table
-      AYMIN = LOG(YMIN)
-      AYMAX = LOG(YMAX)
-      AYRGE = AYMAX-AYMIN
-      MAXTAB = 50
-      ADY    = LOG(YMAX/YMIN)/DBLE(MAXTAB-1)
+C      AYMIN = LOG(YMIN)
+C      AYMAX = LOG(YMAX)
+C      AYRGE = AYMAX-AYMIN
+C      MAXTAB = 50
+C      ADY    = LOG(YMAX/YMIN)/DBLE(MAXTAB-1)
 C     WRITE(LOUT,'(/,1X,A)') 'LAEVT:   photon flux '
 C  Mark 06-OCT-2016 Comment out this unused loop 
 C      DO 1 I=1,MAXTAB
@@ -3574,11 +3574,12 @@ c...skip the Q2, y sampling. Use Pythia/Rapgap
          IF (MCGENE.EQ.5) THEN
             CALL DT_PYEVNTEP(Q2,YY,1,IDUM)
          ELSEIF (MCGENE.EQ.6) THEN
-c...Note: RAPGAP makes the whole event in one go.
-            CALL DT_RGEVNTEP(Q2,YY)
+            CALL DT_RGEVNTEP(Q2,YY,1,IDUM)
+            IF (OLDOUT) THEN
 C... For now bypass BeAGLE. Just a RAPGAP wrapper.
-            CALL DT_RGOUTEP(2)
-            GOTO 2
+               CALL DT_RGOUTEP(2)
+               GOTO 2
+            ENDIF
          ENDIF
 C MDB 2017-02-23 If struck nucleon changed, re-initialize
          IF (IDT.NE.idNucBAM) THEN
@@ -3741,7 +3742,11 @@ c...used in phojet for every event 12/07/11
 C....added by liang to suppress output of bad events++
             IF(IREJ.GT.0) THEN
                ! update pythia model statistics for rejected events
-               IF(MCGENE.EQ.5) CALL DT_PYOUTEP(1)
+               IF (MCGENE.EQ.5) THEN
+                  CALL DT_PYOUTEP(1)
+               ELSEIF (MCGENE.EQ.6) THEN
+                  CALL DT_RGOUTEP(1)
+               ENDIF
                WRITE(*,*) 'KKEVNT: Old Q2,y:',Q2,YY,'Rerolling.'
                WRITE(*,*) ' ' 
                Q2SPLAT=Q2
@@ -3757,7 +3762,7 @@ C....added by liang to suppress output of bad events++
 C....added by liang to suppress output of bad events--
 
 *  modified by liang to output pythia event list 2/20/12
-            IF(MCGENE.EQ.5) THEN
+            IF(MCGENE.EQ.5 .OR. MCGENE.EQ.6) THEN
 C-TEMP-TEMP-TEMP
 C               WRITE(*,*)'Event as output to file'
 C               CALL DT_PYOUTEP(4)
@@ -3789,21 +3794,27 @@ C     &                    ICHGSM, ' ', IBARSM
 C               WRITE(*,*) 'Expected Pz (Mp): ',196.0D0*PHKK(3,200)
 C               WRITE(*,*) 'Expected Pz (amu): ',194.54368D0*PHKK(3,200)
 *  output of eventlist from pythia
-               CALL DT_PYOUTEP(2)
+               IF (MCGENE.EQ.5) THEN
+                  CALL DT_PYOUTEP(2)
+               ELSEIF (MCGENE.EQ.6) THEN
+                  CALL DT_RGOUTEP(2)
+               ENDIF
+
                IF(MOD(IEVT,INT(NEVTS/10)).EQ.0) print*,IEVT,
      &         ' events output done'
             ELSE
 *  rotate momenta of final state particles back in photon-nucleon syst.
-            DO 4 I=NPOINT(4),NHKK
-               IF ((ABS(ISTHKK(I)).EQ.1).OR.(ISTHKK(I).EQ.1000).OR.
-     &                                      (ISTHKK(I).EQ.1001)) THEN
-                  PX = PHKK(1,I)
-                  PY = PHKK(2,I)
-                  PZ = PHKK(3,I)
-                  CALL DT_MYTRAN(1,PX,PY,PZ,COD,SID,COF,SIF,
-     &                        PHKK(1,I),PHKK(2,I),PHKK(3,I))
-               ENDIF
-    4       CONTINUE
+*  Note: This code should never be reached!
+               DO 4 I=NPOINT(4),NHKK
+                  IF ((ABS(ISTHKK(I)).EQ.1).OR.(ISTHKK(I).EQ.1000).OR.
+     &                 (ISTHKK(I).EQ.1001)) THEN
+                     PX = PHKK(1,I)
+                     PY = PHKK(2,I)
+                     PZ = PHKK(3,I)
+                     CALL DT_MYTRAN(1,PX,PY,PZ,COD,SID,COF,SIF,
+     &                    PHKK(1,I),PHKK(2,I),PHKK(3,I))
+                  ENDIF
+ 4             CONTINUE
             ENDIF
          ENDIF
 
@@ -3816,10 +3827,10 @@ C               WRITE(*,*) 'Expected Pz (amu): ',194.54368D0*PHKK(3,200)
 *  dump this event to histograms
 
 * modified by liang to link to pythia 1/16/12
-         IF(MCGENE.NE.5) THEN
-            CALL PHO_PHIST(2000,DUM)
-         ELSE
+         IF(MCGENE.EQ.5 .OR. MCGENE.EQ.6) THEN
             CALL DT_HISTOG(2)
+         ELSE
+            CALL PHO_PHIST(2000,DUM)
          ENDIF
 
     2 CONTINUE
@@ -3839,6 +3850,7 @@ c      CALL PHO_PHIST(3000,DUM)
          CALL DT_HISTOG(3)
       ELSEIF (MCGENE.EQ.6) THEN
          CALL DT_RGOUTEP(3)
+         CALL DT_HISTOG(3)
       ELSE
          CALL PHO_PHIST(3000,DUM)
       ENDIF
@@ -4566,19 +4578,28 @@ C      CALL DT_PYOUTEP(4)
          STOP ' This version does not contain LEPTO !'
       ELSEIF (MCGENE.EQ.4) THEN
          STOP ' Error: QNEUTRIN not supported !'
-      ELSEIF (MCGENE.EQ.5) THEN
+      ELSEIF (IJPROJ.EQ.7) THEN
+         IF (MCGENE.EQ.5) THEN
 *  pythia model
-         IF(IJPROJ.EQ.7) CALL DT_PYEVNTEP(DUMMY,DUMMY,2,IREJ1)      
-C         IF(IJPROJ.EQ.1) CALL DT_PYEVNTPP(IREJ1)
-         IF(IJPROJ.EQ.1) WRITE(*,*)'pp/pA/AA not supported in BeAGLE'
+            CALL DT_PYEVNTEP(DUMMY,DUMMY,2,IREJ1)      
+         ELSEIF (MCGENE.EQ.6) THEN
+            CALL DT_RGEVNTEP(DUMMY,DUMMY,2,IREJ1)      
+         ELSE
+            WRITE(LOUT,1002) MCGENE
+ 1002       FORMAT(1X,'KKEVNT: FATAL ERROR. Event-generator',I4,
+     &           ' not available - program stopped')
+            STOP
+         ENDIF
          IF (IREJ1.NE.0) THEN
             IF (IOULEV(1).GT.0) WRITE(LOUT,*) 'rejected 5 in KKEVNT'
             GOTO 9999
          ENDIF
+      ELSEIF(IJPROJ.EQ.1) THEN
+         STOP 'pp/pA/AA not supported in BeAGLE'
       ELSE
-         WRITE(LOUT,1002) MCGENE
- 1002    FORMAT(1X,'KKEVNT:   warning! event-generator',I4,
-     &         ' not available - program stopped')
+         WRITE(LOUT,1003) MCGENE,IJPROJ
+ 1003    FORMAT(1X,'KKEVNT: FATAL ERROR. Event-generator',I4,
+     &           ' with IJPROJ=',I4,' not available - program stopped')
          STOP
       ENDIF
 
@@ -5448,11 +5469,11 @@ C     IF ( (ABS(PIN(4)-POUT(4))/PIN(4)).GT.0.1D0 ) THEN
 * for quasi-elastic neutrino scattering set projectile to proton
 * it should not have an effect since the whole Glauber-formalism is
 * not needed for these interactions..
-      IF (MCGENE.EQ.4) THEN
-         IJPROJ = 1
-      ELSE
+C      IF (MCGENE.EQ.4) THEN
+C         IJPROJ = 1
+C      ELSE
          IJPROJ = JJPROJ
-      ENDIF
+C      ENDIF
 
       IF ((ABS(IOGLB).EQ.1).AND.(.NOT.LOPEN)) THEN
          I = INDEX(CGLB,' ')
@@ -5650,13 +5671,13 @@ C        CALL GSET(XAMLO,XAMHI,NPOINT,ABSZX,WEIGHT)
 * cross section with considering the direct process as a temp
 * solution now 2/19/12
 * RPNT is the ratio for the xsection of direct/total 
-         IF(MCGENE.EQ.5) THEN
-            IPNT=0
-            RPNT=ZERO
-         ELSE   
+C         IF(MCGENE.EQ.5) THEN
+         IPNT=0
+         RPNT=ZERO
+C         ELSE   
 C            Remove MCGENE.NE.5
 C            CALL DT_POILIK(NB,NTARG,ECMNN(IE),Q2,IPNT,RPNT,1)
-         ENDIF
+C         ENDIF
       ENDIF
 
 * read pre-initialized profile-function from file
@@ -5804,7 +5825,8 @@ C   the shadowing effect from nPDF
 C...Let's only run this one as if there's only 1 nucleon no matter what
 C   target is. And whatever else is folded in the PDFs
 
-               IF((MCGENE.EQ.5).AND.(IJPROJ.EQ.7)) THEN
+C               IF((MCGENE.EQ.5).AND.(IJPROJ.EQ.7)) THEN
+               IF(IJPROJ.EQ.7) THEN
                   NBTMP=NB
                   NB=1
                ENDIF
@@ -5888,7 +5910,7 @@ C   shadowing from coherence length, since in pythia model, we can consider
 C   the shadowing effect from nPDF               
 C...after the coherence thing, we need to get the real NB back
 
-               IF((MCGENE.EQ.5).AND.(IJPROJ.EQ.7)) NB=NBTMP
+               IF(IJPROJ.EQ.7) NB=NBTMP
 
                OMPP11 = CZERO
                OMPP21 = CZERO
@@ -6022,13 +6044,14 @@ C                 OMPP22 = OMPP22+(CONE-PP22(K))
 
 * final cross sections
 * 1) total
-      XSTOT(IE,IQ,NTARG) = STOT
-      IF (IJPROJ.EQ.7)
-     &   XSTOT(IE,IQ,NTARG) = XSTOT(IE,IQ,NTARG)+DBLE(NB)*SDIR
+C      XSTOT(IE,IQ,NTARG) = STOT
+C      IF (IJPROJ.EQ.7)
+C     &   XSTOT(IE,IQ,NTARG) = XSTOT(IE,IQ,NTARG)+DBLE(NB)*SDIR
 c...modified by liang to get a pythia cross section table( but 
 c...not used in pythia sampling, only for a double check or make
 c...the program running ), this value sigma_eA = A*sigma_ep
-      IF( MCGENE.EQ.5 ) XSTOT(IE,IQ,NTARG)=DT_SIGVP(X,Q2)*DBLE(NB)
+C      IF( MCGENE.EQ.5 ) XSTOT(IE,IQ,NTARG)=DT_SIGVP(X,Q2)*DBLE(NB)
+      XSTOT(IE,IQ,NTARG)=DT_SIGVP(X,Q2)*DBLE(NB)
 * 2) elastic
       XSELA(IE,IQ,NTARG) = SELA
 * 3) quasi-el.: A+B-->A+X (excluding 2)
@@ -7206,7 +7229,7 @@ C...External function Mark 2016-08-18
 
 C...Mark (08/13/2016) Pythia nuclear shadowing reroll b more often
       NTRMAX=500
-      IF (MCGENE.EQ.5 .AND. GenShd.GE.2) NTRMAX=5
+      IF (GenShd.GE.2) NTRMAX=5
       NTARG = ABS(NIDX)
 
       IF (LFIRST) THEN
@@ -7253,7 +7276,7 @@ c      DCOH   = 1.0D10
          AMV2   = DT_SAM2(SQ2,ECMNOW)
          AMV    = SQRT(AMV2)
 C...added by liang to intialize mass of V-meson cut when no phojet used
-         IF(MCGENE.EQ.5) PTCUT(1)=2.5
+         IF(MCGENE.EQ.5 .OR. MCGENE.EQ.6) PTCUT(1)=2.5
 
          IF (AMV.GT.2.0D0*PTCUT(1)) GOTO 15
 *  check for pointlike interaction
@@ -7263,13 +7286,13 @@ C   since we cannot seperate point process, we just use the total
 C   cross section with considering the direct process as a temp
 C   solution now 2/19/12
 C   RPNT is the ratio of direct xsection out of total
-         IF(MCGENE.EQ.5) THEN
-            IPNT=0
-            RPNT=ZERO
-         ELSE   
+C         IF(MCGENE.EQ.5) THEN
+         IPNT=0
+         RPNT=ZERO
+C         ELSE   
 C            Remove MCGENE.NE.5
 C            CALL DT_POILIK(NB,NTARG,ECMNOW,SQ2,IPNT,RPNT,1)
-         ENDIF
+C         ENDIF
 
 **sr 27.10.
 C        SIGSH  = DT_SIGVP(X,SQ2)/(AMV2+SQ2+RL2)/10.0D0
@@ -7281,7 +7304,7 @@ C        SIGSH  = DT_SIGVP(X,SQ2)/(AMV2+SQ2+RL2)/10.0D0
 *  coherence length
          IF (ISHAD(3).EQ.1) DCOH = TWO*XNU/(AMV2+SQ2)*GEV2FM
 C  Added by Mark for eA Pythia nuclear shadowing 08/07/2016
-         IF (MCGENE.EQ.5.AND.GenShd.GE.2) DCOH   = 1.0D10
+         IF (GenShd.GE.2) DCOH   = 1.0D10
       ELSEIF ((IJPROJ.LE.12).AND.(IJPROJ.NE.7)) THEN
          IF (MCGENE.EQ.2) THEN
             ZERO1 = ZERO
@@ -7336,7 +7359,7 @@ C      IF ((MCGENE.NE.3).AND.(MCGENE.NE.5)) CALL DT_MODB(B,NIDX)
 C... Mark (08/13/2016) Roll b (flat d2sigma/db2) for nuclear shadowing case
 C... VHKK remains centered on the nuclear origin.
       PHIB=0.0D0
-      IF (MCGENE.EQ.5 .AND. GenShd.GE.2) THEN
+      IF (GenShd.GE.2) THEN
          BBEA = BMAX(NTARG)*DSQRT(DT_RNDM(BB))
          PHIB = TWOPI*DT_RNDM(BB)
          BX = BBEA*COS(PHIB)
@@ -7426,7 +7449,7 @@ C... NOTE: SIGEFF =effective cross-section in mb
             QQ1 = -BX+TKOO(1,INB)-PKOO(1,INA)
             QQ2 = -BY+TKOO(2,INB)-PKOO(2,INA)
 * added by Mark 08/07/2016: shadowing in Pythia. Note: 1mb =0.1fm^2
-            IF (MCGENE.NE.5) THEN
+            IF (MCGENE.LT.5) THEN
                XY  = GAM*(QQ1*QQ1+QQ2*QQ2)
             ELSE
                XY  = QQ1*QQ1+QQ2*QQ2
@@ -7436,7 +7459,7 @@ C... NOTE: SIGEFF =effective cross-section in mb
                AR = DBLE(C)
                AI = DIMAG(C)
                P  = AR*AR+AI*AI
-               IF ((DT_RNDM(XY).GE.P).OR.(MCGENE.EQ.5)) THEN
+               IF ((DT_RNDM(XY).GE.P).OR.(MCGENE.GE.5)) THEN
                   JNT = JNT+1
                   IF (IJPROJ.EQ.7) THEN
                      JNT0(KINT) = JNT0(KINT)+1
@@ -7501,13 +7524,13 @@ C   since we cannot seperate point process, we just use the total
 C   cross section with considering the direct process as a temp
 C   solution now 2/19/12
 C   RPNT is the ratio for the xsection of direct/total 
-         IF(MCGENE.EQ.5) THEN
-            IPNT=0
-            RPNT=ZERO
-         ELSE   
+C         IF(MCGENE.EQ.5) THEN
+         IPNT=0
+         RPNT=ZERO
+C         ELSE   
 C            Remove MCGENE.NE.5
 C            CALL DT_POILIK(NB,NTARG,ECMNOW,SQ2,IPNT,RPNT,2)
-         ENDIF
+C         ENDIF
          IF (IPNT.GT.0) THEN
             JNT   = 1
             JS(1) = 1
@@ -8703,7 +8726,6 @@ c     &                               POUT(N,3),POUT(N,4),0,0,0)
     1 CONTINUE
 
       IF(IBUG.EQ.1) CALL DT_PYOUTEP(4)
-
 
       RETURN
       END
@@ -11640,8 +11662,8 @@ C           EPNI = EPNI+EPOT(2,IJPROJ)
 * re-initialization of DTLTRA
             DUM1 = ZERO
             DUM2 = ZERO
-c...modified by liang to use uniform dtltra parameter in event generation            
-            IF(MCGENE.NE.5)CALL DT_LTINI(IJPROJ,IJTARG,EPNI,DUM1,DUM2,0)
+c...modified by liang to use uniform dtltra parameter in event generation      C...Removed by Mark - MCGENE 1-4 no longer used. MCGENE 6 same as 5.      
+C            IF(MCGENE.NE.5)CALL DT_LTINI(IJPROJ,IJTARG,EPNI,DUM1,DUM2,0)
          ENDIF
       ENDIF
 
@@ -13802,7 +13824,7 @@ C   just using a parameterization
                DUM0   = ZERO
 C...use a parameterization for pythia model, added by liang to fill
 C   the cross section tables which are read but not used when sampling               
-               IF(MCGENE.NE.5) THEN
+               IF(MCGENE.LT.5) THEN
                   CALL DT_PHOXS(1,1,DUM0,PLAB,PHOSTO,PHOSIN,DUM1,DUM2,0)
                ELSE
                   CALL DT_PHOXS(1,1,DUM0,PLAB,PHOSTO,PHOSIN,DUM1,DUM2,1)

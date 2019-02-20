@@ -123,6 +123,9 @@ c ---------------------------------------------------------------------
       COMMON /ENVCOM/ ENVDIR
       CHARACTER*255 FILNAM
 
+* Locals
+      INTEGER IFSEED
+
 c---------------------------------------------------------------------
 ! ... force block data modules to be read
 C       external pydata
@@ -350,7 +353,7 @@ C     lepton is defined in negative z and as beam
       sqrts=sqrt((pbeamE+ebeamE)**2-(pbeamdbl-EPN)**2)
       altpbeam=PPN
       altpbeamE=sqrt(PPN*PPN+PYMASS(2212)**2)
-      altsqrts=sqrt((altpbeamE+ebeamE)**2-(altpbeam-ebeam)**2)
+      altsqrts=sqrt((altpbeamE+ebeamE)**2-(altpbeam-EPN)**2)
       write(*,*) '*********************************************'
       IF(IT.GT.1) THEN
          write(*,*) 'Nucleus: Z, A: ', ITZ, ' ', IT
@@ -360,7 +363,7 @@ C     lepton is defined in negative z and as beam
      &               pbeamN, 'GeV'
          write(*,*) 'Rapidity-matched proton beam momentum: ', 
      &               pbeamP, 'GeV'
-      ELSEIF (ITZ.GT.1) THEN
+      ELSEIF (ITZ.GE.1) THEN
          write(*,*) 'proton beam momentum: ', pbeamdbl, 'GeV'
       ELSE
          write(*,*) 'neutron beam momentum: ', pbeamdbl, 'GeV'
@@ -671,6 +674,9 @@ C      print*,'After PYEVNT: MYNGEN=',MYNGEN
       YY=VINT(309)
       XX = Q2/YY/(VINT(302)-VINT(4)**2-VINT(303)**2)
 
+C TEMPTEMP
+      print*,'In DT_PYEVNTEP. Print event:'
+      CALL PYLIST(2)
       if(IOULEV(4).GE.1 .AND. NEVENT.LE.IOULEV(5)) then
          print*,'in event:', NEVENT
          print*,'Q2 from pythia:',Q2
@@ -969,10 +975,10 @@ C  ROBO Pythia event into same frame as PHKK (TRF g*=z,e' px>0,py-0)
          write(*,*) "DT_PYEVNTEP: TRF e=-z"
          CALL PYLIST(2)
       endif
-C...Rotate so that the gamma* is along +z            
+C...Rotate so that the gamma* (or Z0) is along +z            
       DO ITRK=1,N
-         IF (K(ITRK,2).EQ.22 .AND. K(ITRK,1).EQ.21 
-     &        .AND. K(ITRK,3).EQ.1) THEN
+         IF ((K(ITRK,2).EQ.22 .OR. K(ITRK,2).EQ.23) 
+     &        .AND. K(ITRK,1).EQ.21 .AND. K(ITRK,3).EQ.1) THEN
             PHIGAM=PYANGL(P(ITRK,1),P(ITRK,2))
             PTGAM=DSQRT(P(ITRK,1)**2+P(ITRK,2)**2)
             THEGAM=PYANGL(P(ITRK,3),PTGAM)
@@ -1052,7 +1058,7 @@ C...Struck "parton" is the (non e') particle with highest pz (along g*)
       IPARTN=0
       DO ITRK=1,N
          IF ( (1.LE.K(ITRK,1) .AND. K(ITRK,1).LE.3) .AND.
-     &        .NOT.(11.LE.K(ITRK,2) .AND. K(ITRK,2).LE.18) ) THEN
+     &       .NOT.(11.LE.ABS(K(ITRK,2)).AND.ABS(K(ITRK,2)).LE.18) ) THEN
             IF (P(ITRK,3).GT.PZMAX) THEN
                PZMAX=P(ITRK,3)
                IPARTN=ITRK
@@ -1194,8 +1200,8 @@ c...find the virtual photon to do LT from lab to gamma c.m.s
          PHEP(3,J)=-PHEP(3,J)
 c... Mark 2016-09-14 Flip px also to make it a rotation
          PHEP(1,J)=-PHEP(1,J)  
-         IF((IDHEP(J).EQ.22).AND.(ISTHEP(J).EQ.3).AND.
-     &        (JMOHEP(1,J).EQ.1)) THEN
+         IF((IDHEP(J).EQ.22 .OR. IDHEP(J).EQ.23) .AND.
+     &        (ISTHEP(J).EQ.3).AND. (JMOHEP(1,J).EQ.1)) THEN
             GAMM(1)=PHEP(1,J)
             GAMM(2)=PHEP(2,J)
             GAMM(3)=PHEP(3,J)
@@ -1326,10 +1332,10 @@ c... Set VHKK for recoiling nucleons.
 
 c...set BAM ID for the particles         
          IDBAM(I)=IDT_ICIHAD(IDHKK(I))
-c...change the IS of out e- from 1 to 99 in order to avoid its 
-c...interaction in cascade
-         IF( (ISTHEP(J).EQ.1).AND.(IDHEP(J).EQ.11).AND.
-     & (JMOHEP(1,J).EQ.3) ) THEN
+c...change the IS of scattered lepton from 1 to 99 in order to avoid its 
+c...interaction in cascade. 
+         IF( (ISTHEP(J).EQ.1).AND.(JMOHEP(1,J).EQ.3).AND.
+     &        (ABS(IDHEP(J)).EQ.11.OR.ABS(IDHEP(J)).EQ.13) ) THEN
             ISTHKK(I)=99
             JMOHKK(1,I)=JMOHEP(1,J)
          ENDIF
@@ -1448,7 +1454,7 @@ C
       SUBROUTINE DT_PYOUTEP(MODE)     
  
 *     input:
-*           MODE: 1:reject statistics
+*           MODE: 1:reject statistics - not really used
 *                 2:event output
 *                 3:total statistics print
 *                 4:event output to screen (for debugging) Mark 08/17/2016
@@ -1617,8 +1623,8 @@ c     PHKK(3,J)=pgamma*(P3+pbeta*P4)
 c     PHKK(4,J)=pgamma*(P4+pbeta*P3)
 c...find the exchanged boson and out e- to make it fit root tree making rules
 c...in the following steps
-            IF((ISTHKK(J).EQ.3).AND.(IDHKK(J).EQ.22).AND.
-     &           (JMOHKK(1,J).EQ.(NPOINT(1)+1))) THEN
+            IF((ISTHKK(J).EQ.3).AND.(IDHKK(J).EQ.22 .OR. IDHKK(J).EQ.23)
+     &           .AND. (JMOHKK(1,J).EQ.(NPOINT(1)+1))) THEN
                IBOSON=J
             ELSEIF(ISTHKK(J).EQ.99) THEN
                ISTHKK(J)=1
@@ -1833,8 +1839,10 @@ C     &     I12,1x,$,2(f12.6,1x,$),7(f18.11,3x,$),11(f19.9,3x,$),I12,/)
 
 ***************standard output for particle info************************
 c...add 2 beam information at first to fit into root tree making rule      
+c... MDB Change these lines to use the correct pid for lepton+nucleon!
       I=NPOINT(1)+1   
-      write(29,34) 1,21,11,0,0,I+4,0,
+C      write(29,34) 1,21,11,0,0,I+4,0,
+      write(29,34) 1,21,IDHKK(I),0,0,I+4,0,
      &     PHKK(1,I),PHKK(2,I),PHKK(3,I),PHKK(4,I),PHKK(5,I),
      &     VHKK(1,I),VHKK(2,I),VHKK(3,I)
      &     ,0,0,0
@@ -1858,18 +1866,23 @@ c         ENDIF
          ZOUT = 0
       ELSE 
          AOUT = 1
-         ZOUT = 1
+C         ZOUT = 1 
+         ZOUT = PYCHGE(IDHKK(I+1))/3
       ENDIF
-      write(29,34) 2,21,2212,0,0,I+5,0,PP1,PP2,P3,P4,PP5,
+C      write(29,34) 2,21,2212,0,0,I+5,0,PP1,PP2,P3,P4,PP5,
+      write(29,34) 2,21,IDHKK(I+1),0,0,I+5,0,PP1,PP2,P3,P4,PP5,
      &        VHKK(1,I+1),VHKK(2,I+1),VHKK(3,I+1),AOUT,ZOUT,0
-c...add the exchanged boson from the 
-      write(29,34) 3,21,11,0,1,ILEPT+4,0,
+c...add the lepton 
+C      write(29,34) 3,21,11,0,1,ILEPT+4,0,
+      write(29,34) 3,21,IDHKK(ILEPT),0,1,ILEPT+4,0,
      &     PHKK(1,ILEPT),PHKK(2,ILEPT),PHKK(3,ILEPT),
      &     PHKK(4,ILEPT),PHKK(5,ILEPT),VHKK(1,ILEPT),
      &     VHKK(2,ILEPT),VHKK(3,ILEPT)
      &     ,0,0,0
-c...add the exchanged boson from the 
-      write(29,34) 4,21,22,0,1,IBOSON+4,0,
+c...add the exchanged boson  
+C      IDEXBO = 22
+C      IF (MCGENE.EQ.6) IDEXBO = 23
+      write(29,34) 4,21,IDHKK(IBOSON),0,1,IBOSON+4,0,
      &     PHKK(1,IBOSON),PHKK(2,IBOSON),PHKK(3,IBOSON),
      &     PHKK(4,IBOSON),PHKK(5,IBOSON),VHKK(1,IBOSON),
      &     VHKK(2,IBOSON),VHKK(3,IBOSON)
