@@ -24,6 +24,7 @@ CXX      = gfortran
 #/opt/gcc/4.6.3/lib64/ to to your LD_LIBRARY_PATH in 
 #your .cshrc
 #
+#CXXFLAGS = -c -g -Wall -m64 -fno-inline -fno-automatic -O -fcheck=all -fbacktrace
 CXXFLAGS = -c -g -Wall -m64 -fno-inline -fno-automatic
 LD = $(CXX) -g -m64 
 

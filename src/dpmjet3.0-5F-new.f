@@ -3775,8 +3775,12 @@ C               WRITE(*,*) 'Expected Pz (Mp): ',196.0D0*PHKK(3,200)
 C               WRITE(*,*) 'Expected Pz (amu): ',194.54368D0*PHKK(3,200)
 *  output of eventlist from pythia
                CALL DT_PYOUTEP(2)
-               IF(MOD(IEVT,INT(NEVTS/10)).EQ.0) print*,IEVT,
-     &         ' events output done'
+               PRINT*, 'IEVT =', IEVT
+               PRINT*, 'NEVTS = ', NEVTS
+               IF(NEVTS.ge.10) THEN
+                 IF(MOD(IEVT,INT(NEVTS/10)).EQ.0)
+     &         print*,IEVT,' events output done'
+               ENDIF
             ELSE
 *  rotate momenta of final state particles back in photon-nucleon syst.
             DO 4 I=NPOINT(4),NHKK

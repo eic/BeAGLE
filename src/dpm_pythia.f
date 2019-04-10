@@ -1322,16 +1322,16 @@ C Decay particles (like a J/psi) from the event skeleton
          WRITE(*,*)"PYLIST: After PYEXEC"
          CALL PYLIST(2)
       endif
-      print*, 'Event ', NEVENT
+      print*, 'Event ', ievent
+      print*, 'NEvent ', NEVENT
 c...  do quenching to scattered partons if requested      
       IF (QSWITCH.EQ.1) THEN
          call InterPos          ! Set the interaction position in nucleus
-         print*, 'before pyqm'
+c         print*, 'before pyqm'
          call PYLIST(1)
          call ApplyQW(QHAT)     ! Compute QW (also fill PYQREQ(mu))
 C     2017-08-26 MDB For Userset1, use PYQREC in TRF z along gamma*
-         print*,'after pyqm'
-         call PYLIST(1) 
+c         print*,'after pyqm'
          IF (USERSET.EQ.1 .OR. USERSET.EQ.2) THEN
             USER3 = PYQREC(4)
             IF (USERSET.EQ.1) THEN
@@ -1358,6 +1358,7 @@ C     2017-08-26 MDB For Userset1, use PYQREC in TRF z along gamma*
 C We are done with the partons. Hadronize the event now.
       MSTJ(1) = 1
       CALL PYEXEC
+      CALL PYLIST(1)
       if(NEVENT.LE.IOULEV(5)) then
          if(IOULEV(4).GE.1) then
             write(*,*) 'DT_PYEVNTEP: After  PYEXEC'
