@@ -57,7 +57,7 @@ FLUKA = /afs/rhic/eic/PACKAGES/fluka-64/
 LIB1 = -L/cern64/pro/lib -lmathlib -lkernlib -lpacklib_noshift -ldl -lm 
 LIB2 = -L$(FLUKA) -lflukahp
 LIB3 = -L/afs/rhic/eic/lib -lLHAPDF 
-#
+#LIB3 = -L/afs/rhic.bnl.gov/eic/restructured/env/EIC2018a/lib -lLHAPDF 
 # JLAB:
 #FLUKA = /u/group/ldgeom/PACKAGES/fluka-64/
 #LIB1 = -L/u/site/cernlib/x86_64_rhel6/2005/lib -lmathlib -lkernlib -lpacklib -ldl -lm 

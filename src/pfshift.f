@@ -84,7 +84,7 @@ C     Boost into naive HCMS  (assumes nucleon at rest in A-TRF)
      &        BGCMS(2)/GACMS(2)
       ENDIF
       
-      IF (IOULEV(4).GE.1 .AND. NEVENT.LE.IOULEV(5)) THEN
+      IF (IOULEV(4).GE.2 .AND. NEVENT.LE.IOULEV(5)) THEN
          write(*,*) "DT_PYEVNTEP: HCMS g*=z, e' px>0 py=0"
          CALL PYLIST(2)
       ENDIF
@@ -128,7 +128,7 @@ C      SUMM2=0.0D0               ! sum m^2 for pz>0 - along P2
       IF (NLSCAT.NE.1) 
      &     STOP "ERROR! BAD EVENT CONFIG. Scattered leptons .ne. 1"
          
-      IF (IOULEV(4).GE.1 .AND. NEVENT.LE.IOULEV(5)) then
+      IF (IOULEV(4).GE.2 .AND. NEVENT.LE.IOULEV(5)) then
          W2TRY(1) = PSUM(4)**2-PSUM(1)**2-PSUM(2)**2-PSUM(3)**2
          WRITE(*,*)"W2 from Pythia:",W2RAW,"W2 calc.:",W2TRY(1)
          WRITE(*,*)"PSUM(1-4):",PSUM(1),PSUM(2),PSUM(3),PSUM(4)
@@ -255,7 +255,7 @@ C     3-momenta just scale
       W2FAIL = (ABS(W2TRY(NSCLTR)/W2F-1).GT.EPSPF)
 
       IF (.NOT. W2FAIL) THEN
-         IF (IOULEV(4).GE.1 .AND. NEVENT.LE.IOULEV(5)) then
+         IF (IOULEV(4).GE.2 .AND. NEVENT.LE.IOULEV(5)) then
             WRITE(*,*)'pF-based W2-rescale succeeded after ',NSCLTR,
      &           ' tries.'
          ENDIF
@@ -274,7 +274,7 @@ C     3-momenta just scale
          ENDDO
       ENDIF
       
-      IF ( IOULEV(4).GE.1 .AND. 
+      IF ( IOULEV(4).GE.2 .AND. 
      &     (NEVENT.LE.IOULEV(5) .OR. NSCLTR.GT.MAXTRY-3) ) THEN
          WRITE(*,*)
          WRITE(*,*)'Iteration   W2/W2F'
@@ -321,7 +321,7 @@ C         USER3=DBLE(NPRTNS)
             CALL PYROBO(INDXP(ITRK),INDXP(ITRK),0.0D0,0.0D0,
      &           FERBX,FERBY,FERBZ)
          ENDDO
-         IF (IOULEV(4).GE.1 .AND. NEVENT.LE.IOULEV(5)) then
+         IF (IOULEV(4).GE.2 .AND. NEVENT.LE.IOULEV(5)) then
             WRITE(*,*)"PYLIST: After pF boost"
             CALL PYLIST(2)
          ENDIF

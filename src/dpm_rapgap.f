@@ -51,8 +51,10 @@ C...Switches for nuclear correction
       INTEGER ORDER,genShd
 
 * properties of interacting particles
-      COMMON /DTPRTA/ IT,ITZ,IP,IPZ,IJPROJ,IBPROJ,IJTARG,IBTARG,ITMODE
-      INTEGER IT,ITZ,IP,IPZ,IJPROJ,IBPROJ,IJTARG,IBTARG,ITMODE
+      COMMON /DTPRTA/ IT,ITZ,IP,IPZ,IJPROJ,IBPROJ,IJTARG,IBTARG,ITMODE,
+     &     ITMMOD,MODHYP,NHYPER,IDHYP(5) 
+      INTEGER IT,ITZ,IP,IPZ,IJPROJ,IBPROJ,IJTARG,IBTARG,ITMODE,ITMMOD
+      INTEGER MODHYP,NHYPER,IDHYP 
 C...Parameters and switch for energy loss
       DOUBLE PRECISION QHAT
       INTEGER QSWITCH
@@ -130,7 +132,7 @@ C     &                 idNucPY,idNucBAM, lName
 C MDB 2016-11-10 For A>1, match rapidities for nucleon and nucleus 
 C Note: massp means nucleon mass as seen in radgen.
       IF (IT.GT.1) THEN
-         MAscl=AZMASS(IT,ITZ)/INUMOD 
+         MAscl=AZMASS(IT,ITZ,ITMMOD)/INUMOD 
          pbeamdbl=PBEAMH*Mnucl/MAscl
          pbeamP=(PBEAMH*Mprot/MAscl)
          pbeamN=(PBEAMH*Mneut/MAscl)

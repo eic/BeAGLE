@@ -108,7 +108,7 @@ C Local
       INTEGER INDEX
       DOUBLE PRECISION BETAZ
 
-      IF (IOULEV(4).GE.1 .AND. NEVENT.LE.IOULEV(5)) THEN
+      IF (IOULEV(4).GE.2 .AND. NEVENT.LE.IOULEV(5)) THEN
          WRITE (*,*) 'DEUTFIX: About to fix e+D kinematics'
          CALL PYLIST(2)
          WRITE (*,*)
@@ -144,7 +144,7 @@ C     Identify the stable particles and assemble W^mu_oops (PSUM)
       W2RAW = (PSUM(4)-PSUM(3))*(PSUM(4)+PSUM(3))-PSUM(1)**2-PSUM(2)**2
       WRAW = SQRT(W2RAW)
       W2F = 2.0D0*MDEUT*NU + MDEUT*MDEUT - Q2
-      IF (IOULEV(4).GE.1 .AND. NEVENT.LE.IOULEV(5)) THEN
+      IF (IOULEV(4).GE.2 .AND. NEVENT.LE.IOULEV(5)) THEN
          WRITE(*,*) 'W^mu_full (correct): {0, 0, ', SQRT(NU*NU+Q2),';',
      &        NU+MDEUT,'}'
          WRITE(*,*) 'W^mu_oops found: {,',PSUM(1),', ',PSUM(2),', ',
@@ -168,7 +168,7 @@ C     Step 1: Boost into hadronic rest frame and calculate S2SUM,PSUM
          ENDDO
       ENDDO
 
-      IF (IOULEV(4).GE.1 .AND. NEVENT.LE.IOULEV(5)) THEN
+      IF (IOULEV(4).GE.2 .AND. NEVENT.LE.IOULEV(5)) THEN
          WRITE(*,*) '(Sum 3-momentum)^2 should be zero: ',
      &        (PSUM(1)*PSUM(1)+PSUM(2)*PSUM(2)+PSUM(3)*PSUM(3))
       ENDIF
@@ -224,7 +224,7 @@ C     Zero out our sums. 3-momentum sum should be zero now.
       W2FAIL = (ABS(W2TRY(NSCLTR)/W2F-1).GT.EPSPF)
 
       IF (.NOT. W2FAIL) THEN
-         IF (IOULEV(4).GE.1 .AND. NEVENT.LE.IOULEV(5)) then
+         IF (IOULEV(4).GE.2 .AND. NEVENT.LE.IOULEV(5)) then
             WRITE(*,*)'Deuteron W2-rescale succeeded after ',NSCLTR,
      &           ' tries.'
          ENDIF
@@ -238,7 +238,7 @@ C     Zero out our sums. 3-momentum sum should be zero now.
          ENDDO
       ENDIF
       
-      IF ( IOULEV(4).GE.1 .AND. 
+      IF ( IOULEV(4).GE.2 .AND. 
      &     (NEVENT.LE.IOULEV(5) .OR. NSCLTR.GT.MAXTRY-3) ) THEN
          WRITE(*,*)
          WRITE(*,*)'Iteration   W2/W2F'
@@ -283,7 +283,7 @@ C     Step 3: Boost back into the ion rest frame and calculate PSUM
       ENDDO
 
       W2RAW = (PSUM(4)-PSUM(3))*(PSUM(4)+PSUM(3))+PSUM(1)**2+PSUM(2)**2
-      IF (IOULEV(4).GE.1 .AND. NEVENT.LE.IOULEV(5)) THEN
+      IF (IOULEV(4).GE.2 .AND. NEVENT.LE.IOULEV(5)) THEN
          WRITE(*,*) 'After Deuteron kinematic fix:'
          WRITE(*,*) 'W^mu_full (correct): {0, 0, ', SQRT(NU*NU+Q2),';',
      &        NU+MDEUT,'}'
@@ -292,7 +292,7 @@ C     Step 3: Boost back into the ion rest frame and calculate PSUM
          WRITE(*,*) 'W2_full, W2_fixed: ',W2F,', ', W2RAW
       ENDIF
 
-      IF (IOULEV(4).GE.1 .AND. NEVENT.LE.IOULEV(5)) then
+      IF (IOULEV(4).GE.2 .AND. NEVENT.LE.IOULEV(5)) then
          WRITE(*,*)"PYLIST: After deuteron fix"
          CALL PYLIST(2)
       ENDIF

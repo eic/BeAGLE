@@ -23,13 +23,14 @@ C...intialize pythia when using dpmjet
       include "bea_pyqm.inc"
 
 * properties of interacting particles
-      COMMON /DTPRTA/ IT,ITZ,IP,IPZ,IJPROJ,IBPROJ,IJTARG,IBTARG,ITMODE
-
+      COMMON /DTPRTA/ IT,ITZ,IP,IPZ,IJPROJ,IBPROJ,IJTARG,IBTARG,ITMODE,
+     &     ITMMOD,MODHYP,NHYPER,IDHYP(5) 
 c...target/proj mass, charge and projectile internal ID
-      integer IT, ITZ, IP, IPZ, IJPROJ
+      integer IT,ITZ,IP,IPZ,IJPROJ,IBPROJ,IJTARG,IBTARG,ITMODE,ITMMOD,
+     &     MODHYP,NHYPER,IDHYP 
 
       double precision EPN,PPN
-      PARAMETER (ZERO=0.0D0,ONE=1.0D0,TINY10=1.0D0-10,MAXNCL=260)
+      PARAMETER (ZERO=0.0D0,ONE=1.0D0,TINY10=1.0D-10,MAXNCL=260)
 C...Added by liang 1/6/12
 C...Switches for nuclear correction
       COMMON /PYNUCL/ INUMOD,CHANUM,ORDER,genShd
@@ -323,7 +324,7 @@ C Mark 2018-01-24 Use double precision here.
 C MDB 2016-11-10 For A>1, match rapidities for nucleon and nucleus 
 C Note: massp means nucleon mass as seen in radgen.
       IF (IT.GT.1) THEN
-         MAscl=AZMASS(IT,ITZ)/INUMOD 
+         MAscl=AZMASS(IT,ITZ,ITMMOD)/INUMOD 
          pbeamdbl=PPN*Mnucl/MAscl
          pbeam=real(pbeamdbl)
          pbeamP=(PPN*Mprot/MAscl)
@@ -524,18 +525,22 @@ C     &                LEMCCK,LHADRO(0:9),LSEADI,LEVAPO,IFRAME,ITRSPT
       PARAMETER (FM2MM=1.0D-12)
 
 * properties of interacting particles
-      COMMON /DTPRTA/ IT,ITZ,IP,IPZ,IJPROJ,IBPROJ,IJTARG,IBTARG,ITMODE
+      COMMON /DTPRTA/ IT,ITZ,IP,IPZ,IJPROJ,IBPROJ,IJTARG,IBTARG,ITMODE,
+     &     ITMMOD,MODHYP,NHYPER,IDHYP(5) 
+c...target/proj mass, charge and projectile internal ID
+      integer IT, ITZ, IP, IPZ, IJPROJ, IBPROJ, IJTARG, IBTARG, ITMODE,
+     &     ITMMOD,MODHYP,NHYPER,IDHYP 
 
       COMMON /DTEVT1/ NHKK,NEVHKK,ISTHKK(NMXHKK),IDHKK(NMXHKK),
      &                JMOHKK(2,NMXHKK),JDAHKK(2,NMXHKK),
      &                PHKK(5,NMXHKK),VHKK(4,NMXHKK),WHKK(4,NMXHKK)
 
-* extended event history
+* extended event history - IHIST renamed because it's in pythia.inc
       COMMON /DTEVT2/ IDRES(NMXHKK),IDXRES(NMXHKK),NOBAM(NMXHKK),
-     &                IDBAM(NMXHKK),IDCH(NMXHKK),NPOINT(10)
-c     &                IHIST(2,NMXHKK)
+     &                IDBAM(NMXHKK),IDCH(NMXHKK),NPOINT(10),
+     &                IHISTDPM(2,NMXHKK)
 
-      PARAMETER (ZERO=0.0D0,ONE=1.0D0,TINY10=1.0D0-10,MAXNCL=260)
+      PARAMETER (ZERO=0.0D0,ONE=1.0D0,TINY10=1.0D-10,MAXNCL=260)
 
 C...Parameters and switch for energy loss from PyQM
       DOUBLE PRECISION QHAT
@@ -579,8 +584,7 @@ Cc...added by liang & Mark to include pythia energy loss datas
       DOUBLE PRECISION UPVP,DNVP,USEAP,DSEAP,STRP,CHMP,BOTP,TOPP,GLUP
       DOUBLE PRECISION UPVA,DNVA,USEAA,DSEAA,STRA,CHMA,BOTA,TOPA,GLUA
 
-      DOUBLE PRECISION USEAP1000, USEAP1001, USEAP1690
-      DOUBLE PRECISION USEAA1000, USEAA1001, USEAA1690
+C      DOUBLE PRECISION USEAP1000, USEAP1001, USEAP1690
 
       INTEGER MODE
 
@@ -674,9 +678,6 @@ C      print*,'After PYEVNT: MYNGEN=',MYNGEN
       YY=VINT(309)
       XX = Q2/YY/(VINT(302)-VINT(4)**2-VINT(303)**2)
 
-C TEMPTEMP
-      print*,'In DT_PYEVNTEP. Print event:'
-      CALL PYLIST(2)
       if(IOULEV(4).GE.1 .AND. NEVENT.LE.IOULEV(5)) then
          print*,'in event:', NEVENT
          print*,'Q2 from pythia:',Q2
@@ -961,7 +962,7 @@ C    PXF,PYF,PZF,EKF in the TRF
       CALL DT_LTNUC(PZF,EKF,DPF(3),DPF(4),3)
 
 C  ROBO Pythia event into same frame as PHKK (TRF g*=z,e' px>0,py-0) 
-      if(IOULEV(4).GE.1 .AND. NEVENT.LE.IOULEV(5)) then
+      if(IOULEV(4).GE.2 .AND. NEVENT.LE.IOULEV(5)) then
          write(*,*) "DT_PYEVNTEP: Lab, z=p"
          CALL PYLIST(2)
          write(*,*) ""
@@ -992,7 +993,7 @@ C     &                              DCOS(PHIGAM)," ",DSIN(PHIGAM)
 C... Rotate to TRF, gamma* along z, e' px>0, py=0
       CALL PYROBO(0,0,0.0D0,PARU(1)-PHIGAM,0.D0,0.D0,0.D0)
       CALL PYROBO(0,0,THEGAM,0.0D0,0.D0,0.D0,0.D0)
-      if(IOULEV(4).GE.1 .AND. NEVENT.LE.IOULEV(5)) then
+      if(IOULEV(4).GE.2 .AND. NEVENT.LE.IOULEV(5)) then
          write(*,*) "DT_PYEVNTEP: TRF g*=z, e' px>0 py=0"
          CALL PYLIST(2)
       endif
@@ -1004,7 +1005,7 @@ c VINT(1-4) is W, W2, -SQRT(Q2), M_N
 
       if(USERSET.EQ.3 .OR. IFERPY.EQ.2) then
          CALL PFSHIFT(VINT(1),VINT(2),VINT(4))
-         if(IOULEV(4).GE.1 .AND. NEVENT.LE.IOULEV(5)) THEN
+         if(IOULEV(4).GE.2 .AND. NEVENT.LE.IOULEV(5)) THEN
             write(*,*) "DT_PYEVNTEP: TRF g*=z, after pf post-fix"
             CALL PYLIST(2)
          endif
@@ -1049,7 +1050,7 @@ C     nu = y(s-M2-m2)/2M  where M=M_nucleon and m=m_lepton
          VALNU = 0.5D0*VINT(309)*(VINT(302)-VINT(4)**2-VINT(303)**2)
      &        /VINT(4)
          QQ=VINT(307)
-         CALL DEUTFIX(VALNU,QQ,AZMASS(2,1))
+         CALL DEUTFIX(VALNU,QQ,AZMASS(2,1,1))
       endif
 
 C
@@ -1096,7 +1097,7 @@ C...  Note: Can't fill V(N,I) yet or PYROBO will boost it around.
      &           P(N,1), P(N,2), P(N,3), P(N,4), P(N,5))
          ENDIF
       ENDDO            
-      if(IOULEV(4).GE.1 .AND. NEVENT.LE.IOULEV(5)) then
+      if(IOULEV(4).GE.2 .AND. NEVENT.LE.IOULEV(5)) then
          write(*,*) "DT_PYEVNTEP: TRF g*=z, post-ptkick pre-ApplyQW"
          CALL PYLIST(2)
          WRITE(*,*) "PYQREC=0: ",PYQREC(1),PYQREC(2),PYQREC(3),
@@ -1105,11 +1106,11 @@ C...  Note: Can't fill V(N,I) yet or PYROBO will boost it around.
 C Decay particles (like a J/psi) from the event skeleton
       MSTJ(21)=2
       CALL PYEXEC
-      if(IOULEV(4).GE.1 .AND. NEVENT.LE.IOULEV(5)) then
+      if(IOULEV(4).GE.2 .AND. NEVENT.LE.IOULEV(5)) then
          WRITE(*,*)"PYLIST: After PYEXEC"
          CALL PYLIST(2)
       endif
-         if(IOULEV(6).GE.1) print*, 'Event ', NEVENT
+      if(IOULEV(6).GE.1) print*, 'Event ', NEVENT
 c...  do quenching to scattered partons if requested      
       IF (QSWITCH.EQ.1) THEN
          call InterPos          ! Set the interaction position in nucleus
@@ -1142,7 +1143,7 @@ C     2017-08-26 MDB For Userset1, use PYQREC in TRF z along gamma*
          CALL PYLIST(2)
       endif
       CALL PYROBO(0,0,0.0D0,0.0D0,0.0D0,0.0D0,pbeta)
-      if(IOULEV(4).GE.1 .AND. NEVENT.LE.IOULEV(5)) then
+      if(IOULEV(4).GE.2 .AND. NEVENT.LE.IOULEV(5)) then
          write(*,*) 'DT_PYEVNTEP: Back in lab frame'
          CALL PYLIST(2)
       endif
@@ -1150,11 +1151,11 @@ C We are done with the partons. Hadronize the event now.
       MSTJ(1) = 1
       CALL PYEXEC
       if(NEVENT.LE.IOULEV(5)) then
-         if(IOULEV(4).GE.1) then
+         if(IOULEV(4).GE.2) then
             write(*,*) 'DT_PYEVNTEP: After  PYEXEC'
             CALL PYLIST(2)
          endif
-         if(IOULEV(4).GE.1) then
+         if(IOULEV(4).GE.2) then
             WRITE(*,*) 'Recoil PYQREC(1-4) TRF: ',PYQREC(1),PYQREC(2),
      &           PYQREC(3),PYQREC(4)
          endif
@@ -1167,12 +1168,12 @@ C     &      GACMS(2),BGCMS(2)
       P4=PYQREC(4)
       PYQREC(3)=GACMS(2)*P3-BGCMS(2)*P4
       PYQREC(4)=GACMS(2)*P4-BGCMS(2)*P3
-      if(IOULEV(4).GE.1 .AND. NEVENT.LE.IOULEV(5)) then
+      if(IOULEV(4).GE.2 .AND. NEVENT.LE.IOULEV(5)) then
          WRITE(*,*) 'Mycalc Recoil PYQREC(1-4) HCMS: ',PYQREC(1),
      &        PYQREC(2),PYQREC(3),PYQREC(4)
       endif
       CALL DT_LTNUC(P3,P4,PYQREC(3),PYQREC(4),3)
-      if(IOULEV(4).GE.1 .AND. NEVENT.LE.IOULEV(5)) then
+      if(IOULEV(4).GE.2 .AND. NEVENT.LE.IOULEV(5)) then
          WRITE(*,*) 'DT_LTNUC Recoil PYQREC(1-4) HCMS: ',PYQREC(1),
      &        PYQREC(2),PYQREC(3),PYQREC(4)
       endif
@@ -1180,7 +1181,7 @@ c...Translate PYJETS into HEPEVT event record
       CALL PYHEPC(1)
 
 c...Output part
-      if(IOULEV(4).GE.1 .AND. NEVENT.LE.IOULEV(5)) then
+      if(IOULEV(4).GE.2 .AND. NEVENT.LE.IOULEV(5)) then
          WRITE(*,*) 'Listing HEPEVT as we go. Before rotation which',
      &        'takes x->-x and z->-z.'
          WRITE(*,*) 'J, ISTHEP(J), IDHEP(J), JMOHEP(1-2,J), ',
@@ -1188,7 +1189,7 @@ c...Output part
       endif
 c...First loop to find exchanged boson
       DO  J=1,NHEP
-         if(IOULEV(4).GE.1 .AND. NEVENT.LE.IOULEV(5)) then
+         if(IOULEV(4).GE.2 .AND. NEVENT.LE.IOULEV(5)) then
 c...output of event list from pythia for a temp check      
             WRITE(*,998) J,ISTHEP(J),IDHEP(J),JMOHEP(1,J),
      &           JMOHEP(2,J),JDAHEP(1,J),JDAHEP(2,J),
@@ -1296,7 +1297,7 @@ c     &    PHKK(3,I),PHKK(4,I),1,3)
 c         PHKK(1,I)=P1
 c         PHKK(2,I)=P2
 C
-      if(IOULEV(4).GE.1 .AND. NEVENT.LE.IOULEV(5)) then
+      if(IOULEV(4).GE.2 .AND. NEVENT.LE.IOULEV(5)) then
          WRITE(*,*)'Particle I, ISTHKK, IDHKK: ',I,' ',ISTHKK(I),
      &             ' ', IDHKK(I)
          WRITE(*,*)'Lab frame'
@@ -1467,10 +1468,10 @@ C
       include "phiout.inc"
       include "beagle.inc"
 
-      EXTERNAL PYCHGE, NBARY
-      INTEGER NBARY
-* event history
+      EXTERNAL PYCHGE, NBARY, PYMASS
+      INTEGER  NBARY
 
+* event history
       PARAMETER (NMXHKK=200000)
    
       LOGICAL ISHADR
@@ -1480,12 +1481,12 @@ C
      &                JMOHKK(2,NMXHKK),JDAHKK(2,NMXHKK),
      &                PHKK(5,NMXHKK),VHKK(4,NMXHKK),WHKK(4,NMXHKK)
 
-* extended event history
+* extended event history - IHIST renamed because it's in pythia.inc
       COMMON /DTEVT2/ IDRES(NMXHKK),IDXRES(NMXHKK),NOBAM(NMXHKK),
-     &                IDBAM(NMXHKK),IDCH(NMXHKK),NPOINT(10)
-c     &                IHIST(2,NMXHKK)
+     &                IDBAM(NMXHKK),IDCH(NMXHKK),NPOINT(10),
+     &                IHISTDPM(2,NMXHKK)
 
-      PARAMETER (ZERO=0.0D0,ONE=1.0D0,TINY10=1.0D0-10,MAXNCL=260)
+      PARAMETER (ZERO=0.0D0,ONE=1.0D0,TINY10=1.0D-10,MAXNCL=260)
 
 * Glauber formalism: collision properties
       COMMON /DTGLCP/ RPROJ,RTARG,BIMPAC,
@@ -1528,9 +1529,11 @@ C...Switches for nuclear correction
       COMMON /DTWOUN/ NPW,NPW0,NPCW,NTW,NTW0,NTCW,IPW(210),ITW(210)
 
 * properties of interacting particles
-      COMMON /DTPRTA/ IT,ITZ,IP,IPZ,IJPROJ,IBPROJ,IJTARG,IBTARG,ITMODE
+      COMMON /DTPRTA/ IT,ITZ,IP,IPZ,IJPROJ,IBPROJ,IJTARG,IBTARG,ITMODE,
+     &     ITMMOD,MODHYP,NHYPER,IDHYP(5) 
 c...target/proj mass, charge and projectile internal ID
-      integer IT, ITZ, IP, IPZ, IJPROJ, IBPROJ, IJTARG, IBTARG, ITMODE
+      integer IT, ITZ, IP, IPZ, IJPROJ, IBPROJ, IJTARG, IBTARG, ITMODE,
+     &     ITMMOD,MODHYP,NHYPER,IDHYP 
 
 * added by liang to check the photon flux 12/28/11
       COMMON /FLCHK/ PFXCHK
@@ -1558,6 +1561,8 @@ C...output file name definition
 
 C     Local
       DOUBLE PRECISION BETA2,P2TEMP,XCALC
+      DOUBLE PRECISION P5SUM(5)
+      LOGICAL VERBOSE
 
       LOGICAL FIRST
       SAVE FIRST
@@ -1733,29 +1738,42 @@ C      USER1 = PYQREC_T
 C      USER2 = |PYQREC|
 C      USER3 = PYQREC(4)  all in TRF with z along gamma* 
 C
-C      USERSET2:
+C      USERSET 2:
 C      USER1 = Q2SPLAT - Q2 of last aborted event if retry>0
 C      USER2 = YYSPLAT - y of last aborted event if retry>0
 C      USER3 = PYQREC(4)  in TRF 
 C
-C      USERSET3: 
+C      USERSET 3: 
 C      USER1 = Fermi-corrected W2
 C      USER2 = W2 after correction/W2F - 1 
 C      USER3 = # of iterations needed for correction
 C
-C      USERSET4 (already filled with):
+C      USERSET 4 (already filled with):
 C      USER1-3 = x-z of Nuclear longitudinal axis for 3d nuclei
 C
-C      USERSET5: USER1=Zremn, USER2=sigma_dipole,USER3 not used
+C      USERSET 5: USER1=Zremn, USER2=sigma_dipole,USER3 not used
 C
-C      USERSET6: 
+C      USERSET 6: 
 C      USER1 = D2-corrected W2
 C      USER2 = W2 after correction/W2F - 1 
 C      USER3 = # of iterations needed for correction
 C
+C      USERSET 7: Calculated elsewhere
+C
+C      USERSET 8: Particle 4-momenta sums in lab (collider) frame
+C      USER1 = EOUT
+C      USER2 = PZOUT (+z along ion_in)
+C      USER3 = PTOUT
+C
+C      USERSET 9-11: Particle 4-momenta sums in ion rest frame
+C      USER1 = EOUT
+C      USER2 = PZOUT (-z along e_in)
+C      USER3 = PTOUT
+C
 C      MDB 2017-07-01 Count wounded nucleons, n_g, <Q_T> by hand.
 C      n_g only counted for Fixed target. 0.3 < beta < 0.7
 C      <Q_T> assumes all ID=80000 are absorbed in target
+C
       NWND = 0
       NWDCH  = 0
       IF (tracknr.LT.IT+2) STOP "DT_PYOUT FATAL ERROR: Too few tracks."
@@ -1789,6 +1807,81 @@ C      <Q_T> assumes all ID=80000 are absorbed in target
          USER2 = YYSPLAT
       ELSEIF (USERSET.EQ.5) THEN         
          USER2 = SIGEFF
+      ELSEIF (USERSET.GE.8) THEN         
+         VERBOSE = (IOULEV(4).GE.2 .AND. NEVENT.LE.IOULEV(5))
+         AMASS1 = AZMASS(IT,ITZ,1)
+         AMASS2 = AZMASS(IT,ITZ,2)
+         AMASS3 = AZMASS(IT,ITZ,3)
+         EINA1 = SQRT(PZTARG*PZTARG*IT*IT + AMASS1*AMASS1)
+         EINA2 = SQRT(PZTARG*PZTARG*IT*IT + AMASS2*AMASS2)
+         EINA3 = SQRT(PZTARG*PZTARG*IT*IT + AMASS3*AMASS3)
+         IF (VERBOSE) THEN
+            PZIN=PZLEP+IT*PZTARG
+            WRITE(*,*) 'Check electron mass:',PYMASS(ltype)
+            EINE = SQRT(PZLEP*PZLEP+PYMASS(ltype)*PYMASS(ltype))
+            EIN1 = EINE+EINA1
+            EIN2 = EINE+EINA2
+            EIN3 = EINE+EINA3
+            WRITE(*,*)'Lab frame quantities:'
+            WRITE(*,*)'Naive AZMASS lookup: Ein, pzin:',EIN1,PZIN
+            WRITE(*,*)'Corr. AZMASS lookup: Ein, pzin:',EIN2,PZIN
+            WRITE(*,*)'DPMJET-F EXMSAZ:     Ein, pzin:',EIN3,PZIN
+            WRITE(*,*)'Lab sums of stable particles:'
+         ENDIF
+         CALL EVTSUM(P5SUM,IZSUM,IASUM,VERBOSE,.FALSE.)
+         USER3 = SQRT(P5SUM(1)*P5SUM(1)+P5SUM(2)*P5SUM(2))
+         IF (USERSET.EQ.8) THEN
+            USER1 = P5SUM(4)
+            USER2 = P5SUM(3)
+         ENDIF
+         IF (USERSET.GT.8 .OR. VERBOSE) THEN
+            GAMTMP1 = EINA1/AMASS1
+            GAMTMP2 = EINA2/AMASS2
+            GAMTMP3 = EINA3/AMASS3
+            BGAMTMP1 = PZTARG*IT/AMASS1
+            BGAMTMP2 = PZTARG*IT/AMASS2
+            BGAMTMP3 = PZTARG*IT/AMASS3
+            ESUM1 = GAMTMP1*P5SUM(4)-BGAMTMP1*P5SUM(3)
+            ESUM2 = GAMTMP2*P5SUM(4)-BGAMTMP2*P5SUM(3)
+            ESUM3 = GAMTMP3*P5SUM(4)-BGAMTMP3*P5SUM(3)
+            PZSUM1 = GAMTMP1*P5SUM(3)-BGAMTMP1*P5SUM(4)
+            PZSUM2 = GAMTMP2*P5SUM(3)-BGAMTMP2*P5SUM(4)
+            PZSUM3 = GAMTMP3*P5SUM(3)-BGAMTMP3*P5SUM(4)
+            IF (USERSET.EQ.9) THEN
+               USER1=ESUM1
+               USER2=PZSUM1
+            ELSEIF (USERSET.EQ.10) THEN
+               USER1=ESUM2
+               USER2=PZSUM2
+            ELSEIF (USERSET.EQ.11) THEN
+               USER1=ESUM3
+               USER2=PZSUM3
+            ELSEIF (USERSET.EQ.12) THEN
+               USER1=ESUM3
+               USER2=IZSUM
+               USER3=IASUM
+            ELSEIF (USERSET.EQ.13) THEN
+               USER1=NHYPER
+               USER2=IZSUM
+               IF (NHYPER.GE.1) THEN
+                  USER3=IDHYP(1)
+               ELSE
+                  USER3=0
+               ENDIF
+            ENDIF
+            IF (VERBOSE) THEN
+               WRITE(*,*)'IRF frame (e- defines -z) quantities:'
+               WRITE(*,*)'Naive AZMASS lookup Ein, pzin:  ',
+     &            GAMTMP1*EIN1-BGAMTMP1*PZIN,GAMTMP1*PZIN-BGAMTMP1*EIN1
+               WRITE(*,*)'Naive AZMASS lookup Eout, pzout:',ESUM1,PZSUM1
+               WRITE(*,*)'Corr. AZMASS lookup Ein, pzin:  ',
+     &            GAMTMP2*EIN2-BGAMTMP2*PZIN,GAMTMP2*PZIN-BGAMTMP2*EIN2
+               WRITE(*,*)'Corr. AZMASS lookup Eout, pzout:',ESUM2,PZSUM2
+               WRITE(*,*)'DPMJET-F EXMSAZ Ein, pzin:      ',
+     &            GAMTMP3*EIN3-BGAMTMP3*PZIN,GAMTMP3*PZIN-BGAMTMP3*EIN3
+               WRITE(*,*)'DPMJET-F EXMSAZ Eout, pzout:    ',ESUM3,PZSUM3
+            ENDIF
+         ENDIF
       ENDIF
 
       IF (NCOLLT.NE.NTW0)
