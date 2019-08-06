@@ -38,8 +38,10 @@ C     Common from nucdens.f in PyQM
 
 * properties of interacting particles
 c...target/proj mass, charge and projectile internal ID
-      INTEGER IT,ITZ,IP,IPZ,IJPROJ,IBPROJ,IJTARG,IBTARG,ITMODE 
-      COMMON /DTPRTA/ IT,ITZ,IP,IPZ,IJPROJ,IBPROJ,IJTARG,IBTARG,ITMODE
+      INTEGER IT,ITZ,IP,IPZ,IJPROJ,IBPROJ,IJTARG,IBTARG,ITMODE,ITMMOD,
+     &     MODHYP,NHYPER,IDHYP 
+      COMMON /DTPRTA/ IT,ITZ,IP,IPZ,IJPROJ,IBPROJ,IJTARG,IBTARG,ITMODE,
+     &     ITMMOD,MODHYP,NHYPER,IDHYP(5)
 
       r = dsqrt(z*z+bbea*bbea)
       if (USER3D) then
@@ -71,9 +73,11 @@ C
       include 'beagle.inc'
      
 * properties of interacting particles
-      COMMON /DTPRTA/ IT,ITZ,IP,IPZ,IJPROJ,IBPROJ,IJTARG,IBTARG,ITMODE
+      COMMON /DTPRTA/ IT,ITZ,IP,IPZ,IJPROJ,IBPROJ,IJTARG,IBTARG,ITMODE,
+     &     ITMMOD,MODHYP,NHYPER,IDHYP(5) 
 c...target/proj mass, charge and projectile internal ID
-      integer IT,ITZ,IP,IPZ,IJPROJ,IBPROJ,IJTARG,IBTARG,ITMODE
+      integer IT,ITZ,IP,IPZ,IJPROJ,IBPROJ,IJTARG,IBTARG,ITMODE,ITMMOD
+      integer MODHYP,NHYPER,IDHYP 
 
       double precision DT_DENSIT
       external DT_DENSIT

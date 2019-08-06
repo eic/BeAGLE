@@ -1,0 +1,11 @@
+This directory contains a copy of RAPGAP 3.302 libraries and include
+files, with one key modification:
+
+The rapgap33 library has one object removed: SFECFE (using ar d)
+This object is a copy from FLUKA and causes a linking conflict.
+
+At BNL these were taken from 
+/afs/rhic/bnl.gov/PACKAGES/rapgap-3.302/build/lib
+and /afs/rhic/bnl.gov/PACKAGES/rapgap-3.302/include/
+
+

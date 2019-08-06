@@ -1,5 +1,7 @@
 *These are the interfaces to pythia needed by dpmjet
-
+*
+* Written by Liang Zheng and Mark Baker
+*
 C...intialize pythia when using dpmjet
 *======================================================================
       subroutine DT_PYINITEP(EPN,PPN,Q2MIN,Q2MAX,YMIN,YMAX,INPUT)
@@ -21,13 +23,14 @@ C...intialize pythia when using dpmjet
       include "bea_pyqm.inc"
 
 * properties of interacting particles
-      COMMON /DTPRTA/ IT,ITZ,IP,IPZ,IJPROJ,IBPROJ,IJTARG,IBTARG,ITMODE
-
+      COMMON /DTPRTA/ IT,ITZ,IP,IPZ,IJPROJ,IBPROJ,IJTARG,IBTARG,ITMODE,
+     &     ITMMOD,MODHYP,NHYPER,IDHYP(5) 
 c...target/proj mass, charge and projectile internal ID
-      integer IT, ITZ, IP, IPZ, IJPROJ
+      integer IT,ITZ,IP,IPZ,IJPROJ,IBPROJ,IJTARG,IBTARG,ITMODE,ITMMOD,
+     &     MODHYP,NHYPER,IDHYP 
 
       double precision EPN,PPN
-      PARAMETER (ZERO=0.0D0,ONE=1.0D0,TINY10=1.0D0-10,MAXNCL=260)
+      PARAMETER (ZERO=0.0D0,ONE=1.0D0,TINY10=1.0D-10,MAXNCL=260)
 C...Added by liang 1/6/12
 C...Switches for nuclear correction
       COMMON /PYNUCL/ INUMOD,CHANUM,ORDER,genShd
@@ -56,11 +59,6 @@ C...Parameters and switch for energy loss
       DOUBLE PRECISION QHAT
       INTEGER QSWITCH
       COMMON /QUENCH/ QHAT, QSWITCH
-
-C     MDB 2017-08-09 PYQM control from BeAGLE
-c      double precision PQRECF, PYQ_SUPF
-c      integer PYQ_IPTF, PYQ_IEG
-c      COMMON /PQCTRL/ PQRECF, PYQ_SUPF, PYQ_IPTF, PYQ_IEG
 
 C...output file name definition
       COMMON /OUNAME/ outname
@@ -115,7 +113,6 @@ c---------------------------------------------------------------------
 c     ASCII output file and input file
 c ---------------------------------------------------------------------
       CHARACTER*8 INPUT
-      CHARACTER*256 outputfilename
       CHARACTER*256 outname
 
       integer LINP
@@ -126,6 +123,9 @@ c ---------------------------------------------------------------------
       CHARACTER*255 ENVDIR
       COMMON /ENVCOM/ ENVDIR
       CHARACTER*255 FILNAM
+
+* Locals
+      INTEGER IFSEED
 
 c---------------------------------------------------------------------
 ! ... force block data modules to be read
@@ -324,7 +324,7 @@ C Mark 2018-01-24 Use double precision here.
 C MDB 2016-11-10 For A>1, match rapidities for nucleon and nucleus 
 C Note: massp means nucleon mass as seen in radgen.
       IF (IT.GT.1) THEN
-         MAscl=AZMASS(IT,ITZ)/INUMOD 
+         MAscl=AZMASS(IT,ITZ,ITMMOD)/INUMOD 
          pbeamdbl=PPN*Mnucl/MAscl
          pbeam=real(pbeamdbl)
          pbeamP=(PPN*Mprot/MAscl)
@@ -354,7 +354,7 @@ C     lepton is defined in negative z and as beam
       sqrts=sqrt((pbeamE+ebeamE)**2-(pbeamdbl-EPN)**2)
       altpbeam=PPN
       altpbeamE=sqrt(PPN*PPN+PYMASS(2212)**2)
-      altsqrts=sqrt((altpbeamE+ebeamE)**2-(altpbeam-ebeam)**2)
+      altsqrts=sqrt((altpbeamE+ebeamE)**2-(altpbeam-EPN)**2)
       write(*,*) '*********************************************'
       IF(IT.GT.1) THEN
          write(*,*) 'Nucleus: Z, A: ', ITZ, ' ', IT
@@ -364,7 +364,7 @@ C     lepton is defined in negative z and as beam
      &               pbeamN, 'GeV'
          write(*,*) 'Rapidity-matched proton beam momentum: ', 
      &               pbeamP, 'GeV'
-      ELSEIF (ITZ.GT.1) THEN
+      ELSEIF (ITZ.GE.1) THEN
          write(*,*) 'proton beam momentum: ', pbeamdbl, 'GeV'
       ELSE
          write(*,*) 'neutron beam momentum: ', pbeamdbl, 'GeV'
@@ -525,18 +525,22 @@ C     &                LEMCCK,LHADRO(0:9),LSEADI,LEVAPO,IFRAME,ITRSPT
       PARAMETER (FM2MM=1.0D-12)
 
 * properties of interacting particles
-      COMMON /DTPRTA/ IT,ITZ,IP,IPZ,IJPROJ,IBPROJ,IJTARG,IBTARG,ITMODE
+      COMMON /DTPRTA/ IT,ITZ,IP,IPZ,IJPROJ,IBPROJ,IJTARG,IBTARG,ITMODE,
+     &     ITMMOD,MODHYP,NHYPER,IDHYP(5) 
+c...target/proj mass, charge and projectile internal ID
+      integer IT, ITZ, IP, IPZ, IJPROJ, IBPROJ, IJTARG, IBTARG, ITMODE,
+     &     ITMMOD,MODHYP,NHYPER,IDHYP 
 
       COMMON /DTEVT1/ NHKK,NEVHKK,ISTHKK(NMXHKK),IDHKK(NMXHKK),
      &                JMOHKK(2,NMXHKK),JDAHKK(2,NMXHKK),
      &                PHKK(5,NMXHKK),VHKK(4,NMXHKK),WHKK(4,NMXHKK)
 
-* extended event history
+* extended event history - IHIST renamed because it's in pythia.inc
       COMMON /DTEVT2/ IDRES(NMXHKK),IDXRES(NMXHKK),NOBAM(NMXHKK),
-     &                IDBAM(NMXHKK),IDCH(NMXHKK),NPOINT(10)
-c     &                IHIST(2,NMXHKK)
+     &                IDBAM(NMXHKK),IDCH(NMXHKK),NPOINT(10),
+     &                IHISTDPM(2,NMXHKK)
 
-      PARAMETER (ZERO=0.0D0,ONE=1.0D0,TINY10=1.0D0-10,MAXNCL=260)
+      PARAMETER (ZERO=0.0D0,ONE=1.0D0,TINY10=1.0D-10,MAXNCL=260)
 
 C...Parameters and switch for energy loss from PyQM
       DOUBLE PRECISION QHAT
@@ -580,8 +584,7 @@ Cc...added by liang & Mark to include pythia energy loss datas
       DOUBLE PRECISION UPVP,DNVP,USEAP,DSEAP,STRP,CHMP,BOTP,TOPP,GLUP
       DOUBLE PRECISION UPVA,DNVA,USEAA,DSEAA,STRA,CHMA,BOTA,TOPA,GLUA
 
-      DOUBLE PRECISION USEAP1000, USEAP1001, USEAP1690
-      DOUBLE PRECISION USEAA1000, USEAA1001, USEAA1690
+C      DOUBLE PRECISION USEAP1000, USEAP1001, USEAP1690
 
       INTEGER MODE
 
@@ -614,13 +617,6 @@ C...Pythia eA shadowing common block from Mark 2017-06-30
       INTEGER NKNOTS,RDUMMY
 
 C  Local
-      DOUBLE PRECISION PTSTSM, W2RAW, W2F, W2TRY, PSUM(4),PSMTRY(4)
-      DOUBLE PRECISION PSMTR1(4),PSMTR2(4), EETEMP
-      DOUBLE PRECISION PSUM1(4),PSUM2(4), SUMM2, SUMM1, SQRM2, SQRM1
-      DOUBLE PRECISION W2TRY2, ASCALE, ASCAL2, PHIGH2
-      DOUBLE PRECISION FERBX, FERBY, FERBZ, FERGAM
-      INTEGER NPRTNS,NLEPTS,IDIM,NDIM,NSCLTR
-      PARAMETER (NDIM=4)
 
       LOGICAL LFIRST
       INTEGER IREJ
@@ -966,7 +962,7 @@ C    PXF,PYF,PZF,EKF in the TRF
       CALL DT_LTNUC(PZF,EKF,DPF(3),DPF(4),3)
 
 C  ROBO Pythia event into same frame as PHKK (TRF g*=z,e' px>0,py-0) 
-      if(IOULEV(4).GE.1 .AND. NEVENT.LE.IOULEV(5)) then
+      if(IOULEV(4).GE.2 .AND. NEVENT.LE.IOULEV(5)) then
          write(*,*) "DT_PYEVNTEP: Lab, z=p"
          CALL PYLIST(2)
          write(*,*) ""
@@ -980,13 +976,13 @@ C  ROBO Pythia event into same frame as PHKK (TRF g*=z,e' px>0,py-0)
          write(*,*) "DT_PYEVNTEP: TRF e=-z"
          CALL PYLIST(2)
       endif
-C...Rotate so that the gamma* is along +z            
+C...Rotate so that the gamma* (or Z0) is along +z            
       DO ITRK=1,N
-         IF (K(ITRK,2).EQ.22 .AND. K(ITRK,1).EQ.21 
-     &        .AND. K(ITRK,3).EQ.1) THEN
-            PHIGAM=ULANGL(P(ITRK,1),P(ITRK,2))
+         IF ((K(ITRK,2).EQ.22 .OR. K(ITRK,2).EQ.23) 
+     &        .AND. K(ITRK,1).EQ.21 .AND. K(ITRK,3).EQ.1) THEN
+            PHIGAM=PYANGL(P(ITRK,1),P(ITRK,2))
             PTGAM=DSQRT(P(ITRK,1)**2+P(ITRK,2)**2)
-            THEGAM=ULANGL(P(ITRK,3),PTGAM)
+            THEGAM=PYANGL(P(ITRK,3),PTGAM)
             GOTO 30
          ENDIF
       ENDDO
@@ -997,284 +993,73 @@ C     &                              DCOS(PHIGAM)," ",DSIN(PHIGAM)
 C... Rotate to TRF, gamma* along z, e' px>0, py=0
       CALL PYROBO(0,0,0.0D0,PARU(1)-PHIGAM,0.D0,0.D0,0.D0)
       CALL PYROBO(0,0,THEGAM,0.0D0,0.D0,0.D0,0.D0)
-      if(IOULEV(4).GE.1 .AND. NEVENT.LE.IOULEV(5)) then
+      if(IOULEV(4).GE.2 .AND. NEVENT.LE.IOULEV(5)) then
          write(*,*) "DT_PYEVNTEP: TRF g*=z, e' px>0 py=0"
          CALL PYLIST(2)
       endif
 C
 C If needed:
 C Calculate kinematics for Fermi momentum correction.
-C We are in the nuclear TRF and the following are the naive values
+C We are in the nuclear TRF with gamma* along z. 
+c VINT(1-4) is W, W2, -SQRT(Q2), M_N
 
-      if(USERSET.EQ.3 .OR. IFERPY.GE.2) then
-         W2RAW = VINT(2) 
-         W2F = VINT(2) + 2.*VINT(1)*DPF(4) - 2.*VINT(4)*EKF
-         if(IOULEV(4).GE.1 .AND. NEVENT.LE.IOULEV(5)) then
-            write(*,*) "W2 ignore pF:", W2RAW
-            write(*,*) "W2 corrected: ", W2F
-            write(*,*) "gamma*beta, gamma, beta:",BGCMS(2),GACMS(2),
-     &           BGCMS(2)/GACMS(2)
-            write(*,*) "VINT(6-10):",VINT(6),VINT(7),VINT(8),VINT(9),
-     &           VINT(10)
-         endif
-         CALL PYROBO(0,0,0.0D0,0.0D0,0.0D0,0.0D0,-BGCMS(2)/GACMS(2))
-         if(IOULEV(4).GE.1 .AND. NEVENT.LE.IOULEV(5)) then
-            write(*,*) "DT_PYEVNTEP: HCMS g*=z, e' px>0 py=0"
-            CALL PYLIST(2)
-            write(*,*) "MSTU(70-72):",MSTU(70),MSTU(71),MSTU(72)
-         endif
-         NPRTNS=0
-         NLEPTS=0
-         DO IDIM=1,NDIM
-            PSUM(IDIM)=0.0D0    ! sum p^mu for all stable except e'
-            PSUM1(IDIM)=0.0D0   ! sum p^mu for pz<0: P1
-            PSUM2(IDIM)=0.0D0   ! sum p^mu for pz>=0: P2
-            PSMTRY(IDIM)=0.0D0  ! as above, but after momentum scaling
-            PSMTR1(IDIM)=0.0D0
-            PSMTR2(IDIM)=0.0D0
-         ENDDO
-         SUMM1=0.0D0            ! sum m^2 for pz<0 - along P1
-         SUMM2=0.0D0            ! sum m^2 for pz>0 - along P2
-         DO ITRK=1,N
-            IF(K(ITRK,1).EQ.1 .OR. K(ITRK,1).EQ.2) THEN
-               IF (ABS(K(ITRK,2)).EQ.11 .OR. ABS(K(ITRK,2)).EQ.13) THEN
-                  NLEPTS = NLEPTS+1
-               ELSE
-                  NPRTNS=NPRTNS+1
-                  DO IDIM=1,NDIM
-                     PSUM(IDIM)=PSUM(IDIM)+P(ITRK,IDIM)
-                     IF (P(ITRK,3).LT.0.0D0) THEN
-                        PSUM1(IDIM)=PSUM1(IDIM)+P(ITRK,IDIM)
-                     ELSE
-                        PSUM2(IDIM)=PSUM2(IDIM)+P(ITRK,IDIM)
-                     ENDIF
-                  ENDDO
-                  IF (P(ITRK,3).LT.0.0D0) THEN
-                     SUMM1 = SUMM1 + P(ITRK,5)*P(ITRK,5)
-                  ELSE
-                     SUMM2 = SUMM2 + P(ITRK,5)*P(ITRK,5)
-                  ENDIF
-               ENDIF
-            ENDIF
-         ENDDO
-         IF (NLEPTS.NE.1) 
-     &        STOP "ERROR! BAD EVENT CONFIG. More than one lepton."
-         
-         if(IOULEV(4).GE.1 .AND. NEVENT.LE.IOULEV(5)) then
-            W2TRY = PSUM(4)**2-PSUM(1)**2-PSUM(2)**2-PSUM(3)**2
-            WRITE(*,*)"W2 from Pythia:",W2RAW,"W2 calc.:",W2TRY
-            WRITE(*,*)"PSUM(1-4):",PSUM(1),PSUM(2),PSUM(3),PSUM(4)
-         endif
-C
-C Calculate "alpha", the factor by which all momenta should be 
-C multiplied by in the HCMS in order to go from W2RAW -> W2F
-C
-C The following formula is exact if there are only two particles
-C (which often happens), but approximate otherwise.
-C We have neglected some terms of O[(Ei-pi)/W] and we have used
-C (alpha^4 ~= 2 alpha^2 - 1).
-C 
-C PSUM1 is sum of all particles with pz<0 and PSUM2 with pz>0
-C SUMM1 is the sum of all the m^2_i (m') values making up P1
-C SUMM2 is the sum of all the m^2_i (m) values making up P2
-C
-         SQRM1 = (PSUM1(4)+PSUM1(3))*(PSUM1(4)-PSUM1(3))
-     &        -PSUM1(1)*PSUM1(1)-PSUM1(2)*PSUM1(2)
-         SQRM2 = (PSUM2(4)+PSUM2(3))*(PSUM2(4)-PSUM2(3))
-     &        -PSUM2(1)*PSUM2(1)-PSUM2(2)*PSUM2(2)
-         PHIGH2 = (PSUM1(1)*PSUM1(1)+PSUM1(2)*PSUM1(2)+PSUM1(3)*PSUM1(3)
-     &        +PSUM2(1)*PSUM2(1)+PSUM2(2)*PSUM2(2)+PSUM2(3)*PSUM2(3))
-     &        /2.0D0
-         ASCALE = (W2F*W2F-2.0D0*W2F*(SUMM1+SUMM2)+(SUMM1-SUMM2)**2 -
-     &        (SQRM1-SQRM2-SUMM1+SUMM2)**2)/
-     &        (4.0D0*PHIGH2*W2F+2.0D0*W2F*(SQRM1+SQRM2-SUMM1-SUMM2)-
-     &        2.0D0*(SQRM1-SQRM2)*(SQRM1-SQRM2-SUMM1+SUMM2))
-         ASCALE=SQRT(ASCALE)
-         if(IOULEV(4).GE.1 .AND. NEVENT.LE.IOULEV(5)) then
-            WRITE(*,*)"PSUM1(1:4),PSUM2(1:4)",PSUM1(1),PSUM1(2),PSUM1(3)
-     &           ,PSUM1(4),PSUM2(1),PSUM2(2),PSUM2(3),PSUM2(4)
-            WRITE(*,*)"W2F,PHIGH2,SQRM1,SUMM1,SQRM2,SUMM2,NUMER,DENOM:",
-     &           W2F,PHIGH2,SQRM1,SUMM1,SQRM2,SUMM2,
-     &           (W2F*W2F-2.0D0*W2F*(SUMM1+SUMM2)+(SUMM1-SUMM2)**2 -
-     &           (SQRM1-SQRM2-SUMM1+SUMM2)**2),
-     &           (4.0D0*PHIGH2*W2F+2.0D0*W2F*(SQRM1+SQRM2-SUMM1-SUMM2)-
-     &           2.0D0*(SQRM1-SQRM2)*(SQRM1-SQRM2-SUMM1+SUMM2))
-            WRITE(*,*)"ASCALE",ASCALE
-            WRITE(*,*)'HCMS. Before pF-based W2 rescale.'
+      if(USERSET.EQ.3 .OR. IFERPY.EQ.2) then
+         CALL PFSHIFT(VINT(1),VINT(2),VINT(4))
+         if(IOULEV(4).GE.2 .AND. NEVENT.LE.IOULEV(5)) THEN
+            write(*,*) "DT_PYEVNTEP: TRF g*=z, after pf post-fix"
             CALL PYLIST(2)
          endif
-         DO ITRK=1,N
-            IF(K(ITRK,1).EQ.1 .OR. K(ITRK,1).EQ.2) THEN
-               IF (ABS(K(ITRK,2)).NE.11 .AND. ABS(K(ITRK,2)).NE.13) THEN
-                  DO IDIM=1,NDIM
-                     IF (IDIM.LE.3) THEN
-                        PSMTRY(IDIM)=PSMTRY(IDIM)+ASCALE*P(ITRK,IDIM)
-                        IF (IFERPY.GT.1) 
-     &                       P(ITRK,IDIM)=ASCALE*P(ITRK,IDIM)
-                        IF (P(ITRK,3).LT.0.0D0) THEN
-                           PSMTR1(IDIM)=PSMTR1(IDIM)+ASCALE*P(ITRK,IDIM)
-                        ELSE
-                           PSMTR2(IDIM)=PSMTR2(IDIM)+ASCALE*P(ITRK,IDIM)
-                        ENDIF
-                     ELSEIF (IFERPY.GT.1) THEN
-C     Note: P already scaled. Just recalc.
-                        P(ITRK,IDIM)= SQRT( P(ITRK,5)**2+
-     &                       (P(ITRK,1)**2+P(ITRK,2)**2+P(ITRK,3)**2))
-                        PSMTRY(4) = PSMTRY(4) + P(ITRK,IDIM)
-                        IF (P(ITRK,3).LT.0.0D0) THEN
-                           PSMTR1(4) = PSMTR1(4) + P(ITRK,IDIM)
-                        ELSE
-                           PSMTR2(4) = PSMTR2(4) + P(ITRK,IDIM)
-                        ENDIF
-                     ELSE
-                        EETEMP =
-     &                       SQRT( P(ITRK,5)**2+ASCALE*ASCALE*
-     &                       (P(ITRK,1)**2+P(ITRK,2)**2+P(ITRK,3)**2))
-                        PSMTRY(4) = PSMTRY(4) + EETEMP
-                        IF (P(ITRK,3).LT.0.0D0) THEN
-                           PSMTR1(4) = PSMTR1(4) + EETEMP
-                        ELSE
-                           PSMTR2(4) = PSMTR2(4) + EETEMP
-                        ENDIF
-                     ENDIF
-                  ENDDO
-               ENDIF
-            ENDIF
-         ENDDO
-         W2TRY  = (PSMTRY(4)-PSMTRY(3))*(PSMTRY(4)+PSMTRY(3))
-     &        -PSMTRY(1)**2-PSMTRY(2)**2
-         if(IOULEV(4).GE.1 .AND. NEVENT.LE.IOULEV(5)) then
-            WRITE(*,*)"W2F:",W2F,"Scaled W2:",W2TRY,"W2try/W2F",
-     &           W2TRY/W2F,"NPRTNS:",NPRTNS
-            WRITE(*,*)"PSMTRY(1-4):",PSMTRY(1),PSMTRY(2),
-     &           PSMTRY(3),PSMTRY(4)
-            WRITE(*,*)"PSMTR1(1-4):",PSMTR1(1),PSMTR1(2),
-     &           PSMTR1(3),PSMTR1(4)
-            WRITE(*,*)"PSMTR2(1-4):",PSMTR2(1),PSMTR2(2),
-     &           PSMTR2(3),PSMTR2(4)
-            WRITE(*,*)"WF/WRAW, ASCALE:", SQRT(W2F/W2RAW),ASCALE
-            WRITE(*,*)'HCMS. After pF-based W2 rescale'
-            CALL PYLIST(2)
-         endif
-C     Second iteration
-         IF (ABS(W2TRY/W2F-1).LE.1.0D-06) THEN
-            NSCLTR=1
-            W2TRY2=W2TRY
-            if(IOULEV(4).GE.1 .AND. NEVENT.LE.IOULEV(5))
-     &          WRITE(*,*)'First try succeeded.'
-         ELSE
-            NSCLTR=2
-            SQRM1 = (PSMTR1(4)+PSMTR1(3))*(PSMTR1(4)-PSMTR1(3))
-     &           -PSMTR1(1)*PSMTR1(1)-PSMTR1(2)*PSMTR1(2)
-            SQRM2 = (PSMTR2(4)+PSMTR2(3))*(PSMTR2(4)-PSMTR2(3))
-     &           -PSMTR2(1)*PSMTR2(1)-PSMTR2(2)*PSMTR2(2)
-            PHIGH2 = ASCALE*ASCALE*PHIGH2
-            ASCAL2 = (W2F*W2F-2.0D0*W2F*(SUMM1+SUMM2)+(SUMM1-SUMM2)**2 -
-     &           (SQRM1-SQRM2-SUMM1+SUMM2)**2)/
-     &           (4.0D0*PHIGH2*W2F+2.0D0*W2F*(SQRM1+SQRM2-SUMM1-SUMM2)-
-     &           2.0D0*(SQRM1-SQRM2)*(SQRM1-SQRM2-SUMM1+SUMM2))
-            ASCAL2=SQRT(ASCAL2)
-            if(IOULEV(4).GE.1 .AND. NEVENT.LE.IOULEV(5)) then
-               WRITE(*,*)'First scale inaccurate. Second iteration:'
-               WRITE(*,*)'Second ASCALE = ',ASCAL2
-               WRITE(*,*)'HCMS. Before second pF-based W2 rescale.'
-               CALL PYLIST(2)
-            endif
-            DO IDIM=1,3
-               PSMTRY(IDIM)=ASCAL2*PSMTRY(IDIM)
-               PSMTR1(IDIM)=ASCAL2*PSMTR1(IDIM)
-               PSMTR2(IDIM)=ASCAL2*PSMTR2(IDIM)
-            ENDDO
-            PSMTRY(4)=0.0D0
-            PSMTR1(4)=0.0D0
-            PSMTR2(4)=0.0D0
-            DO ITRK=1,N
-               IF(K(ITRK,1).EQ.1 .OR. K(ITRK,1).EQ.2) THEN
-                  IF (ABS(K(ITRK,2)).NE.11 .AND. ABS(K(ITRK,2)).NE.13) 
-     &                 THEN
-                     IF (IFERPY.GT.1) THEN
-                        DO IDIM=1,3
-                           P(ITRK,IDIM)=ASCAL2*P(ITRK,IDIM)
-                        ENDDO
-                        P(ITRK,4)= SQRT( P(ITRK,5)**2+
-     &                       (P(ITRK,1)**2+P(ITRK,2)**2+P(ITRK,3)**2))
-                        PSMTRY(4) = PSMTRY(4) + P(ITRK,4)
-                        IF (P(ITRK,3).LT.0.0D0) THEN
-                           PSMTR1(4) = PSMTR1(4) + P(ITRK,4)
-                        ELSE
-                           PSMTR2(4) = PSMTR2(4) + P(ITRK,4)
-                        ENDIF
-                     ELSE
-                        EETEMP =
-     &                       SQRT( P(ITRK,5)**2+ASCAL2**2*ASCALE**2*
-     &                       (P(ITRK,1)**2+P(ITRK,2)**2+P(ITRK,3)**2))
-                        PSMTRY(4) = PSMTRY(4) + EETEMP
-                        IF (P(ITRK,3).LT.0.0D0) THEN
-                           PSMTR1(4) = PSMTR1(4) + EETEMP
-                        ELSE
-                           PSMTR2(4) = PSMTR2(4) + EETEMP
-                        ENDIF
-                     ENDIF
-                  ENDIF
-               ENDIF
-            ENDDO
-         ENDIF
-         W2TRY2 = (PSMTRY(4)-PSMTRY(3))*(PSMTRY(4)+PSMTRY(3))
-     &        -PSMTRY(1)**2-PSMTRY(2)**2
-
-         if(IOULEV(4).GE.1 .AND. NEVENT.LE.IOULEV(5)) then
-            WRITE(*,*)"W2F:",W2F,"Scaled W2:",W2TRY,"W2try/W2F",
-     &           W2TRY/W2F,"W2try2/W2F",W2TRY2/W2F,"NPRTNS:",NPRTNS
-            WRITE(*,*)"PSMTRY(1-4):",PSMTRY(1),PSMTRY(2),
-     &           PSMTRY(3),PSMTRY(4)
-            WRITE(*,*)"PSMTR1(1-4):",PSMTR1(1),PSMTR1(2),
-     &           PSMTR1(3),PSMTR1(4)
-            WRITE(*,*)"PSMTR2(1-4):",PSMTR2(1),PSMTR2(2),
-     &           PSMTR2(3),PSMTR2(4)
-            WRITE(*,*)"SQRM1:",SQRM1,"SQRM2:",SQRM2,"PHIGH2:",PHIGH2
-            WRITE(*,*)'HCMS. After pF-based W2 rescale'
-            CALL PYLIST(2)
-         ENDIF
-         IF (USERSET.EQ.3) THEN
-            USER1=W2F
-            USER2=W2TRY
-            USER3=W2TRY2
-c            USER3=DBLE(NPRTNS)
-         ENDIF
-         IF (IFERPY.GT.1) THEN
-            FERBX = DPF(1)/SQRT(W2TRY2) 
-            FERBY = DPF(2)/SQRT(W2TRY2) 
-            FERBZ = DPF(3)/SQRT(W2TRY2)
-            FERGAM = SQRT(1.0D0+FERBX*FERBX+FERBY*FERBY+FERBZ*FERBZ)
-            FERBX = FERBX/FERGAM
-            FERBY = FERBY/FERGAM
-            FERBZ = FERBZ/FERGAM
-            DO ITRK=1,N
-               IF(K(ITRK,1).EQ.1 .OR. K(ITRK,1).EQ.2) THEN
-                  IF (ABS(K(ITRK,2)).NE.11 .AND. ABS(K(ITRK,2)).NE.13)
-     &              CALL PYROBO(ITRK,ITRK,0.0D0,0.0D0,FERBX,FERBY,FERBZ)
-               ENDIF
-            ENDDO
-            if(IOULEV(4).GE.1 .AND. NEVENT.LE.IOULEV(5)) then
-               WRITE(*,*)"PYLIST: After pF boost"
-               CALL PYLIST(2)
-            endif
-         ENDIF
-         CALL PYROBO(0,0,0.0D0,0.0D0,0.0D0,0.0D0,BGCMS(2)/GACMS(2))
-      endif ! (USERSET.EQ.3 ...
-      if(IOULEV(4).GE.1 .AND. NEVENT.LE.IOULEV(5)) THEN
-         write(*,*) "DT_PYEVNTEP: TRF g*=z, e' px>0 py=0"
-         CALL PYLIST(2)
       endif
 
-C         write(*,*) 'DT_PYEVNTEP: After PYROBO(theta), TRF g*=z'
-C         CALL PYLIST(2)
+C... If requested, fix the e+D event kinematics.
+      if (IFMPOST.GT.0) then
+         if (ITZ.NE.1 .OR. IT.NE.2) 
+     &        STOP "FATAL: CAN ONLY POST-FIX DEUTERON KINEMATICS"
+C...     Copy the spectator nucleon to the PYTHIA event record 
+C...     and flag it as having been involved in the interaction 
+C...     but not needing a ptkick using temporary value -12
+         DO IHKK=1,NHKK 
+            IF (ISTHKK(IHKK).EQ.14) THEN
+               NINTS=NINTS+1
+               IINTER(NINTS)=IHKK
+               ISTHKK(IHKK)=-12
+               GOTO 31
+            ENDIF
+         ENDDO
+         STOP 'FATAL: Could not find a spectator nucleon in deuteron.'
+ 31      CONTINUE
+         N = N + 1
+         P(N,1) = PHKK(1,IINTER(NINTS))
+         P(N,2) = PHKK(2,IINTER(NINTS))
+         P(N,3) = PHKK(3,IINTER(NINTS))
+         P(N,4) = PHKK(4,IINTER(NINTS))
+         P(N,5) = PHKK(5,IINTER(NINTS))
+         K(N,1) = 1
+         K(N,2) = IDHKK(IINTER(NINTS))
+         K(N,3) = IINTER(NINTS)
+         K(N,4) = 0
+         K(N,5) = 0
+C...  Note: Can't fill V(N,I) yet or PYROBO will boost it around.
+         NPOS(NINTS) = N
+         PosAlt(NINTS,1) = VHKK(1,IINTER(NINTS))
+         PosAlt(NINTS,2) = VHKK(2,IINTER(NINTS))
+         PosAlt(NINTS,3) = VHKK(3,IINTER(NINTS))
+         PosAlt(NINTS,4) = VHKK(4,IINTER(NINTS))
+         MomAlt(NINTS) = IINTER(NINTS)
+C     nu = y(s-M2-m2)/2M  where M=M_nucleon and m=m_lepton
+         VALNU = 0.5D0*VINT(309)*(VINT(302)-VINT(4)**2-VINT(303)**2)
+     &        /VINT(4)
+         QQ=VINT(307)
+         CALL DEUTFIX(VALNU,QQ,AZMASS(2,1,1))
+      endif
+
+C
 C...Struck "parton" is the (non e') particle with highest pz (along g*)
       PZMAX=0.D0
       IPARTN=0
       DO ITRK=1,N
          IF ( (1.LE.K(ITRK,1) .AND. K(ITRK,1).LE.3) .AND.
-     &        .NOT.(11.LE.K(ITRK,2) .AND. K(ITRK,2).LE.18) ) THEN
+     &       .NOT.(11.LE.ABS(K(ITRK,2)).AND.ABS(K(ITRK,2)).LE.18) ) THEN
             IF (P(ITRK,3).GT.PZMAX) THEN
                PZMAX=P(ITRK,3)
                IPARTN=ITRK
@@ -1283,9 +1068,12 @@ C...Struck "parton" is the (non e') particle with highest pz (along g*)
       ENDDO
 c...  For the non-main interactions, just do a ptkick & recoil
 C...  Copy the recoiling nucleon to the PYTHIA event record 
-C...  and flag it as special
+C...  and flag it as special.
+C...  If it is the spectator nucleon from e+D, leave it alone.
       DO IINT=1,NINTS
-         IF (IINT.NE.IMAIN) THEN
+         IF (ISTHKK(IINTER(IINT)).EQ.-12) THEN
+            ISTHKK(IINTER(IINT))=12
+         ELSEIF (IINT.NE.IMAIN) THEN
             N = N + 1
             P(N,1) = PHKK(1,IINTER(IINT))
             P(N,2) = PHKK(2,IINTER(IINT))
@@ -1294,7 +1082,7 @@ C...  and flag it as special
             P(N,5) = PHKK(5,IINTER(IINT))
             K(N,1) = 1
             K(N,2) = IDHKK(IINTER(IINT)) 
-            K(N,3) = 0
+            K(N,3) = IINTER(IINT)
             K(N,4) = 0
             K(N,5) = 0
 C...  Note: Can't fill V(N,I) yet or PYROBO will boost it around.
@@ -1309,7 +1097,7 @@ C...  Note: Can't fill V(N,I) yet or PYROBO will boost it around.
      &           P(N,1), P(N,2), P(N,3), P(N,4), P(N,5))
          ENDIF
       ENDDO            
-      if(IOULEV(4).GE.1 .AND. NEVENT.LE.IOULEV(5)) then
+      if(IOULEV(4).GE.2 .AND. NEVENT.LE.IOULEV(5)) then
          write(*,*) "DT_PYEVNTEP: TRF g*=z, post-ptkick pre-ApplyQW"
          CALL PYLIST(2)
          WRITE(*,*) "PYQREC=0: ",PYQREC(1),PYQREC(2),PYQREC(3),
@@ -1318,20 +1106,24 @@ C...  Note: Can't fill V(N,I) yet or PYROBO will boost it around.
 C Decay particles (like a J/psi) from the event skeleton
       MSTJ(21)=2
       CALL PYEXEC
-      if(IOULEV(4).GE.1 .AND. NEVENT.LE.IOULEV(5)) then
+      if(IOULEV(4).GE.2 .AND. NEVENT.LE.IOULEV(5)) then
          WRITE(*,*)"PYLIST: After PYEXEC"
          CALL PYLIST(2)
       endif
-      print*, 'Event ', ievent
-      print*, 'NEvent ', NEVENT
+      if(IOULEV(6).GE.1) print*, 'Event ', NEVENT
 c...  do quenching to scattered partons if requested      
       IF (QSWITCH.EQ.1) THEN
          call InterPos          ! Set the interaction position in nucleus
-c         print*, 'before pyqm'
-         call PYLIST(1)
+         if(IOULEV(6).GE.1) then
+            print*, 'before pyqm'
+            call PYLIST(1)
+         endif
          call ApplyQW(QHAT)     ! Compute QW (also fill PYQREQ(mu))
+         if(IOULEV(6).GE.1) then
+            print*,'after pyqm'
+            call PYLIST(1)
+         endif 
 C     2017-08-26 MDB For Userset1, use PYQREC in TRF z along gamma*
-c         print*,'after pyqm'
          IF (USERSET.EQ.1 .OR. USERSET.EQ.2) THEN
             USER3 = PYQREC(4)
             IF (USERSET.EQ.1) THEN
@@ -1351,7 +1143,7 @@ c         print*,'after pyqm'
          CALL PYLIST(2)
       endif
       CALL PYROBO(0,0,0.0D0,0.0D0,0.0D0,0.0D0,pbeta)
-      if(IOULEV(4).GE.1 .AND. NEVENT.LE.IOULEV(5)) then
+      if(IOULEV(4).GE.2 .AND. NEVENT.LE.IOULEV(5)) then
          write(*,*) 'DT_PYEVNTEP: Back in lab frame'
          CALL PYLIST(2)
       endif
@@ -1360,11 +1152,11 @@ C We are done with the partons. Hadronize the event now.
       CALL PYEXEC
       CALL PYLIST(1)
       if(NEVENT.LE.IOULEV(5)) then
-         if(IOULEV(4).GE.1) then
+         if(IOULEV(4).GE.2) then
             write(*,*) 'DT_PYEVNTEP: After  PYEXEC'
             CALL PYLIST(2)
          endif
-         if(IOULEV(4).GE.1) then
+         if(IOULEV(4).GE.2) then
             WRITE(*,*) 'Recoil PYQREC(1-4) TRF: ',PYQREC(1),PYQREC(2),
      &           PYQREC(3),PYQREC(4)
          endif
@@ -1377,12 +1169,12 @@ C     &      GACMS(2),BGCMS(2)
       P4=PYQREC(4)
       PYQREC(3)=GACMS(2)*P3-BGCMS(2)*P4
       PYQREC(4)=GACMS(2)*P4-BGCMS(2)*P3
-      if(IOULEV(4).GE.1 .AND. NEVENT.LE.IOULEV(5)) then
+      if(IOULEV(4).GE.2 .AND. NEVENT.LE.IOULEV(5)) then
          WRITE(*,*) 'Mycalc Recoil PYQREC(1-4) HCMS: ',PYQREC(1),
      &        PYQREC(2),PYQREC(3),PYQREC(4)
       endif
       CALL DT_LTNUC(P3,P4,PYQREC(3),PYQREC(4),3)
-      if(IOULEV(4).GE.1 .AND. NEVENT.LE.IOULEV(5)) then
+      if(IOULEV(4).GE.2 .AND. NEVENT.LE.IOULEV(5)) then
          WRITE(*,*) 'DT_LTNUC Recoil PYQREC(1-4) HCMS: ',PYQREC(1),
      &        PYQREC(2),PYQREC(3),PYQREC(4)
       endif
@@ -1390,15 +1182,15 @@ c...Translate PYJETS into HEPEVT event record
       CALL PYHEPC(1)
 
 c...Output part
-      if(IOULEV(4).GE.1 .AND. NEVENT.LE.IOULEV(5)) then
+      if(IOULEV(4).GE.2 .AND. NEVENT.LE.IOULEV(5)) then
          WRITE(*,*) 'Listing HEPEVT as we go. Before rotation which',
      &        'takes x->-x and z->-z.'
-         WRITE(*,*) 'J, ISTHEP(J), JMOHEP(1-2,J), JDAHEP(1-2,J)',
-     &        'PHEP(1-5,J)'
+         WRITE(*,*) 'J, ISTHEP(J), IDHEP(J), JMOHEP(1-2,J), ',
+     &        'JDAHEP(1-2,J)','PHEP(1-5,J)'
       endif
 c...First loop to find exchanged boson
       DO  J=1,NHEP
-         if(IOULEV(4).GE.1 .AND. NEVENT.LE.IOULEV(5)) then
+         if(IOULEV(4).GE.2 .AND. NEVENT.LE.IOULEV(5)) then
 c...output of event list from pythia for a temp check      
             WRITE(*,998) J,ISTHEP(J),IDHEP(J),JMOHEP(1,J),
      &           JMOHEP(2,J),JDAHEP(1,J),JDAHEP(2,J),
@@ -1410,8 +1202,8 @@ c...find the virtual photon to do LT from lab to gamma c.m.s
          PHEP(3,J)=-PHEP(3,J)
 c... Mark 2016-09-14 Flip px also to make it a rotation
          PHEP(1,J)=-PHEP(1,J)  
-         IF((IDHEP(J).EQ.22).AND.(ISTHEP(J).EQ.3).AND.
-     &        (JMOHEP(1,J).EQ.1)) THEN
+         IF((IDHEP(J).EQ.22 .OR. IDHEP(J).EQ.23) .AND.
+     &        (ISTHEP(J).EQ.3).AND. (JMOHEP(1,J).EQ.1)) THEN
             GAMM(1)=PHEP(1,J)
             GAMM(2)=PHEP(2,J)
             GAMM(3)=PHEP(3,J)
@@ -1506,13 +1298,13 @@ c     &    PHKK(3,I),PHKK(4,I),1,3)
 c         PHKK(1,I)=P1
 c         PHKK(2,I)=P2
 C
-      if(IOULEV(4).GE.1 .AND. NEVENT.LE.IOULEV(5)) then
+      if(IOULEV(4).GE.2 .AND. NEVENT.LE.IOULEV(5)) then
          WRITE(*,*)'Particle I, ISTHKK, IDHKK: ',I,' ',ISTHKK(I),
      &             ' ', IDHKK(I)
          WRITE(*,*)'Lab frame'
          WRITE(*,*),'PHEP(1-4): ',PHEP(1,J),' ',PHEP(2,J),' ',
      &                            PHEP(3,J),' ',PHEP(4,J)
-         WRITE(*,*)'HCMS: z-boost from lab'
+         WRITE(*,*)'HCMS: boosted from lab'
          WRITE(*,*)'P1,P2,P3,P4: ',P1,' ',P2,' ',P3,' ',P4
          WRITE(*,*)'HCMS: z along gamma*'
          WRITE(*,*),'PHKK(1-4): ',PHKK(1,I),' ',PHKK(2,I),' ',
@@ -1542,10 +1334,10 @@ c... Set VHKK for recoiling nucleons.
 
 c...set BAM ID for the particles         
          IDBAM(I)=IDT_ICIHAD(IDHKK(I))
-c...change the IS of out e- from 1 to 99 in order to avoid its 
-c...interaction in cascade
-         IF( (ISTHEP(J).EQ.1).AND.(IDHEP(J).EQ.11).AND.
-     & (JMOHEP(1,J).EQ.3) ) THEN
+c...change the IS of scattered lepton from 1 to 99 in order to avoid its 
+c...interaction in cascade. 
+         IF( (ISTHEP(J).EQ.1).AND.(JMOHEP(1,J).EQ.3).AND.
+     &        (ABS(IDHEP(J)).EQ.11.OR.ABS(IDHEP(J)).EQ.13) ) THEN
             ISTHKK(I)=99
             JMOHKK(1,I)=JMOHEP(1,J)
          ENDIF
@@ -1664,7 +1456,7 @@ C
       SUBROUTINE DT_PYOUTEP(MODE)     
  
 *     input:
-*           MODE: 1:reject statistics
+*           MODE: 1:reject statistics - not really used
 *                 2:event output
 *                 3:total statistics print
 *                 4:event output to screen (for debugging) Mark 08/17/2016
@@ -1677,10 +1469,10 @@ C
       include "phiout.inc"
       include "beagle.inc"
 
-      EXTERNAL PYCHGE, NBARY
-      INTEGER NBARY
-* event history
+      EXTERNAL PYCHGE, NBARY, PYMASS
+      INTEGER  NBARY
 
+* event history
       PARAMETER (NMXHKK=200000)
    
       LOGICAL ISHADR
@@ -1690,12 +1482,12 @@ C
      &                JMOHKK(2,NMXHKK),JDAHKK(2,NMXHKK),
      &                PHKK(5,NMXHKK),VHKK(4,NMXHKK),WHKK(4,NMXHKK)
 
-* extended event history
+* extended event history - IHIST renamed because it's in pythia.inc
       COMMON /DTEVT2/ IDRES(NMXHKK),IDXRES(NMXHKK),NOBAM(NMXHKK),
-     &                IDBAM(NMXHKK),IDCH(NMXHKK),NPOINT(10)
-c     &                IHIST(2,NMXHKK)
+     &                IDBAM(NMXHKK),IDCH(NMXHKK),NPOINT(10),
+     &                IHISTDPM(2,NMXHKK)
 
-      PARAMETER (ZERO=0.0D0,ONE=1.0D0,TINY10=1.0D0-10,MAXNCL=260)
+      PARAMETER (ZERO=0.0D0,ONE=1.0D0,TINY10=1.0D-10,MAXNCL=260)
 
 * Glauber formalism: collision properties
       COMMON /DTGLCP/ RPROJ,RTARG,BIMPAC,
@@ -1738,9 +1530,11 @@ C...Switches for nuclear correction
       COMMON /DTWOUN/ NPW,NPW0,NPCW,NTW,NTW0,NTCW,IPW(210),ITW(210)
 
 * properties of interacting particles
-      COMMON /DTPRTA/ IT,ITZ,IP,IPZ,IJPROJ,IBPROJ,IJTARG,IBTARG,ITMODE
+      COMMON /DTPRTA/ IT,ITZ,IP,IPZ,IJPROJ,IBPROJ,IJTARG,IBTARG,ITMODE,
+     &     ITMMOD,MODHYP,NHYPER,IDHYP(5) 
 c...target/proj mass, charge and projectile internal ID
-      integer IT, ITZ, IP, IPZ, IJPROJ, IBPROJ, IJTARG, IBTARG, ITMODE
+      integer IT, ITZ, IP, IPZ, IJPROJ, IBPROJ, IJTARG, IBTARG, ITMODE,
+     &     ITMMOD,MODHYP,NHYPER,IDHYP 
 
 * added by liang to check the photon flux 12/28/11
       COMMON /FLCHK/ PFXCHK
@@ -1768,6 +1562,8 @@ C...output file name definition
 
 C     Local
       DOUBLE PRECISION BETA2,P2TEMP,XCALC
+      DOUBLE PRECISION P5SUM(5)
+      LOGICAL VERBOSE
 
       LOGICAL FIRST
       SAVE FIRST
@@ -1833,8 +1629,8 @@ c     PHKK(3,J)=pgamma*(P3+pbeta*P4)
 c     PHKK(4,J)=pgamma*(P4+pbeta*P3)
 c...find the exchanged boson and out e- to make it fit root tree making rules
 c...in the following steps
-            IF((ISTHKK(J).EQ.3).AND.(IDHKK(J).EQ.22).AND.
-     &           (JMOHKK(1,J).EQ.(NPOINT(1)+1))) THEN
+            IF((ISTHKK(J).EQ.3).AND.(IDHKK(J).EQ.22 .OR. IDHKK(J).EQ.23)
+     &           .AND. (JMOHKK(1,J).EQ.(NPOINT(1)+1))) THEN
                IBOSON=J
             ELSEIF(ISTHKK(J).EQ.99) THEN
                ISTHKK(J)=1
@@ -1943,24 +1739,42 @@ C      USER1 = PYQREC_T
 C      USER2 = |PYQREC|
 C      USER3 = PYQREC(4)  all in TRF with z along gamma* 
 C
-C      USERSET2:
+C      USERSET 2:
 C      USER1 = Q2SPLAT - Q2 of last aborted event if retry>0
 C      USER2 = YYSPLAT - y of last aborted event if retry>0
 C      USER3 = PYQREC(4)  in TRF 
 C
-C      USERSET3: 
+C      USERSET 3: 
 C      USER1 = Fermi-corrected W2
-C      USER2 = W2 after correction 
-C      USER3 = # of "partons"
+C      USER2 = W2 after correction/W2F - 1 
+C      USER3 = # of iterations needed for correction
 C
-C      USERSET4 (already filled with):
+C      USERSET 4 (already filled with):
 C      USER1-3 = x-z of Nuclear longitudinal axis for 3d nuclei
 C
-C      USERSET5: USER1=Zremn, USER2=sigma_dipole,USER3 not used
+C      USERSET 5: USER1=Zremn, USER2=sigma_dipole,USER3 not used
+C
+C      USERSET 6: 
+C      USER1 = D2-corrected W2
+C      USER2 = W2 after correction/W2F - 1 
+C      USER3 = # of iterations needed for correction
+C
+C      USERSET 7: Calculated elsewhere
+C
+C      USERSET 8: Particle 4-momenta sums in lab (collider) frame
+C      USER1 = EOUT
+C      USER2 = PZOUT (+z along ion_in)
+C      USER3 = PTOUT
+C
+C      USERSET 9-11: Particle 4-momenta sums in ion rest frame
+C      USER1 = EOUT
+C      USER2 = PZOUT (-z along e_in)
+C      USER3 = PTOUT
 C
 C      MDB 2017-07-01 Count wounded nucleons, n_g, <Q_T> by hand.
 C      n_g only counted for Fixed target. 0.3 < beta < 0.7
 C      <Q_T> assumes all ID=80000 are absorbed in target
+C
       NWND = 0
       NWDCH  = 0
       IF (tracknr.LT.IT+2) STOP "DT_PYOUT FATAL ERROR: Too few tracks."
@@ -1994,11 +1808,81 @@ C      <Q_T> assumes all ID=80000 are absorbed in target
          USER2 = YYSPLAT
       ELSEIF (USERSET.EQ.5) THEN         
          USER2 = SIGEFF
-      ELSEIF (USERSET.LT.0.AND.USERSET.GT.5) THEN
-         WRITE(*,*)'WARNING: Unknown USERSET:',USERSET,'USER1,2,3=0'
-         USER1=0.0D0
-         USER2=0.0D0
-         USER3=0.0D0
+      ELSEIF (USERSET.GE.8) THEN         
+         VERBOSE = (IOULEV(4).GE.2 .AND. NEVENT.LE.IOULEV(5))
+         AMASS1 = AZMASS(IT,ITZ,1)
+         AMASS2 = AZMASS(IT,ITZ,2)
+         AMASS3 = AZMASS(IT,ITZ,3)
+         EINA1 = SQRT(PZTARG*PZTARG*IT*IT + AMASS1*AMASS1)
+         EINA2 = SQRT(PZTARG*PZTARG*IT*IT + AMASS2*AMASS2)
+         EINA3 = SQRT(PZTARG*PZTARG*IT*IT + AMASS3*AMASS3)
+         IF (VERBOSE) THEN
+            PZIN=PZLEP+IT*PZTARG
+            WRITE(*,*) 'Check electron mass:',PYMASS(ltype)
+            EINE = SQRT(PZLEP*PZLEP+PYMASS(ltype)*PYMASS(ltype))
+            EIN1 = EINE+EINA1
+            EIN2 = EINE+EINA2
+            EIN3 = EINE+EINA3
+            WRITE(*,*)'Lab frame quantities:'
+            WRITE(*,*)'Naive AZMASS lookup: Ein, pzin:',EIN1,PZIN
+            WRITE(*,*)'Corr. AZMASS lookup: Ein, pzin:',EIN2,PZIN
+            WRITE(*,*)'DPMJET-F EXMSAZ:     Ein, pzin:',EIN3,PZIN
+            WRITE(*,*)'Lab sums of stable particles:'
+         ENDIF
+         CALL EVTSUM(P5SUM,IZSUM,IASUM,VERBOSE,.FALSE.)
+         USER3 = SQRT(P5SUM(1)*P5SUM(1)+P5SUM(2)*P5SUM(2))
+         IF (USERSET.EQ.8) THEN
+            USER1 = P5SUM(4)
+            USER2 = P5SUM(3)
+         ENDIF
+         IF (USERSET.GT.8 .OR. VERBOSE) THEN
+            GAMTMP1 = EINA1/AMASS1
+            GAMTMP2 = EINA2/AMASS2
+            GAMTMP3 = EINA3/AMASS3
+            BGAMTMP1 = PZTARG*IT/AMASS1
+            BGAMTMP2 = PZTARG*IT/AMASS2
+            BGAMTMP3 = PZTARG*IT/AMASS3
+            ESUM1 = GAMTMP1*P5SUM(4)-BGAMTMP1*P5SUM(3)
+            ESUM2 = GAMTMP2*P5SUM(4)-BGAMTMP2*P5SUM(3)
+            ESUM3 = GAMTMP3*P5SUM(4)-BGAMTMP3*P5SUM(3)
+            PZSUM1 = GAMTMP1*P5SUM(3)-BGAMTMP1*P5SUM(4)
+            PZSUM2 = GAMTMP2*P5SUM(3)-BGAMTMP2*P5SUM(4)
+            PZSUM3 = GAMTMP3*P5SUM(3)-BGAMTMP3*P5SUM(4)
+            IF (USERSET.EQ.9) THEN
+               USER1=ESUM1
+               USER2=PZSUM1
+            ELSEIF (USERSET.EQ.10) THEN
+               USER1=ESUM2
+               USER2=PZSUM2
+            ELSEIF (USERSET.EQ.11) THEN
+               USER1=ESUM3
+               USER2=PZSUM3
+            ELSEIF (USERSET.EQ.12) THEN
+               USER1=ESUM3
+               USER2=IZSUM
+               USER3=IASUM
+            ELSEIF (USERSET.EQ.13) THEN
+               USER1=NHYPER
+               USER2=IZSUM
+               IF (NHYPER.GE.1) THEN
+                  USER3=IDHYP(1)
+               ELSE
+                  USER3=0
+               ENDIF
+            ENDIF
+            IF (VERBOSE) THEN
+               WRITE(*,*)'IRF frame (e- defines -z) quantities:'
+               WRITE(*,*)'Naive AZMASS lookup Ein, pzin:  ',
+     &            GAMTMP1*EIN1-BGAMTMP1*PZIN,GAMTMP1*PZIN-BGAMTMP1*EIN1
+               WRITE(*,*)'Naive AZMASS lookup Eout, pzout:',ESUM1,PZSUM1
+               WRITE(*,*)'Corr. AZMASS lookup Ein, pzin:  ',
+     &            GAMTMP2*EIN2-BGAMTMP2*PZIN,GAMTMP2*PZIN-BGAMTMP2*EIN2
+               WRITE(*,*)'Corr. AZMASS lookup Eout, pzout:',ESUM2,PZSUM2
+               WRITE(*,*)'DPMJET-F EXMSAZ Ein, pzin:      ',
+     &            GAMTMP3*EIN3-BGAMTMP3*PZIN,GAMTMP3*PZIN-BGAMTMP3*EIN3
+               WRITE(*,*)'DPMJET-F EXMSAZ Eout, pzout:    ',ESUM3,PZSUM3
+            ENDIF
+         ENDIF
       ENDIF
 
       IF (NCOLLT.NE.NTW0)
@@ -2049,8 +1933,10 @@ C     &     I12,1x,$,2(f12.6,1x,$),7(f18.11,3x,$),11(f19.9,3x,$),I12,/)
 
 ***************standard output for particle info************************
 c...add 2 beam information at first to fit into root tree making rule      
+c... MDB Change these lines to use the correct pid for lepton+nucleon!
       I=NPOINT(1)+1   
-      write(29,34) 1,21,11,0,0,I+4,0,
+C      write(29,34) 1,21,11,0,0,I+4,0,
+      write(29,34) 1,21,IDHKK(I),0,0,I+4,0,
      &     PHKK(1,I),PHKK(2,I),PHKK(3,I),PHKK(4,I),PHKK(5,I),
      &     VHKK(1,I),VHKK(2,I),VHKK(3,I)
      &     ,0,0,0
@@ -2074,18 +1960,23 @@ c         ENDIF
          ZOUT = 0
       ELSE 
          AOUT = 1
-         ZOUT = 1
+C         ZOUT = 1 
+         ZOUT = PYCHGE(IDHKK(I+1))/3
       ENDIF
-      write(29,34) 2,21,2212,0,0,I+5,0,PP1,PP2,P3,P4,PP5,
+C      write(29,34) 2,21,2212,0,0,I+5,0,PP1,PP2,P3,P4,PP5,
+      write(29,34) 2,21,IDHKK(I+1),0,0,I+5,0,PP1,PP2,P3,P4,PP5,
      &        VHKK(1,I+1),VHKK(2,I+1),VHKK(3,I+1),AOUT,ZOUT,0
-c...add the exchanged boson from the 
-      write(29,34) 3,21,11,0,1,ILEPT+4,0,
+c...add the lepton 
+C      write(29,34) 3,21,11,0,1,ILEPT+4,0,
+      write(29,34) 3,21,IDHKK(ILEPT),0,1,ILEPT+4,0,
      &     PHKK(1,ILEPT),PHKK(2,ILEPT),PHKK(3,ILEPT),
      &     PHKK(4,ILEPT),PHKK(5,ILEPT),VHKK(1,ILEPT),
      &     VHKK(2,ILEPT),VHKK(3,ILEPT)
      &     ,0,0,0
-c...add the exchanged boson from the 
-      write(29,34) 4,21,22,0,1,IBOSON+4,0,
+c...add the exchanged boson  
+C      IDEXBO = 22
+C      IF (MCGENE.EQ.6) IDEXBO = 23
+      write(29,34) 4,21,IDHKK(IBOSON),0,1,IBOSON+4,0,
      &     PHKK(1,IBOSON),PHKK(2,IBOSON),PHKK(3,IBOSON),
      &     PHKK(4,IBOSON),PHKK(5,IBOSON),VHKK(1,IBOSON),
      &     VHKK(2,IBOSON),VHKK(3,IBOSON)

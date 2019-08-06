@@ -1,0 +1,5 @@
+      INTEGER N,NPAD,K
+      DOUBLE PRECISION P,V
+      COMMON/PYJETS/N,NPAD,K(LUPAN,5),P(LUPAN,5),V(LUPAN,5)
+c      save 
+

@@ -1,0 +1,5 @@
+# ignore all .a files & all ~ files
+*.a
+*~
+# Ignore the local file setup_BeAGLE
+setup_BeAGLE

@@ -1,0 +1,6 @@
+      DOUBLE PRECISION PRKT1,PRKT2,pktm
+	Integer IGAMKT
+      COMMON /RGPRKT/PRKT1,PRKT2,pktm,IGAMKT
+      Integer IRspl
+      COMMON /RGPRRE/IRspl
+
