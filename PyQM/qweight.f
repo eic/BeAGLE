@@ -1198,10 +1198,10 @@ C      end if
       close(20)
 *
 C      if (nint(alphas*3d0).eq.1) then
-C         OPEN(UNIT=21,FILE='PyQM/qweight/disc03.all',
+C         OPEN(UNIT=22,FILE='PyQM/qweight/disc03.all',
 C     &        STATUS='OLD',ERR=90)
 C      else if (nint(alphas*2d0).eq.1) then
-C         OPEN(UNIT=21,FILE='PyQM/qweight/disc05.all',
+C         OPEN(UNIT=22,FILE='PyQM/qweight/disc05.all',
 C     &        STATUS='OLD',ERR=90)
 C      else
 C         print*, 'Error (initmult): alphas =/= 1/3 or 1/2'
@@ -1215,14 +1215,14 @@ C      end if
          print*, 'Error (initmult): alphas =/= 1/3 or 1/2'
          stop
       end if
-      OPEN(UNIT=21,FILE=FILNAM,STATUS='OLD',ERR=90)
+      OPEN(UNIT=22,FILE=FILNAM,STATUS='OLD',ERR=90)
       do 112 nn=1,34
-      read (21,*) rrr(nn), daq(nn)
+      read (22,*) rrr(nn), daq(nn)
  112     continue
       do 113 nn=1,34
-      read (21,*) rrrg(nn), dag(nn)
+      read (22,*) rrrg(nn), dag(nn)
  113     continue
-      close(21)
+      close(22)
 *
       goto 888
  90   PRINT*, 'input - output error' 
@@ -1410,11 +1410,11 @@ C     &        STATUS='OLD',ERR=90)
 *
       if (nint(alphas*3d0).eq.1) then
          FILNAM=TRIM(ENVDIR)//'/PyQM/qweight/disclin03.all'
-C         OPEN(UNIT=21,FILE='PyQM/qweight/disclin03.all',
+C         OPEN(UNIT=22,FILE='PyQM/qweight/disclin03.all',
 C     &        STATUS='OLD',ERR=91)
-         OPEN(UNIT=21,FILE=FILNAM,STATUS='OLD',ERR=91)
+         OPEN(UNIT=22,FILE=FILNAM,STATUS='OLD',ERR=91)
       else if (nint(alphas*2d0).eq.1) then
-*         OPEN(UNIT=21,FILE='disclin05.all',STATUS='OLD',ERR=91)
+*         OPEN(UNIT=22,FILE='disclin05.all',STATUS='OLD',ERR=91)
          print*, 'Error (initlin): alphas=0.5 not yet implemented'
          stop
       else
@@ -1422,12 +1422,12 @@ C     &        STATUS='OLD',ERR=91)
          stop
       end if
       do 112 nn=1,34
-      read (21,*) rrr(nn), daq(nn)
+      read (22,*) rrr(nn), daq(nn)
  112     continue
       do 113 nn=1,34
-      read (21,*) rrrg(nn), dag(nn)
+      read (22,*) rrrg(nn), dag(nn)
  113     continue
-      close(21)
+      close(22)
 *
       goto 888
  90   PRINT*, 'data file conlin03 open error' 
