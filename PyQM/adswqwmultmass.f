@@ -188,13 +188,13 @@ C     xxx(416) = 0 -> 20
       close(20)
 *
       Filename2=Trim(ENVDIR)//'/PyQM/qweight/disc_mass_mult.all'
-      open(unit=21,file=Filename2,status='OLD',err=91)
+      open(unit=22,file=Filename2,status='OLD',err=91)
       do 111,nm=1,8
          do 112,nr=1,10
-            read (21,*) mmm(nm), rrr(nr), dw(nm,nr)
+            read (22,*) mmm(nm), rrr(nr), dw(nm,nr)
  112     continue
  111  continue
-      close(21)
+      close(22)
 *
       goto 888
  90   print*, 'input - output error' 
