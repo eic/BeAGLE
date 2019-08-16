@@ -619,7 +619,7 @@ C...Pythia eA shadowing common block from Mark 2017-06-30
 C  Local
 
       LOGICAL LFIRST
-      INTEGER IREJ
+      INTEGER IREJ, IIMAIN, IIMAINN
 
       SAVE LFIRST
 
@@ -954,6 +954,18 @@ C     &     ((2.0*ebeamEnucl+PHKK(5,IIMAIN))*PHKK(5,IIMAIN))+masse*masse)
 C      WRITE(*,*) 'Output current event after possible swap'
 C      CALL DT_PYOUTEP(4)
 
+      CALL DT_PICKSRC(PHKK,VHKK,NINT(INUMOD),IIMAIN,IIMAINN)
+* initialize IIMAINN to be -1 in DT_PICKSRC if not in SRC. 
+* otherwise, it would be the index for the SRC partner
+
+      IF( IIMAINN.NE.-1 ) THEN
+        ISTHKK(IIMAINN)=-12
+        NINTS=NINTS+1
+        IINTER(NINTS)=IIMAINN
+      ENDIF
+
+      IF (IOULEV(1).GE.1) WRITE(*,*) 'REJECTION FLAG 1 ~ ', IREJ
+  
 C... Note: DPF(mu) = P(mu)_true - P(mu)_naive is a 4-momentum too.   
 C    DPF is the name in the HCMS
 C    PXF,PYF,PZF,EKF in the TRF
@@ -1442,6 +1454,7 @@ C
       endif
 
       LFIRST=.TRUE.
+      IF (IOULEV(1).GE.1) WRITE(*,*) 'REJECTION FLAG 2 ~ ', IREJ
       RETURN
 
 9999  CONTINUE

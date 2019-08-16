@@ -2424,6 +2424,11 @@ C         WRITE(*,*) '          USER3 = # of "partons"'
          WRITE(*,*) '          USER1 = NHYPER'
          WRITE(*,*) '          USER2 = ZSUM'
          WRITE(*,*) '          USER3 = IDHYP(1)'
+      ELSEIF (USERSET.EQ.15) THEN
+         WRITE(*,*) 'USERSET 15 selected. Fermi debug.'
+         WRITE(*,*) '           USER1 = P00'
+         WRITE(*,*) '           USER2 = FERM*P00'
+         WRITE(*,*) '           USER3 = P00*PFERMP(0)'
       ENDIF
       GOTO 10
 
@@ -2822,7 +2827,8 @@ C     &                LEMCCK,LHADRO(0:9),LSEADI,LEVAPO,IFRAME,ITRSPT
 
 * initialize treatment for residual nuclei
       CALL DT_RESNCL(EPN,NLOOP,1)
-
+      IF (IOULEV(1).GT.0 .AND. NEVHKK.LE.IOULEV(5))
+     &     WRITE(*,*) 'NLOOP 1st~ ', NLOOP
 * sample hadron/nucleus-nucleus interaction
       CALL DT_KKEVNT(KKMAT,IREJ1)
       IF (IREJ1.GT.0) THEN
@@ -2870,6 +2876,8 @@ C     &                LEMCCK,LHADRO(0:9),LSEADI,LEVAPO,IFRAME,ITRSPT
          endif
 * treatment of residual nuclei
          CALL DT_RESNCL(EPN,NLOOP,2)
+         IF (IOULEV(1).GT.0 .AND. NEVHKK.LE.IOULEV(5))
+     &        WRITE(*,*) 'NLOOP 2nd~ ', NLOOP
 
          if(IOULEV(4).GE.2 .AND. NEVHKK.LE.IOULEV(5)) then
             WRITE(*,*) 'Before DT_FICONF:'
@@ -2880,8 +2888,11 @@ C     &                LEMCCK,LHADRO(0:9),LSEADI,LEVAPO,IFRAME,ITRSPT
 * evaporation / fission / fragmentation
 * (if intranuclear cascade was sampled only)
          IF (LFZC) THEN
+            IF (IOULEV(1).GT.0 .AND. NEVHKK.LE.IOULEV(5))
+     &           WRITE(*,*) 'NLOOP BEFORE DT_FICONF ~ ', NLOOP
             CALL DT_FICONF(IJPROJ,IP,IPZ,IT,ITZ,NHYPER,IDHYP,NLOOP,
      &           IREJ1)
+
             !pythia model produces the event out this subroutine
             !if failed jump out directly, added by liang
             IF ((MCGENE.EQ.5 .OR. MCGENE.EQ.6).AND.(IREJ1.GE.1)) THEN
@@ -4978,7 +4989,7 @@ C     IF (IMODE.GE.2) NPOINT(1) = NHKK+1
                PFER = PFERMN(MODE)
                PBIN = SQRT(2.0D0*EBINDN(MODE)*AAM(8))
             ENDIF
-            CALL DT_FER4M(PFER,PBIN,PF(1),PF(2),PF(3),PF(4),IDX)
+            CALL DT_FER4M(PFER,PBIN,PF(1),PF(2),PF(3),PF(4),IDX,NMASS)
             DO 3 K=1,4
                PFTOT(K) = PFTOT(K)+PF(K)
                PHKK(K,NHKK) = PF(K)
@@ -5041,16 +5052,221 @@ C            ENDIF
       RETURN
       END
 
+*$ CREATE DT_PICKSRC.FOR
+*COPY DT_PICKSRC
+*
+*===picksrc==============================================================*
+*
+
+      SUBROUTINE DT_PICKSRC(PHKK,VHKK,NMASS,IIMAIN,SRC_PARTNER_INDEX)
+
+      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
+      SAVE
+
+      DOUBLE PRECISION A00, B00, C00, D00, P00, MOVE
+      DOUBLE PRECISION MAIN_PX, MAIN_PY, MAIN_PZ, MAIN_E
+      DOUBLE PRECISION PAIR_PX, PAIR_PY, PAIR_PZ, PAIR_E
+      INTEGER K1, K2
+      INTEGER IS_PN, SRC_PARTNER_INDEX
+
+
+      PARAMETER (PI=3.14159265359D+00)
+
+      DIMENSION PHKK(5,NMASS), VHKK(3,NMASS)
+
+      INCLUDE 'beagle.inc'
+
+      LOGICAL LFERMI
+      COMMON /DTNPOT/ PFERMP(2),PFERMN(2),FERMOD,
+     &                EBINDP(2),EBINDN(2),EPOT(2,210),
+     &                ETACOU(2),ICOUL,LFERMI      
+      
+* for now only A > 12 assign SRC pairs and bring them half way
+* closer without changing the center of mass position.
+      
+* Initialize SRC_PARTNER_INDEX = -1
+
+      SRC_PARTNER_INDEX = -1
+
+      WRITE(*,*) 'Pythia pick this nucleon: ', IIMAIN
+      WRITE(*,*) 'px: ', PHKK(1,IIMAIN)
+      WRITE(*,*) 'py: ', PHKK(2,IIMAIN)
+      WRITE(*,*) 'pz: ', PHKK(3,IIMAIN)
+      WRITE(*,*) 'mass: ', PHKK(5,IIMAIN)
+
+      IF( (NMASS .GE. 12) .AND. (IFMDIST .GE. 1) ) THEN
+        C00 = 9999.0D0
+        D00 = DT_RNDM(D00)
+        IF( D00 .LE. 0.2D0 ) THEN ! now hard-coded 20% SRC nucleons probability
+          
+* find the nearest neighbor and record its index number K2 with 5 times
+* more probability of finding pn pair than pp/nn pair, using B00 random number. 
+
+          K1 = IIMAIN
+          B00 = DT_RNDM(B00)
+          IF( B00 .LE. 0.2D0 ) THEN
+            IS_PN = 0
+          ELSE
+            IS_PN = 1
+          ENDIF  
+          DO J=1,NMASS
+            IF( J .EQ. K1 ) THEN 
+              WRITE(*,*) 'SAME NUCLEON! '
+              CONTINUE
+            ENDIF
+            IF((IS_PN.EQ.1).AND.(PHKK(5,K1).EQ.PHKK(5,J))) THEN
+              WRITE(*,*) 'PN pair is required, continue looking '
+              CONTINUE
+            ENDIF
+            IF((IS_PN.EQ.0).AND.(PHKK(5,K1).NE.PHKK(5,J))) THEN
+              WRITE(*,*) 'PN pair is not required, continue looking '
+              CONTINUE  
+            ENDIF
+          
+            DIST1 = (VHKK(1,K1)-VHKK(1,J))**2
+            DIST2 = (VHKK(2,K1)-VHKK(2,J))**2
+            DIST3 = (VHKK(3,K1)-VHKK(3,J))**2
+            DIST_3D = DIST1+DIST2+DIST3
+            IF( DIST_3D < C00 .AND. DIST_3D > 0D0 ) THEN
+              C00 = DIST_3D
+              K2 = J
+            ENDIF
+          ENDDO
+
+          WRITE(*,*) 'SRC partner nucleon: ', K2
+          WRITE(*,*) 'SRC partner nucleon distance ~ ', SQRT(C00)
+          WRITE(*,*) 'px: ', PHKK(1,K2)
+          WRITE(*,*) 'py: ', PHKK(2,K2)
+          WRITE(*,*) 'pz: ', PHKK(3,K2)
+          WRITE(*,*) 'mass: ', PHKK(5,K2)
+
+          CALL DT_KFERMI(P00,IFMDIST) !re-sample momentum using deuteron high momentum tail
+          P00=P00*FERMOD
+          WRITE(*,*) 'Fermi momentum P00 ', P00
+          WRITE(*,*) 'Distance (fm) scale ~ ', 0.197D0/P00
+          CALL DT_DPOLI(POLC,POLS)
+          CALL DT_DSFECF(SFE,CFE)
+          CXTA = POLS*CFE
+          CYTA = POLS*SFE
+          CZTA = POLC
+
+          MAIN_PX = (PHKK(1,K1)+PHKK(1,K2))/2.0D0 + CXTA*P00
+          MAIN_PY = (PHKK(2,K1)+PHKK(2,K2))/2.0D0 + CYTA*P00
+          MAIN_PZ = (PHKK(3,K1)+PHKK(3,K2))/2.0D0 + CZTA*P00
+          MAIN_E  = SQRT(MAIN_PX**2+MAIN_PY**2+MAIN_PZ**2+PHKK(5,K1)**2)
+          
+          PAIR_PX = (PHKK(1,K1)+PHKK(1,K2))/2.0D0 - CXTA*P00
+          PAIR_PY = (PHKK(2,K1)+PHKK(2,K2))/2.0D0 - CYTA*P00
+          PAIR_PZ = (PHKK(3,K1)+PHKK(3,K2))/2.0D0 - CZTA*P00
+          PAIR_E  = SQRT(PAIR_PX**2+PAIR_PY**2+PAIR_PZ**2+PHKK(5,K2)**2)
+
+          PHKK(4,K1) = MAIN_E
+          PHKK(1,K1) = MAIN_PX
+          PHKK(2,K1) = MAIN_PY
+          PHKK(3,K1) = MAIN_PZ
+
+          PHKK(4,K2) = PAIR_E
+          PHKK(1,K2) = PAIR_PX
+          PHKK(2,K2) = PAIR_PY
+          PHKK(3,K2) = PAIR_PZ
+
+          IF (USERSET.EQ.15) THEN
+               USER1 = PHKK(1,K1)
+               USER2 = PHKK(1,K2)
+               USER3 = P00
+          ENDIF
+
+          WRITE(*,*) 'SRC main nucleon after modification: ', K1
+          WRITE(*,*) 'px: ', PHKK(1,K1)
+          WRITE(*,*) 'py: ', PHKK(2,K1)
+          WRITE(*,*) 'pz: ', PHKK(3,K1)
+          WRITE(*,*) 'mass: ', PHKK(5,K1)
+
+          WRITE(*,*) 'SRC partner nucleon after modification: ', K2
+          WRITE(*,*) 'px: ', PHKK(1,K2)
+          WRITE(*,*) 'py: ', PHKK(2,K2)
+          WRITE(*,*) 'pz: ', PHKK(3,K2)
+          WRITE(*,*) 'mass: ', PHKK(5,K2)
+
+          SRC_PARTNER_INDEX = int(K2)
+
+        ELSE
+          PHKK(4,IIMAIN)  = PHKK(4,IIMAIN)
+          PHKK(1,IIMAIN)  = PHKK(1,IIMAIN)
+          PHKK(2,IIMAIN)  = PHKK(2,IIMAIN)
+          PHKK(3,IIMAIN)  = PHKK(3,IIMAIN)
+
+          K1 = -1
+          K2 = -1
+        ENDIF  
+
+         
+* start to bring them together at a distance of ~ 1/n(k) fm
+        
+        IF( (K1 .GT. 0) .AND. (K2 .GT. 0) ) THEN
+          DIST_VALUE = SQRT(C00)
+          X_SPACE = (VHKK(1,K1) - VHKK(1,K2))/DIST_VALUE
+          Y_SPACE = (VHKK(2,K1) - VHKK(2,K2))/DIST_VALUE
+          Z_SPACE = (VHKK(3,K1) - VHKK(3,K2))/DIST_VALUE
+
+          MOVE = DIST_VALUE
+          MOVE = MOVE - (0.197D0/P00)*1.0D-15
+          MOVE = MOVE/2.0D0
+
+          VHKK(1,K1) = VHKK(1,K1) - MOVE*X_SPACE
+          VHKK(2,K1) = VHKK(2,K1) - MOVE*Y_SPACE
+          VHKK(3,K1) = VHKK(3,K1) - MOVE*Z_SPACE
+
+          VHKK(1,K2) = VHKK(1,K2) + MOVE*X_SPACE
+          VHKK(2,K2) = VHKK(2,K2) + MOVE*Y_SPACE
+          VHKK(3,K2) = VHKK(3,K2) + MOVE*Z_SPACE
+        ENDIF
+
+      ENDIF  
+
+* for Deuteron only, if IFMDIST .GE. 1, bring them closer 
+* at a distance ~ 1/n(k) without changing momentum. IFMDIST = 1 
+* already samples high momentum for deuteron.
+
+      IF( (NMASS .EQ. 2) .AND. (IFMDIST .GE. 1) ) THEN
+        K1 = 1
+        K2 = 2
+        DIST1 = (VHKK(1,K1+1)-VHKK(1,K2+1))**2
+        DIST2 = (VHKK(2,K1+1)-VHKK(2,K2+1))**2
+        DIST3 = (VHKK(3,K1+1)-VHKK(3,K2+1))**2
+        DIST_3D = DIST1+DIST2+DIST3
+        DIST_VALUE = SQRT(DIST_3D)
+        
+        X_SPACE = (VHKK(1,K1+1) - VHKK(1,K2+1))/DIST_VALUE
+        Y_SPACE = (VHKK(2,K1+1) - VHKK(2,K2+1))/DIST_VALUE
+        Z_SPACE = (VHKK(3,K1+1) - VHKK(3,K2+1))/DIST_VALUE
+
+        P00 = SQRT(PHKK(1,K1+1)**2+PHKK(2,K1+1)**2+PHKK(3,K1+1)**2)
+        MOVE = (DIST_VALUE-(0.197D0/P00)*1.0D-15)/2D0
+
+        VHKK(1,K1+1) = VHKK(1,K1+1) - MOVE*X_SPACE
+        VHKK(2,K1+1) = VHKK(2,K1+1) - MOVE*Y_SPACE
+        VHKK(3,K1+1) = VHKK(3,K1+1) - MOVE*Z_SPACE
+
+        VHKK(1,K2+1) = VHKK(1,K2+1) + MOVE*X_SPACE
+        VHKK(2,K2+1) = VHKK(2,K2+1) + MOVE*Y_SPACE
+        VHKK(3,K2+1) = VHKK(3,K2+1) + MOVE*Z_SPACE
+      ENDIF
+    
+      RETURN
+      END
+
 *$ CREATE DT_FER4M.FOR
 *COPY DT_FER4M
 *
 *===fer4m==============================================================*
 *
-      SUBROUTINE DT_FER4M(PFERM,PBIND,PXT,PYT,PZT,ET,KT)
+      SUBROUTINE DT_FER4M(PFERM,PBIND,PXT,PYT,PZT,ET,KT,NMASS)
 
 ************************************************************************
 * Sampling of nucleon Fermi-momenta from distributions at T=0.         *
 *                                   processed by S. Roesler, 17.10.95  *
+* Modified by Z. Tu 2019-08-14                                         *
 ************************************************************************
 
       IMPLICIT DOUBLE PRECISION (A-H,O-Z)
@@ -5092,7 +5308,7 @@ C            ENDIF
          ! Use IFMDIST, 3rd varaible in control card of FERMI, to switch between
          ! different k momentum distributions
 
-         IF (IFMDIST .GE. 1) THEN
+         IF ( (NMASS.EQ.2) .AND. (IFMDIST.GE.1) ) THEN
             CALL DT_KFERMI(PABS,IFMDIST)
          ELSE
             CALL DT_DFERMI(PABS)
@@ -12770,6 +12986,7 @@ C   MDB the meson needs to be in the naive HCMS - not the IRF!
 * reject elastic events (def: one final state particle = projectile)
       IF ((IP.EQ.1).AND.(NFSP.EQ.1).AND.(IDFSP.EQ.IJPROJ)) THEN
          IREXCI(3) = IREXCI(3)+1
+         WRITE(*,*) 'REJECTION FLAG ~1st GOTO 9999 ~ ', IREJ
          GOTO 9999
 C        RETURN
       ENDIF
@@ -12835,9 +13052,13 @@ c     &                  +EMVGEV*EXMSAZ(AIF(I),AIZF(I),.TRUE.,IZDUM)
                AMRCL(I) = ZERO
                EEXC(I)  = ZERO
                IF (NLOOP.LE.500) THEN
+                  IF (IOULEV(1).GT.0)  
+     &               WRITE(*,*) 'REJECTION FLAG ~1st GOTO 9998 ~ ',IREJ
                   GOTO 9998
                ELSE
                   IREXCI(2) = IREXCI(2)+1
+                  IF (IOULEV(1).GT.0)  
+     &               WRITE(*,*) 'REJECTION FLAG ~2nd GOTO 9999 ~ ',IREJ
                   GOTO 9999
                ENDIF
 *
@@ -12905,9 +13126,13 @@ c     &                  +EMVGEV*EXMSAZ(AIF(I),AIZF(I),.TRUE.,IZDUM)
                AMRCL(I) = ZERO
                EEXC(I)  = ZERO
                IF (NLOOP.LE.500) THEN
+                  IF (IOULEV(1).GT.0)  
+     &               WRITE(*,*) 'REJECTION FLAG ~2nd GOTO 9998 ~ ',IREJ
                   GOTO 9998
                ELSE
                   IREXCI(2) = IREXCI(2)+1
+                  IF (IOULEV(1).GT.0)  
+     &               WRITE(*,*) 'REJECTION FLAG ~3rd GOTO 9999 ~ ',IREJ
                   GOTO 9999
                ENDIF
 *
@@ -12987,6 +13212,7 @@ C                     REDORI = ONE / ( FRMRDC )**(2.D+00/3.D+00)
          ELSEIF (NTOT(I).EQ.1) THEN
             WRITE(LOUT,1003) I
  1003       FORMAT(1X,'FICONF:   warning! NTOT(I)=1? (I=',I3,')')
+            WRITE(*,*) 'REJECTION FLAG ~4th GOTO 9999 ~ ',IREJ
             GOTO 9999
          ELSE
             AMRCL0(I) = ZERO
@@ -13012,6 +13238,7 @@ C                     REDORI = ONE / ( FRMRDC )**(2.D+00/3.D+00)
             CALL DT_MASHEL(P1IN,P2IN,XM1,XM2,P1OUT,P2OUT,IREJ1)
             IF (IREJ1.GT.0) THEN
                WRITE(LOUT,*) 'ficonf-mashel rejection'
+               WRITE(*,*) 'REJECTION FLAG ~5th GOTO 9999 ~ ',IREJ
                GOTO 9999
             ENDIF
             DO 10 K=1,4
@@ -13033,6 +13260,8 @@ C                     REDORI = ONE / ( FRMRDC )**(2.D+00/3.D+00)
      &             ',  nucleon config. 1:',2I4,' 2:',2I4,
      &             2(/,11X,3E12.3))
             IF (NLOOP.LE.500) THEN
+               IF (IOULEV(1).GT.0)  
+     &              WRITE(*,*) 'REJECTION FLAG ~3rd GOTO 9998 ~ ',IREJ
                GOTO 9998
             ELSE
                IREXCI(1) = IREXCI(1)+1
@@ -13163,10 +13392,13 @@ C                  PZRES = PZRES*PTRES/PTOLD
 
 C9998 IREXCI(1) = IREXCI(1)+1
  9998 IREJ   = IREJ+1
+      IF (IOULEV(1).GT.0) WRITE(*,*) 'REJECTION FLAG 1 ~ ',IREJ
+
  9999 CONTINUE
       LRCLPR = .TRUE.
       LRCLTA = .TRUE.
       IREJ   = IREJ+1
+      IF (IOULEV(1).GT.0) WRITE(*,*) 'REJECTION FLAG 2 ~ ',IREJ
       RETURN
       END
 
@@ -17563,9 +17795,52 @@ C     SID = SQRT((ONE-COD)*(ONE+COD))
       A2 = 0.00623D0
       B2 = 0.220D0
       C2 = 0.0D0 
+      NN = 1.0D0
 
-      X0   = 0.0D0
+      X0 = 0.0D0
       CDF = 0.0D0
+
+C     Random number generation between 0 and 1     
+      C = DT_RNDM(GGPART)
+C     Random number generation between 0.993 and 1, to select higher k 
+C     momentum tail as for k > 3 fm**-1
+      D = 0.993D0 + (1.0D0-0.993D0)*DT_RNDM(GGPART)  
+C     Different n(k) distribution.  
+C     11, 12, 13, 14 are alt 1, 2, 3, 4, respectively.
+C     NN is normalization to unity.
+
+      E = C
+      IF( KRANGE .EQ. 1 ) THEN
+        E = C
+        B2 = 0.220D0
+        NN = 1.0D0
+      ELSE IF( KRANGE .EQ. 2 ) THEN
+        E = D
+        B2 = 0.220D0
+        NN = 1.0D0
+      ELSE IF( KRANGE .EQ. 11 ) THEN
+        E = C
+        B2 = 0.10D0
+        NN = 0.94308118D0
+      ELSE IF( KRANGE .EQ. 12 ) THEN
+        E = C
+        A2 = 0.00623D0
+        B2 = 0.13D0  
+        C2 = 0.05D0
+        NN = 0.99788104D0
+      ELSE IF( KRANGE .EQ. 13 ) THEN
+        E = C
+        A2 = 0.00923D0
+        B2 = 0.27D0  
+        C2 = 0.001D0
+        NN = 0.99793068D0
+      ELSE IF( KRANGE .EQ. 14 ) THEN
+        E = C
+        B2 = 0.40D0
+        NN = 1.0160458D0
+      ELSE 
+        E = C
+      ENDIF
 
 !First, calculate the normalization:
 
@@ -17573,7 +17848,7 @@ C     SID = SQRT((ONE-COD)*(ONE+COD))
         Z0 = A0 * (EXP(-B0*X0*X0)/((1+C0*X0*X0)*(1+C0*X0*X0)))
         Z1 = A1 * (EXP(-B1*X0*X0)/((1+C1*X0*X0)*(1+C1*X0*X0)))
         Z2 = A2 * (EXP(-B2*X0*X0)/((1+C2*X0*X0)*(1+C2*X0*X0)))
-        CDF = CDF + (Z0+Z1+Z2)*(4.0D0*PI*X0*X0)*0.001D0
+        CDF = CDF + NN*(Z0+Z1+Z2)*(4.0D0*PI*X0*X0)*0.001D0
         X0 = X0 + 0.001D0
 
    10 CONTINUE
@@ -17586,20 +17861,11 @@ C     SID = SQRT((ONE-COD)*(ONE+COD))
       X0 = 0.000D0
       CDF = 0.000D0
 
-!Random number generation between 0 and 1     
-      C = DT_RNDM(GGPART)
-!Random number generation between 0.999 and 1, to select higher k momentum tail
-      D = 0.999D0 + (1.0D0-0.999D0)*DT_RNDM(GGPART)  
-
-      E = C
-      IF( KRANGE .EQ. 1 ) E = C
-      IF( KRANGE .EQ. 2 ) E = D
-
       DO 20 I = 1,10000
         Z0 = A0 * (EXP(-B0*X0*X0)/((1+C0*X0*X0)*(1+C0*X0*X0)))
         Z1 = A1 * (EXP(-B1*X0*X0)/((1+C1*X0*X0)*(1+C1*X0*X0)))
         Z2 = A2 * (EXP(-B2*X0*X0)/((1+C2*X0*X0)*(1+C2*X0*X0)))
-        CDF = CDF + (0.001D0/CDFN)*((Z0+Z1+Z2)*(4.0D0*PI*X0*X0))
+        CDF = CDF + (0.001D0/CDFN)*(NN*(Z0+Z1+Z2)*(4.0D0*PI*X0*X0))
         X0 = X0 + 0.001D0
 
         CDFT(I) = CDF
