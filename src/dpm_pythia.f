@@ -447,6 +447,7 @@ C      write(*,*) '1st call to pyinit, MYNGEN=',MYNGEN
 
       include 'pythia.inc'              ! All PYTHIA commons blocks
 
+*c... Extended to allow jpsi, phi to decay outside nuclei
       DIMENSION IDXSTA(40)
       DATA IDXSTA
 *          K0s   pi0  lam   alam  sig+  asig+ sig-  asig- tet0  atet0
@@ -455,8 +456,8 @@ C      write(*,*) '1st call to pyinit, MYNGEN=',MYNGEN
      &    3312,-3312, 3334,-3334,  411, -411,  421, -421,  431, -431,
 *          etac lamc+alamc+sigc++ sigc+ sigc0asigc++asigc+asigc0 Ksic+
      &     441, 4122,-4122, 4222, 4212, 4112,-4222,-4212,-4112, 4232,
-*         Ksic0 aKsic+aKsic0 sig0 asig0
-     &    4132,-4232,-4132, 3212,-3212, 5*0/
+*         Ksic0 aKsic+aKsic0 sig0 asig0 jpsi phi
+     &    4132,-4232,-4132, 3212,-3212, 443, 333, 3*0/
 
       INTEGER MODE
 
@@ -465,16 +466,16 @@ C      write(*,*) '1st call to pyinit, MYNGEN=',MYNGEN
 c...swith off decay 
 1     CONTINUE
 
-      DO I=1,35
+      DO I=1,37
          MDCY(PYCOMP(IDXSTA(I)),1) = 0
       ENDDO
 
       RETURN
 
-c...swith off decay 
+c...swith on decay 
 2     CONTINUE
 
-      DO I=1,35
+      DO I=1,37
          MDCY(PYCOMP(IDXSTA(I)),1) = 1
       ENDDO
 
@@ -1403,51 +1404,7 @@ C MDB 2017-02-28 This method can't be used for genShd>1
          PAUX(3)=0.0
          PAUX(4)=0.0
       ENDIF
-C-TEMP-TEMP-TEMP
-C      PTSTSM=0.0
-C      DO M=1,4
-C         PTSTSM=PTSTSM+ABS(PAUX(M)-PYQREC(M))
-C      ENDDO
-C      IF (PTSTSM.GE.0.2) THEN
-C         print*,'BeAGLE Warning: momentum imbalance.'
-C         print*,'PAUX(1-4)=   ',PAUX(1),' ',PAUX(2),' ',PAUX(3),
-C     &        ' ',PAUX(4)
-C         print*,'PYQREC(1-4)= ',PYQREC(1),' ',PYQREC(2),' ',
-C     &           PYQREC(3),' ',PYQREC(4)
-CC         print*," "
-CC         print*,'DT_PYOUTEP(4):'
-CC         CALL DT_PYOUTEP(4)
-CC         print*," "
-CC         print*,'PYLIST(2):'
-CC         CALL PYLIST(2)
-CC      ENDIF
-c*******test region*************
-c     call DT_DALTRA(GAA,eveBETA(1),eveBETA(2),eveBETA(3),
-c    &GAMM(1),GAMM(2),GAMM(3),GAMM(4),PTOT,P1,P2,P3,P4)
-c     write(87,*) 'before LT'
-c     write(87,*) GAMM(1),' ',GAMM(2),' ',GAMM(3),' ',GAMM(4)
-c     write(87,*) 'after LT before rotate '
-c     write(87,*) P1,' ',P2,' ',P3,' ',P4
-c     PP1=COD*(COF*P1+SIF*P2)-SID*P3
-c     PP2=SIF*P1-COF*P2
-c     PP3=SID*(COF*P1+SIF*P2)+COD*P3
-c     PP4=P4
-c     write(87,*) 'after rotate'
-c     write(87,*) PP1,' ',PP2,' ',PP3,' ',PP4
-c     write(87,*) 'from dpmjet'
-c     write(87,*) PPG(1),' ',PPG(2),' ',PPG(3),' ',PPG(4)
-c     write(87,*) PGAMM(1),' ',PGAMM(2),' ',PGAMM(3),' ',PGAMM(4)
-c     write(87,*) 'VIRT ',VIRT,' GAMM(5) ',GAMM(5),' ',' VINT(307)',
-c    &VINT(307) 
-c     write(87,*) 'rotate back'
-c     write(87,*) P1,' ',P2,' ',P3,' ',P4
-c     call DT_DALTRA(GAA,-eveBETA(1),-eveBETA(2),-eveBETA(3),
-c    &P1,P2,P3,P4,PTOT,PP1,PP2,PP3,PP4)
-c     write(87,*) 'LT back'
-c     write(87,*) PP1,' ',PP2,' ',PP3,' ',PP4
-c****************************************
 
-C
       if(IOULEV(4).GE.1 .AND. NEVENT.LE.IOULEV(5)) then
          WRITE(*,*) 'End of DT_PYEVNTEP - mode 2'
          CALL DT_PYOUTEP(4)

@@ -5088,11 +5088,13 @@ C            ENDIF
 
       SRC_PARTNER_INDEX = -1
 
-      WRITE(*,*) 'Pythia pick this nucleon: ', IIMAIN
-      WRITE(*,*) 'px: ', PHKK(1,IIMAIN)
-      WRITE(*,*) 'py: ', PHKK(2,IIMAIN)
-      WRITE(*,*) 'pz: ', PHKK(3,IIMAIN)
-      WRITE(*,*) 'mass: ', PHKK(5,IIMAIN)
+      if(IOULEV(4).GE.2 .AND. NEVENT.LE.IOULEV(5)) then
+         WRITE(*,*) 'Pythia pick this nucleon: ', IIMAIN
+         WRITE(*,*) 'px: ', PHKK(1,IIMAIN)
+         WRITE(*,*) 'py: ', PHKK(2,IIMAIN)
+         WRITE(*,*) 'pz: ', PHKK(3,IIMAIN)
+         WRITE(*,*) 'mass: ', PHKK(5,IIMAIN)
+      endif
 
       IF( (NMASS .GE. 12) .AND. (IFMDIST .GE. 1) ) THEN
         C00 = 9999.0D0
@@ -9122,7 +9124,7 @@ C     &                LEMCCK,LHADRO(0:9),LSEADI,LEVAPO,IFRAME,ITRSPT
       DIMENSION IHISMO(NMXHKK),P1(4)
 
 *c...data array added by liang to do test whether 1 particle is supposed
-*c...decay
+*c...decay. Extended to allow jpsi, phi to decay outside nuclei
       DIMENSION IDXSTA(40)
       DATA IDXSTA
 *          K0s   pi0  lam   alam  sig+  asig+ sig-  asig- tet0  atet0
@@ -9131,8 +9133,8 @@ C     &                LEMCCK,LHADRO(0:9),LSEADI,LEVAPO,IFRAME,ITRSPT
      &    3312,-3312, 3334,-3334,  411, -411,  421, -421,  431, -431,
 *          etac lamc+alamc+sigc++ sigc+ sigc0asigc++asigc+asigc0 Ksic+
      &     441, 4122,-4122, 4222, 4212, 4112,-4222,-4212,-4112, 4232,
-*         Ksic0 aKsic+aKsic0 sig0 asig0
-     &    4132,-4232,-4132, 3212,-3212, 5*0/
+*         Ksic0 aKsic+aKsic0 sig0 asig0 jpsi phi
+     &    4132,-4232,-4132, 3212,-3212, 443, 333, 3*0/
 
       TWOPI = 2.0D0*ATAN2(0.0D0,-1.0D0)
 
@@ -9159,7 +9161,7 @@ c      MDCY(KC,1) = 1
 c         IF ((ISTHKK(I).EQ.1).AND.(IDHKK(I).EQ.111)) THEN
          !changed by liang to do particle decay
          ISTAB = 1 ! status to label a stable particle, 1-stable,0-decay
-         DO J=1,35
+         DO J=1,37
             IF(IDHKK(I).EQ.IDXSTA(J)) ISTAB=0
          ENDDO
 
@@ -9762,316 +9764,304 @@ C     ISU = 4
       RETURN
       END
 
-*$ CREATE DT_INITJS.FOR
-*COPY DT_INITJS
-*
-*===initjs=============================================================*
-*
-      SUBROUTINE DT_INITJS(MODE)
-
-************************************************************************
-* Initialize JETSET paramters.                                         *
-*           MODE = 0 default settings                                  *
-*                = 1 PHOJET settings                                   *
-*                = 2 DTUNUC settings                                   *
-* This version dated 16.02.96 is written by S. Roesler                 *
-*                                                                      *
-* Last change 27.12.2006 by S. Roesler.                                *
-************************************************************************
-
-      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
-      SAVE
-
-      PARAMETER ( LINP = 5 ,
-     &            LOUT = 6 ,
-     &            LDAT = 9 )
-
-      PARAMETER (TINY10=1.0D-10,ONE=1.0D0,ZERO=0.0D0)
-
-      LOGICAL LFIRST,LFIRDT,LFIRPH
-
-      INCLUDE '(DIMPAR)'
-      INCLUDE '(PART)'
-      INCLUDE 'beagle.inc'
-      COMMON/PYDAT1/MSTU(200),PARU(200),MSTJ(200),PARJ(200)
-      COMMON/PYDAT2/KCHG(500,4),PMAS(500,4),PARF(2000),VCKM(4,4)
-      COMMON/PYDAT3/MDCY(500,3),MDME(4000,2),BRAT(4000),KFDP(4000,5)
-
-* flags for particle decays
-      COMMON /DTFRPA/ MSTUX(20),PARUX(20),MSTJX(20),PARJX(20),
-     &                IMSTU(20),IPARU(20),IMSTJ(20),IPARJ(20),
-     &                NMSTU,NPARU,NMSTJ,NPARJ,PDB,PDBSEA(3),ISIG0,IPI0
-
-C* flags for input different options
-C      LOGICAL LEMCCK,LHADRO,LSEADI,LEVAPO
-C      COMMON /DTFLG1/ IFRAG(2),IRESCO,IMSHL,IRESRJ,IOULEV(6),
-C     &                LEMCCK,LHADRO(0:9),LSEADI,LEVAPO,IFRAME,ITRSPT
-
-      INTEGER PYCOMP
-
-      DIMENSION IDXSTA(40)
-      DATA IDXSTA
-*          K0s   pi0  lam   alam  sig+  asig+ sig-  asig- tet0  atet0
-     &  /  310,  111, 3122,-3122, 3222,-3222, 3112,-3112, 3322,-3322,
-*          tet- atet-  om-  aom-   D+    D-    D0    aD0   Ds+   aDs+
-     &    3312,-3312, 3334,-3334,  411, -411,  421, -421,  431, -431,
-*          etac lamc+alamc+sigc++ sigc+ sigc0asigc++asigc+asigc0 Ksic+
-     &     441, 4122,-4122, 4222, 4212, 4112,-4222,-4212,-4112, 4232,
-*         Ksic0 aKsic+aKsic0 sig0 asig0
-     &    4132,-4232,-4132, 3212,-3212, 5*0/
-
-      DATA LFIRST,LFIRDT,LFIRPH /.TRUE.,.TRUE.,.TRUE./
-
-      IF (LFIRST) THEN
-* save default settings
-         PDEF1  = PARJ(1)
-         PDEF2  = PARJ(2)
-         PDEF3  = PARJ(3)
-         PDEF5  = PARJ(5)
-         PDEF6  = PARJ(6)
-         PDEF7  = PARJ(7)
-         PDEF18 = PARJ(18)
-         PDEF19 = PARJ(19)
-         PDEF21 = PARJ(21)
-         PDEF42 = PARJ(42)
-         MDEF12 = MSTJ(12)
-* LUJETS / PYJETS array-dimensions
-
-         MSTU(4) = 4000
-
-* increase maximum number of JETSET-error prints
-         MSTU(22) = 50000
-* prevent particles decaying
-
-cc...added by liang to undecay rho/omega/phi meson         
-c         MDCY(PYCOMP(113),1) = 0
-c         MDCY(PYCOMP(223),1) = 0
-c         MDCY(PYCOMP(333),1) = 0
-
-         DO 1 I=1,35
-            IF (I.LT.34) THEN
-
-               KC = PYCOMP(IDXSTA(I))
-
-               IF (KC.GT.0) THEN
-                  IF (I.EQ.2) THEN
-*  pi0 decay
-C                    MDCY(KC,1) = 1
-                     MDCY(KC,1) = 0
-**cr mode
-C                 ELSEIF ((I.EQ.4).OR.(I.EQ. 6).OR.
-C   &                    (I.EQ.8).OR.(I.EQ.10)) THEN
-C                 ELSEIF (I.EQ.4) THEN
-C                    MDCY(KC,1) = 1
-**
-                  ELSE
-                     MDCY(KC,1) = 0
-                  ENDIF
-               ENDIF
-            ELSEIF (((I.EQ.34).OR.(I.EQ.35)).AND.(ISIG0.EQ.0)) THEN
-
-               KC = PYCOMP(IDXSTA(I))
-
-               IF (KC.GT.0) THEN
-                  MDCY(KC,1) = 0
-               ENDIF
-            ENDIF
-    1    CONTINUE
-*
-
-* as Fluka event-generator: allow only paprop particles to be stable
-* and let all other particles decay (i.e. those with strong decays)
-         IF (ITRSPT.EQ.1) THEN
-            DO 5 I=1,IDMAXP
-               IF (KPTOIP(I).NE.0) THEN
-                  IDPDG = MPDGHA(I)
-
-                  KC    = PYCOMP(IDPDG)
-
-                  IF (KC.GT.0) THEN
-                     IF (MDCY(KC,1).EQ.1) THEN
-                        WRITE(LOUT,*)
-     &                     ' DT_INITJS: Decay flag for FLUKA-',
-     &                     'transport : particle should not ',
-     &                     'decay : ',IDPDG,'  ',ANAME(I)
-                        MDCY(KC,1) = 0
-                     ENDIF
-                  ENDIF
-               ENDIF
-    5       CONTINUE
-            DO 6 KC=1,500
-               IDPDG = KCHG(KC,4)
-               KP    = MCIHAD(IDPDG)
-               IF (KP.GT.0) THEN
-                  IF ((MDCY(KC,1).EQ.0).AND.(KPTOIP(KP).EQ.0).AND.
-     &                (ANAME(KP).NE.'BLANK   ').AND.
-     &                (ANAME(KP).NE.'RNDFLV  ')) THEN
-                     WRITE(LOUT,*) ' DT_INITJS: Decay flag for FLUKA-',
-     &                             'transport: particle should decay ',
-     &                             ': ',IDPDG,' ',ANAME(KP)
-                     MDCY(KC,1) = 1
-                  ENDIF
-               ENDIF
-    6       CONTINUE
-         ENDIF
-
-*
-* popcorn:
-         IF (PDB.LE.ZERO) THEN
-*   no popcorn-mechanism
-            MSTJ(12) = 1
-         ELSE
-            MSTJ(12) = 3
-            PARJ(5)  = PDB
-         ENDIF
-* set JETSET-parameter requested by input cards
-         IF (NMSTU.GT.0) THEN
-            DO 2 I=1,NMSTU
-               MSTU(IMSTU(I)) = MSTUX(I)
-    2       CONTINUE
-         ENDIF
-         IF (NMSTJ.GT.0) THEN
-            DO 3 I=1,NMSTJ
-               MSTJ(IMSTJ(I)) = MSTJX(I)
-    3       CONTINUE
-         ENDIF
-         IF (NPARU.GT.0) THEN
-            DO 4 I=1,NPARU
-               PARU(IPARU(I)) = PARUX(I)
-    4       CONTINUE
-         ENDIF
-         LFIRST = .FALSE.
-      ENDIF
-*
-* PARJ(1)  suppression of qq-aqaq pair prod. compared to
-*          q-aq pair prod.                      (default: 0.1)
-* PARJ(2)  strangeness suppression               (default: 0.3)
-* PARJ(3)  extra suppression of strange diquarks (default: 0.4)
-* PARJ(6)  extra suppression of sas-pair shared by B and
-*          aB in BMaB                           (default: 0.5)
-* PARJ(7)  extra suppression of strange meson M in BMaB
-*          configuration                        (default: 0.5)
-* PARJ(18) spin 3/2 baryon suppression           (default: 1.0)
-* PARJ(21) width sigma in Gaussian p_x, p_y transverse
-*          momentum distrib. for prim. hadrons  (default: 0.35)
-* PARJ(42) b-parameter for symmetric Lund-fragmentation
-*          function                             (default: 0.9 GeV^-2)
-*
-* PHOJET settings
-      IF (MODE.EQ.1) THEN
-*   JETSET default
-C        PARJ(1)  = PDEF1
-C        PARJ(2)  = PDEF2
-C        PARJ(3)  = PDEF3
-C        PARJ(6)  = PDEF6
-C        PARJ(7)  = PDEF7
-C        PARJ(18) = PDEF18
-C        PARJ(21) = PDEF21
-C        PARJ(42) = PDEF42
-**sr 18.11.98 parameter tuning
-C        PARJ(1)  = 0.092D0
-C        PARJ(2)  = 0.25D0
-C        PARJ(3)  = 0.45D0
-C        PARJ(19) = 0.3D0
-C        PARJ(21) = 0.45D0
-C        PARJ(42) = 1.0D0
-**sr 28.04.99 parameter tuning (May 99 minor modifications)
-         PARJ(1)  = 0.085D0
-         PARJ(2)  = 0.26D0
-         PARJ(3)  = 0.8D0
-         PARJ(11) = 0.38D0
-         PARJ(18) = 0.3D0
-         PARJ(19) = 0.4D0
-         PARJ(21) = 0.36D0
-         PARJ(41) = 0.3D0
-         PARJ(42) = 0.86D0
-         IF (NPARJ.GT.0) THEN
-            DO 10 I=1,NPARJ
-               IF (IPARJ(I).GT.0) PARJ(IPARJ(I)) = PARJX(I)
-   10       CONTINUE
-         ENDIF
-         IF (LFIRPH) THEN
-            WRITE(LOUT,'(1X,A)')
-     &         'DT_INITJS: JETSET-parameter for PHOJET'
-            CALL DT_JSPARA(0)
-            LFIRPH = .FALSE.
-         ENDIF
-* DTUNUC settings
-      ELSEIF (MODE.EQ.2) THEN
-         IF (IFRAG(2).EQ.1) THEN
-**sr parameters before 9.3.96
-C           PARJ(2)  = 0.27D0
-C           PARJ(3)  = 0.6D0
-C           PARJ(6)  = 0.75D0
-C           PARJ(7)  = 0.75D0
-C           PARJ(21) = 0.55D0
-C           PARJ(42) = 1.3D0
-**sr 18.11.98 parameter tuning
-C           PARJ(1)  = 0.05D0
-C           PARJ(2)  = 0.27D0
-C           PARJ(3)  = 0.4D0
-C           PARJ(19) = 0.2D0
-C           PARJ(21) = 0.45D0
-C           PARJ(42) = 1.0D0
-**sr 28.04.99 parameter tuning
-            PARJ(1)  = 0.11D0
-            PARJ(2)  = 0.36D0
-            PARJ(3)  = 0.8D0
-            PARJ(19) = 0.2D0
-            PARJ(21) = 0.3D0
-            PARJ(41) = 0.3D0
-            PARJ(42) = 0.58D0
-            IF (NPARJ.GT.0) THEN
-               DO 20 I=1,NPARJ
-                  IF (IPARJ(I).LT.0) THEN
-                     IDX = ABS(IPARJ(I))
-                     PARJ(IDX) = PARJX(I)
-                  ENDIF
-   20          CONTINUE
-            ENDIF
-            IF (LFIRDT) THEN
-               WRITE(LOUT,'(1X,A)')
-     &           'DT_INITJS: JETSET-parameter for DTUNUC'
-               CALL DT_JSPARA(0)
-               LFIRDT = .FALSE.
-            ENDIF
-         ELSEIF (IFRAG(2).EQ.2) THEN
-            PARJ(1)  = 0.11D0
-            PARJ(2)  = 0.27D0
-            PARJ(3)  = 0.3D0
-            PARJ(6)  = 0.35D0
-            PARJ(7)  = 0.45D0
-            PARJ(18) = 0.66D0
-C           PARJ(21) = 0.55D0
-C           PARJ(42) = 1.0D0
-            PARJ(21) = 0.60D0
-            PARJ(42) = 1.3D0
-         ELSE
-            PARJ(1)  = PDEF1
-            PARJ(2)  = PDEF2
-            PARJ(3)  = PDEF3
-            PARJ(6)  = PDEF6
-            PARJ(7)  = PDEF7
-            PARJ(18) = PDEF18
-            PARJ(21) = PDEF21
-            PARJ(42) = PDEF42
-         ENDIF
-      ELSE
-         PARJ(1)  = PDEF1
-         PARJ(2)  = PDEF2
-         PARJ(3)  = PDEF3
-         PARJ(5)  = PDEF5
-         PARJ(6)  = PDEF6
-         PARJ(7)  = PDEF7
-         PARJ(18) = PDEF18
-         PARJ(19) = PDEF19
-         PARJ(21) = PDEF21
-         PARJ(42) = PDEF42
-         MSTJ(12) = MDEF12
-      ENDIF
-
-      RETURN
-      END
+C*$ CREATE DT_INITJS.FOR
+C*COPY DT_INITJS
+C*
+C*===initjs=============================================================*
+C*
+C      SUBROUTINE DT_INITJS(MODE)
+C
+C************************************************************************
+C* Initialize JETSET paramters.                                         *
+C*           MODE = 0 default settings                                  *
+C*                = 1 PHOJET settings                                   *
+C*                = 2 DTUNUC settings                                   *
+C* This version dated 16.02.96 is written by S. Roesler                 *
+C*                                                                      *
+C* Note from Liang: Obsolete routine, not used to set jetset parameters *
+C*     in BeAGLE.                                                       *
+C*                                                                      *
+C* Last change 27.12.2006 by S. Roesler.                                *
+C************************************************************************
+C
+C      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
+C      SAVE
+C
+C      PARAMETER ( LINP = 5 ,
+C     &            LOUT = 6 ,
+C     &            LDAT = 9 )
+C
+C      PARAMETER (TINY10=1.0D-10,ONE=1.0D0,ZERO=0.0D0)
+C
+C      LOGICAL LFIRST,LFIRDT,LFIRPH
+C
+C      INCLUDE '(DIMPAR)'
+C      INCLUDE '(PART)'
+C      INCLUDE 'beagle.inc'
+C      COMMON/PYDAT1/MSTU(200),PARU(200),MSTJ(200),PARJ(200)
+C      COMMON/PYDAT2/KCHG(500,4),PMAS(500,4),PARF(2000),VCKM(4,4)
+C      COMMON/PYDAT3/MDCY(500,3),MDME(4000,2),BRAT(4000),KFDP(4000,5)
+CC
+C* flags for particle decays
+C      COMMON /DTFRPA/ MSTUX(20),PARUX(20),MSTJX(20),PARJX(20),
+C     &                IMSTU(20),IPARU(20),IMSTJ(20),IPARJ(20),
+C     &                NMSTU,NPARU,NMSTJ,NPARJ,PDB,PDBSEA(3),ISIG0,IPI0
+C
+CC* flags for input different options
+CC      LOGICAL LEMCCK,LHADRO,LSEADI,LEVAPO
+CC      COMMON /DTFLG1/ IFRAG(2),IRESCO,IMSHL,IRESRJ,IOULEV(6),
+CC     &                LEMCCK,LHADRO(0:9),LSEADI,LEVAPO,IFRAME,ITRSPT
+C
+C      INTEGER PYCOMP
+C
+C      DIMENSION IDXSTA(40)
+C      DATA IDXSTA
+C*          K0s   pi0  lam   alam  sig+  asig+ sig-  asig- tet0  atet0
+C     &  /  310,  111, 3122,-3122, 3222,-3222, 3112,-3112, 3322,-3322,
+C*          tet- atet-  om-  aom-   D+    D-    D0    aD0   Ds+   aDs+
+C     &    3312,-3312, 3334,-3334,  411, -411,  421, -421,  431, -431,
+C*          etac lamc+alamc+sigc++ sigc+ sigc0asigc++asigc+asigc0 Ksic+
+C     &     441, 4122,-4122, 4222, 4212, 4112,-4222,-4212,-4112, 4232,
+C*         Ksic0 aKsic+aKsic0 sig0 asig0 jpsi phi
+C     &    4132,-4232,-4132, 3212,-3212, 443, 333, 3*0/
+C
+C      DATA LFIRST,LFIRDT,LFIRPH /.TRUE.,.TRUE.,.TRUE./
+C
+C      IF (LFIRST) THEN
+C* save default settings
+C         PDEF1  = PARJ(1)
+C         PDEF2  = PARJ(2)
+C         PDEF3  = PARJ(3)
+C         PDEF5  = PARJ(5)
+C         PDEF6  = PARJ(6)
+C         PDEF7  = PARJ(7)
+C         PDEF18 = PARJ(18)
+C         PDEF19 = PARJ(19)
+C         PDEF21 = PARJ(21)
+C         PDEF42 = PARJ(42)
+C         MDEF12 = MSTJ(12)
+C* LUJETS / PYJETS array-dimensions
+C
+C         MSTU(4) = 4000
+C
+C* increase maximum number of JETSET-error prints
+C         MSTU(22) = 50000
+C* prevent particles decaying
+C
+Ccc...added by liang to undecay rho/omega/phi meson         
+Cc         MDCY(PYCOMP(113),1) = 0
+Cc         MDCY(PYCOMP(223),1) = 0
+Cc         MDCY(PYCOMP(333),1) = 0
+C
+C         DO 1 I=1,37
+C            IF (I.LT.34) THEN
+C
+C               KC = PYCOMP(IDXSTA(I))
+C               IF (KC.GT.0) MDCY(KC,1) = 0
+C            ELSEIF (((I.GE.34).AND.(I.LE.37)).AND.(ISIG0.EQ.0)) THEN
+C
+C               KC = PYCOMP(IDXSTA(I))
+C
+C               IF (KC.GT.0) THEN
+C                  MDCY(KC,1) = 0
+C               ENDIF
+C            ENDIF
+C    1    CONTINUE
+C*
+C
+C* as Fluka event-generator: allow only paprop particles to be stable
+C* and let all other particles decay (i.e. those with strong decays)
+C         IF (ITRSPT.EQ.1) THEN
+C            DO 5 I=1,IDMAXP
+C               IF (KPTOIP(I).NE.0) THEN
+C                  IDPDG = MPDGHA(I)
+C
+C                  KC    = PYCOMP(IDPDG)
+C
+C                  IF (KC.GT.0) THEN
+C                     IF (MDCY(KC,1).EQ.1) THEN
+C                        WRITE(LOUT,*)
+C     &                     ' DT_INITJS: Decay flag for FLUKA-',
+C     &                     'transport : particle should not ',
+C     &                     'decay : ',IDPDG,'  ',ANAME(I)
+C                        MDCY(KC,1) = 0
+C                     ENDIF
+C                  ENDIF
+C               ENDIF
+C    5       CONTINUE
+C            DO 6 KC=1,500
+C               IDPDG = KCHG(KC,4)
+C               KP    = MCIHAD(IDPDG)
+C               IF (KP.GT.0) THEN
+C                  IF ((MDCY(KC,1).EQ.0).AND.(KPTOIP(KP).EQ.0).AND.
+C     &                (ANAME(KP).NE.'BLANK   ').AND.
+C     &                (ANAME(KP).NE.'RNDFLV  ')) THEN
+C                     WRITE(LOUT,*) ' DT_INITJS: Decay flag for FLUKA-',
+C     &                             'transport: particle should decay ',
+C     &                             ': ',IDPDG,' ',ANAME(KP)
+C                     MDCY(KC,1) = 1
+C                  ENDIF
+C               ENDIF
+C    6       CONTINUE
+C         ENDIF
+C
+C*
+C* popcorn:
+C         IF (PDB.LE.ZERO) THEN
+C*   no popcorn-mechanism
+C            MSTJ(12) = 1
+C         ELSE
+C            MSTJ(12) = 3
+C            PARJ(5)  = PDB
+C         ENDIF
+C* set JETSET-parameter requested by input cards
+C         IF (NMSTU.GT.0) THEN
+C            DO 2 I=1,NMSTU
+C               MSTU(IMSTU(I)) = MSTUX(I)
+C    2       CONTINUE
+C         ENDIF
+C         IF (NMSTJ.GT.0) THEN
+C            DO 3 I=1,NMSTJ
+C               MSTJ(IMSTJ(I)) = MSTJX(I)
+C    3       CONTINUE
+C         ENDIF
+C         IF (NPARU.GT.0) THEN
+C            DO 4 I=1,NPARU
+C               PARU(IPARU(I)) = PARUX(I)
+C    4       CONTINUE
+C         ENDIF
+C         LFIRST = .FALSE.
+C      ENDIF
+C*
+C* PARJ(1)  suppression of qq-aqaq pair prod. compared to
+C*          q-aq pair prod.                      (default: 0.1)
+C* PARJ(2)  strangeness suppression               (default: 0.3)
+C* PARJ(3)  extra suppression of strange diquarks (default: 0.4)
+C* PARJ(6)  extra suppression of sas-pair shared by B and
+C*          aB in BMaB                           (default: 0.5)
+C* PARJ(7)  extra suppression of strange meson M in BMaB
+C*          configuration                        (default: 0.5)
+C* PARJ(18) spin 3/2 baryon suppression           (default: 1.0)
+C* PARJ(21) width sigma in Gaussian p_x, p_y transverse
+C*          momentum distrib. for prim. hadrons  (default: 0.35)
+C* PARJ(42) b-parameter for symmetric Lund-fragmentation
+C*          function                             (default: 0.9 GeV^-2)
+C*
+C* PHOJET settings
+C      IF (MODE.EQ.1) THEN
+C*   JETSET default
+CC        PARJ(1)  = PDEF1
+CC        PARJ(2)  = PDEF2
+CC        PARJ(3)  = PDEF3
+CC        PARJ(6)  = PDEF6
+CC        PARJ(7)  = PDEF7
+CC        PARJ(18) = PDEF18
+CC        PARJ(21) = PDEF21
+CC        PARJ(42) = PDEF42
+C**sr 18.11.98 parameter tuning
+CC        PARJ(1)  = 0.092D0
+CC        PARJ(2)  = 0.25D0
+CC        PARJ(3)  = 0.45D0
+CC        PARJ(19) = 0.3D0
+CC        PARJ(21) = 0.45D0
+CC        PARJ(42) = 1.0D0
+C**sr 28.04.99 parameter tuning (May 99 minor modifications)
+C         PARJ(1)  = 0.085D0
+C         PARJ(2)  = 0.26D0
+C         PARJ(3)  = 0.8D0
+C         PARJ(11) = 0.38D0
+C         PARJ(18) = 0.3D0
+C         PARJ(19) = 0.4D0
+C         PARJ(21) = 0.36D0
+C         PARJ(41) = 0.3D0
+C         PARJ(42) = 0.86D0
+C         IF (NPARJ.GT.0) THEN
+C            DO 10 I=1,NPARJ
+C               IF (IPARJ(I).GT.0) PARJ(IPARJ(I)) = PARJX(I)
+C   10       CONTINUE
+C         ENDIF
+C         IF (LFIRPH) THEN
+C            WRITE(LOUT,'(1X,A)')
+C     &         'DT_INITJS: JETSET-parameter for PHOJET'
+C            CALL DT_JSPARA(0)
+C            LFIRPH = .FALSE.
+C         ENDIF
+C* DTUNUC settings
+C      ELSEIF (MODE.EQ.2) THEN
+C         IF (IFRAG(2).EQ.1) THEN
+C**sr parameters before 9.3.96
+CC           PARJ(2)  = 0.27D0
+CC           PARJ(3)  = 0.6D0
+CC           PARJ(6)  = 0.75D0
+CC           PARJ(7)  = 0.75D0
+CC           PARJ(21) = 0.55D0
+CC           PARJ(42) = 1.3D0
+C**sr 18.11.98 parameter tuning
+CC           PARJ(1)  = 0.05D0
+CC           PARJ(2)  = 0.27D0
+CC           PARJ(3)  = 0.4D0
+CC           PARJ(19) = 0.2D0
+CC           PARJ(21) = 0.45D0
+CC           PARJ(42) = 1.0D0
+C**sr 28.04.99 parameter tuning
+C            PARJ(1)  = 0.11D0
+C            PARJ(2)  = 0.36D0
+C            PARJ(3)  = 0.8D0
+C            PARJ(19) = 0.2D0
+C            PARJ(21) = 0.3D0
+C            PARJ(41) = 0.3D0
+C            PARJ(42) = 0.58D0
+C            IF (NPARJ.GT.0) THEN
+C               DO 20 I=1,NPARJ
+C                  IF (IPARJ(I).LT.0) THEN
+C                     IDX = ABS(IPARJ(I))
+C                     PARJ(IDX) = PARJX(I)
+C                  ENDIF
+C   20          CONTINUE
+C            ENDIF
+C            IF (LFIRDT) THEN
+C               WRITE(LOUT,'(1X,A)')
+C     &           'DT_INITJS: JETSET-parameter for DTUNUC'
+C               CALL DT_JSPARA(0)
+C               LFIRDT = .FALSE.
+C            ENDIF
+C         ELSEIF (IFRAG(2).EQ.2) THEN
+C            PARJ(1)  = 0.11D0
+C            PARJ(2)  = 0.27D0
+C            PARJ(3)  = 0.3D0
+C            PARJ(6)  = 0.35D0
+C            PARJ(7)  = 0.45D0
+C            PARJ(18) = 0.66D0
+CC           PARJ(21) = 0.55D0
+CC           PARJ(42) = 1.0D0
+C            PARJ(21) = 0.60D0
+C            PARJ(42) = 1.3D0
+C         ELSE
+C            PARJ(1)  = PDEF1
+C            PARJ(2)  = PDEF2
+C            PARJ(3)  = PDEF3
+C            PARJ(6)  = PDEF6
+C            PARJ(7)  = PDEF7
+C            PARJ(18) = PDEF18
+C            PARJ(21) = PDEF21
+C            PARJ(42) = PDEF42
+C         ENDIF
+C      ELSE
+C         PARJ(1)  = PDEF1
+C         PARJ(2)  = PDEF2
+C         PARJ(3)  = PDEF3
+C         PARJ(5)  = PDEF5
+C         PARJ(6)  = PDEF6
+C         PARJ(7)  = PDEF7
+C         PARJ(18) = PDEF18
+C         PARJ(19) = PDEF19
+C         PARJ(21) = PDEF21
+C         PARJ(42) = PDEF42
+C         MSTJ(12) = MDEF12
+C      ENDIF
+C
+C      RETURN
+C      END
 
 *$ CREATE DT_JSPARA.FOR
 *COPY DT_JSPARA
