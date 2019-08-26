@@ -4,34 +4,22 @@
       include 'common.f'
       include 'bea_pyqm.inc'
 
-      integer ip,iq,ir,iit ! For do
+      integer ip,j ! For do
       integer iloop !current entry number
-      integer iEg,iPtF,iqg
+      integer iEg
 
-      double precision qhat,SupFac,ehat,iet
+      double precision qhat,ehat,iet
 
-      double precision th,ph
+      double precision th,ph,cr
 
-      double precision inix,iniy,iniz
-      double precision ipx,ipy,ipz
-      double precision ipg,ipgx,ipgy,ipgz
-      double precision tot,ipix,ipiy,ipiz
-      double precision ipt,iptx,ipty,iptz
-      double precision iE
-
-      double precision iptot,ipl,ptg,plg, cr
-      double precision cutoff,sca
-
-      double precision ptot,pt,pt2,mmmm
       double precision N_const, w_n, w_high, w_mean
       double precision w_sum, w_hard, w_soft
-      integer n_w, list, ij, i_w
+      integer n_w, ij, i_w
       double precision w_gluon(50)
       integer ijoin(50)
-      double precision pgx, pgy, pgz, phe, phi
-      double precision phi_final, theta, theta_final, mag
+      double precision phi_gluon, theta, theta_gluon, mag
 
-      integer j
+      integer cKF, cKS, cQW
 
       alphas = 1d0/3d0
       iqw = 1
@@ -39,41 +27,62 @@
       ncor = 0
       sfthrd = 1
 
-      cutoff = pyq_iet !energy cut off
-C      iEg = 0
-C      iPtF = 3
       iEg = PYQ_IEG
-      iPtF = PYQ_IPTF
       iet = PYQ_IET
-      iqg = 1
-      SupFac = 1
       ehat = 0
       cr=0
 
       iloop = N
       ip = 1
-      ij=0
+      ij = 0
+
+      if(PYQ_VERB.eq.1) then
+        print*, '======================='
+        print*, '====== New Event ======'
+      endif
+
 
       do while (ip.le.iloop)
 
-        if((K(ip,1).eq.2).or.((K(ip,1).eq.1).and.(ij.ge.1)).and.
-     & ((abs(K(ip,2)).le.5).or.(K(ip,2).eq.21))) then
+        cKF = 0
+        cKS = 0
+        cQW = 0
 
+        if((K(ip,2).eq.1).and.(ij.ge.1)) then
+          cKS = 1
+        else if(K(ip,1).eq.2) then
+          cKS = 2
+        endif
 
-          mmmm = P(ip,5)/P(ip,4)
-          call QWComput(qhat,P(ip,1),P(ip,2),P(ip,3),P(ip,4),mmmm,
-     & K(ip,2))
+        if(abs(K(ip,2)).le.5) then
+          cKF = 1
+          cr = 4d0/3d0
+        else if(K(ip,2).eq.21) then
+          cKF = 2
+          cr=3d0
+        endif
 
-          if(abs(K(ip,2)).le.5) then
-            cr = 4d0/3d0
-          else if(K(ip,2).eq.21) then
-            cr=3d0
-          endif
+        if((cKS.gt.0).and.(cKF.gt.0)) then
 
-          N_const=(2d0*alphas*cr*sqrt(2d0*QW_wc))/(pi)
+          call QWComput(qhat,ip)
+
+          N_const = (2d0*alphas*cr*sqrt(2d0*QW_wc))/(pi)
 
           if(((P(ip,4)-QW_w).lt.PYQ_IET).and.(QW_w.gt.0)) then
-            QW_w=P(ip,4)-PYQ_IET
+            QW_w = P(ip,4)-PYQ_IET
+          endif
+
+          if(PYQ_VERB.eq.1) then
+            print*, '***********************'
+            print*, 'KS = ', K(ip,1), ', KF = ', K(ip,2)
+            print*, 'P = (', P(ip,1),",",P(ip,2),",",P(ip,3),",",
+     & P(ip,4), ")"
+            print*, 'QW_w = ', QW_w
+          endif
+
+
+          if((P(ip,4).gt.PYQ_IET).and.(QW_w.gt.0)) then
+            cQW = 1
           endif
 
         endif
@@ -85,48 +94,50 @@ ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 c             no gluons                                               c
 ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
-          if(iEg.eq.0) then
+          if(PYQ_IEG.eq.0) then
 
+            w_gluon(1) = QW_w
 
-            w_gluon(1)=QW_w
-
-            if((K(ip,1).eq.2).and.((abs(K(ip,2)).le.5).or.
-     &  (K(ip,2).eq.21)).and.(P(ip,4).gt.PYQ_IET).and.(QW_w.gt.0)) then
-
+            if((cKS.eq.2).and.(cKF.gt.0).and.(cQW.eq.1)) then
 
               ij=ij+1
-
-              call GluonEmission(ip,w_gluon(1),theta_final,phi_final)
-
               n=n+1
-              ij=ij+1
 
-              call PY1ENT(N,21,w_gluon(1),theta_final,phi_final)
+              call GluonEmission(ip,w_gluon(1),theta_gluon,phi_gluon)
+
+              call PY1ENT(N,21,w_gluon(1),theta_gluon,phi_gluon)
 
               P(ip,1)=P(ip,1)-P(N,1)
               P(ip,2)=P(ip,2)-P(N,2)
               P(ip,3)=P(ip,3)-P(N,3)
+              P(ip,4)=P(ip,4)-P(N,4)
+
+              if(PYQ_VERB.eq.1) then
+                print*, 'P_final= (', P(ip,1),",",P(ip,2),",",P(ip,3),
+     &",",P(ip,4), ")"
+              endif
 
               n=n-1
 
-
-            else if((K(ip,1).eq.1).and.(ij.gt.1).and.
-     & ((abs(K(ip,2)).le.5).and.(P(ip,4).gt.(PYQ_IET))).and.(QW_w.gt.
-     & 0 )) then
+            else if((cKS.eq.1).and.(cKF.eq.1).and.(cQW.eq.1)) then
 
               n=n+1
-              ij=ij+1
 
-              call GluonEmission(ip,w_gluon(1),theta_final,phi_final)
+              call GluonEmission(ip,w_gluon(1),theta_gluon,phi_gluon)
 
-              call PY1ENT(N,21,w_gluon(1),theta_final,phi_final)
+              call PY1ENT(N,21,w_gluon(1),theta_gluon,phi_gluon)
 
               P(ip,1)=P(ip,1)-P(N,1)
               P(ip,2)=P(ip,2)-P(N,2)
               P(ip,3)=P(ip,3)-P(N,3)
+              P(ip,4)=P(ip,4)-P(N,4)
+
+              if(PYQ_VERB.eq.1) then
+                print*, 'P_final= (', P(ip,1),",",P(ip,2),",",P(ip,3),
+     &",",P(ip,4), ")"
+              endif
 
               n=n-1
-              ij=ij+1
               ij=0
 
             else
@@ -154,12 +165,12 @@ ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
      & .or.((K(ip,2).eq.21).and.(ij.gt.0)))
      & .and.(((P(ip,4).ge.PYQ_IET).and.(QW_w.gt.0)))) then
 
-                  call GluonEmission(ip,w_gluon(1),theta_final,
-     & phi_final)
+                  call GluonEmission(ip,w_gluon(1),theta_gluon,
+     & phi_gluon)
 
                   n=n+1
 
-                  call PY1ENT(N,21,w_gluon(1),theta_final,phi_final)
+                  call PY1ENT(N,21,w_gluon(1),theta_gluon,phi_gluon)
                   ij=ij+1
 
                   P(ip,1)=P(ip,1)-P(N,1)
@@ -177,13 +188,13 @@ ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
      & .and.(((P(ip,4).ge.PYQ_IET).and.(QW_w.gt.0)))) then
 
 
-                  call GluonEmission(ip,w_gluon(1),theta_final,
-     & phi_final)
+                  call GluonEmission(ip,w_gluon(1),theta_gluon,
+     & phi_gluon)
 
                   n=n+1
                   ij=ij+1
 
-                  call PY1ENT(N,21,w_gluon(1),theta_final,phi_final)
+                  call PY1ENT(N,21,w_gluon(1),theta_gluon,phi_gluon)
 
                   P(ip,1)=P(ip,1)-P(N,1)
                   P(ip,2)=P(ip,2)-P(N,2)
@@ -242,19 +253,19 @@ ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
      & .or.((K(ip,2).eq.21).and.(ij.gt.0)))
      & .and.(((P(ip,4).ge.PYQ_IET).and.(QW_w.gt.0)))) then
 
-                  call GluonEmission(ip,w_gluon(1),theta_final,
-     & phi_final)
+                  call GluonEmission(ip,w_gluon(1),theta_gluon,
+     & phi_gluon)
 
                   n=n+1
                   ij=ij+1
 
-                  call PY1ENT(N,21,w_gluon(1),theta_final,phi_final)
+                  call PY1ENT(N,21,w_gluon(1),theta_gluon,phi_gluon)
 
                   PYQREC(1)=PYQREC(1)
-     & +QW_w*sin(theta_final)*cos(phi_final)-P(N,1)
+     & +QW_w*sin(theta_gluon)*cos(phi_gluon)-P(N,1)
                   PYQREC(2)=PYQREC(2)
-     & +QW_w*sin(theta_final)*sin(theta_final)-P(N,2)
-                  PYQREC(3)=PYQREC(3)+QW_w*cos(theta_final)-P(N,3)
+     & +QW_w*sin(theta_gluon)*sin(theta_gluon)-P(N,2)
+                  PYQREC(3)=PYQREC(3)+QW_w*cos(theta_gluon)-P(N,3)
                   PYQREC(4)=PYQREC(4)+w_soft
 
                   P(ip,1)=P(ip,1)-P(N,1)
@@ -270,18 +281,18 @@ ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
               if((abs(K(ip,2)).le.5)
      & .and.(((P(ip,4).ge.PYQ_IET).and.(QW_w.gt.0)))) then
 
-                  call GluonEmission(ip,w_gluon(1),theta_final,
-     & phi_final)
+                  call GluonEmission(ip,w_gluon(1),theta_gluon,
+     & phi_gluon)
 
                   n=n+1
                   ij=ij+1
-                  call PY1ENT(N,21,w_gluon(1),theta_final,phi_final)
+                  call PY1ENT(N,21,w_gluon(1),theta_gluon,phi_gluon)
 
                   PYQREC(1)=PYQREC(1)
-     & +QW_w*sin(theta_final)*cos(phi_final)-P(N,1)
+     & +QW_w*sin(theta_gluon)*cos(phi_gluon)-P(N,1)
                   PYQREC(2)=PYQREC(2)
-     & +QW_w*sin(theta_final)*sin(theta_final)-P(N,2)
-                  PYQREC(3)=PYQREC(3)+QW_w*cos(theta_final)-P(N,3)
+     & +QW_w*sin(theta_gluon)*sin(theta_gluon)-P(N,2)
+                  PYQREC(3)=PYQREC(3)+QW_w*cos(theta_gluon)-P(N,3)
                   PYQREC(4)=PYQREC(4)+w_soft
 
                   P(ip,1)=P(ip,1)-P(N,1)
@@ -346,19 +357,19 @@ c                print*, n_w, w_mean !, w_high
 
                   do while(i_w.le.n_w)
 
-                    call GluonEmission(ip,w_gluon(i_w),theta_final,
-     & phi_final)
+                    call GluonEmission(ip,w_gluon(i_w),theta_gluon,
+     & phi_gluon)
 
                     n=n+1
                     ij=ij+1
 
-                    call PY1ENT(N,21,w_gluon(i_w),theta_final,phi_final)
+                    call PY1ENT(N,21,w_gluon(i_w),theta_gluon,phi_gluon)
 
                     PYQREC(1)=PYQREC(1)
-     & +mag*sin(theta_final)*cos(phi_final)-P(N,1)
+     & +mag*sin(theta_gluon)*cos(phi_gluon)-P(N,1)
                     PYQREC(2)=PYQREC(2)
-     & +mag*sin(theta_final)*sin(theta_final)-P(N,2)
-                    PYQREC(3)=PYQREC(3)+mag*cos(theta_final)-P(N,3)
+     & +mag*sin(theta_gluon)*sin(theta_gluon)-P(N,2)
+                    PYQREC(3)=PYQREC(3)+mag*cos(theta_gluon)-P(N,3)
 
                     P(ip,1)=P(ip,1)-P(N,1)
                     P(ip,2)=P(ip,2)-P(N,2)
@@ -387,18 +398,18 @@ c                print*, n_w, w_mean !, w_high
 
                   do while(i_w.le.n_w)
 
-                    call GluonEmission(ip,w_gluon(i_w),theta_final,
-     & phi_final)
+                    call GluonEmission(ip,w_gluon(i_w),theta_gluon,
+     & phi_gluon)
 
                     n=n+1
                     ij=ij+1
-                    call PY1ENT(N,21,w_gluon(i_w),theta_final,phi_final)
+                    call PY1ENT(N,21,w_gluon(i_w),theta_gluon,phi_gluon)
 
                     PYQREC(1)=PYQREC(1)
-     & +mag*sin(theta_final)*cos(phi_final)-P(N,1)
+     & +mag*sin(theta_gluon)*cos(phi_gluon)-P(N,1)
                     PYQREC(2)=PYQREC(2)
-     & +mag*sin(theta_final)*sin(theta_final)-P(N,2)
-                    PYQREC(3)=PYQREC(3)+mag*cos(theta_final)-P(N,3)
+     & +mag*sin(theta_gluon)*sin(theta_gluon)-P(N,2)
+                    PYQREC(3)=PYQREC(3)+mag*cos(theta_gluon)-P(N,3)
 
                     P(ip,1)=P(ip,1)-P(N,1)
                     P(ip,2)=P(ip,2)-P(N,2)
@@ -443,46 +454,47 @@ c                print*, n_w, w_mean !, w_high
 
 
         double precision w_gluon, theta_final, phi_final
-        double precision theta, phi, phe, pgx, pgy, pgz
+        double precision theta, phi, phi_g, pgx, pgy, pgz
         integer ip
 
-c        print*, 'ip = ', ip
-c        print*, 'w_gluon = ', w_gluon
 
-
-        P(ip,4)=P(ip,4)-w_gluon
+c        P(ip,4)=P(ip,4)-w_gluon
 
         theta = acos(P(ip,3)/(sqrt(P(ip,1)**2+P(ip,2)**2+P(ip,3)**2)))
         phi = atan2(P(ip,2),P(ip,1))
 
-c        print*, 'thata parton = ', theta
-c        print*, 'phi parton = ', phi
+        phi_g = 4*asin(1.)*ranf(0)
 
-        phe = 4*asin(1.)*ranf(0)
+        if(PYQ_VERB.eq.1) then
+          print*, 'Struck parton initial angles wrt lab frame :'
+          print*, 'theta = ', theta, ", phi = ", phi
+          print*, 'Emitted gluon angles wrt struck parton :'
+          print* , 'theta = ', QW_th, ', phi = ', phi_g
+        endif
 
-c        print*, 'phe = ', phe
-c        print*, 'QW_th = ', QW_th
 
-
-        pgx = (cos(theta)*cos(phi)*sin(QW_th)*cos(phe)-sin(phi)*
-     & sin(QW_th)*sin(phe)+sin(theta)*cos(phi)*cos(QW_th))
-        pgy = (cos(theta)*sin(phi)*sin(QW_th)*cos(phe)+cos(phi)*
-     & sin(QW_th)*sin(phe)+sin(theta)*sin(phi)*cos(QW_th))
-        pgz = (-sin(theta)*sin(QW_th)*cos(phe)+cos(theta)*cos(QW_th))
+        pgx = (cos(theta)*cos(phi)*sin(QW_th)*cos(phi_g)-sin(phi)*
+     & sin(QW_th)*sin(phi_g)+sin(theta)*cos(phi)*cos(QW_th))
+        pgy = (cos(theta)*sin(phi)*sin(QW_th)*cos(phi_g)+cos(phi)*
+     & sin(QW_th)*sin(phi_g)+sin(theta)*sin(phi)*cos(QW_th))
+        pgz = (-sin(theta)*sin(QW_th)*cos(phi_g)+cos(theta)*cos(QW_th))
 
 
         theta_final = acos((pgz)/(sqrt(pgx**2+pgy**2+pgz**2)))
         phi_final = atan2(pgy, pgx)
 
-c        print*, 'theta_final = ', theta_final
-c        print*, 'phi_final = ', phi_final
+        if(PYQ_VERB.eq.1) then
+          print*, 'Emitted gluon angles wrt lab frame:'
+          print* , 'theta = ', theta_final, ', phi = ', phi_final
+        endif
+
 
       end
 
 
 
 
-      subroutine QWComput(qhat,ipx,ipy,ipz,E,mmmm,id)
+      subroutine QWComput(qhat,ip)
       implicit none
 
       include 'common.f'
@@ -506,9 +518,17 @@ c        print*, 'phi_final = ', phi_final
       double precision ChiR !Chi sq R
       double precision qhateff
       double precision qhat,ehat
+      integer ip
 
       double precision mmmm !mass/energy of the incoming parton
       integer irej !used for test
+
+      ipx = P(ip,1)
+      ipy = P(ip,2)
+      ipz = P(ip,3)
+      E = P(ip,4)
+      mmmm = P(ip,5)/P(ip,4)
+      id = K(ip,2)
 
       QW_w = 0.
       QW_L = 0.
@@ -639,7 +659,7 @@ c        if(irej.eq.0) print*,'QW_chi=',QW_chi,' QW_th=',QW_th
 c      endif
 c      if(isnan(QW_th)) QW_th = pi/2
  
-ccccc Scattering angle set to 0
+cccc Scattering angle set to 0
       if(QW_w .gt. 0) then
          QW_th=0.  ! collinear gluon radiation assumption
       endif

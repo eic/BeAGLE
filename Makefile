@@ -9,7 +9,6 @@ MAIN = user-eA3.0-5
 #64 bit
 CXX      = gfortran
 #
-#CXXFLAGS = -c -g -Wall -m64 -fno-inline -fno-automatic -O -fcheck=all -fbacktrace
 CXXFLAGS = -c -g -Wall -m64 -fno-inline -fno-automatic
 LD = $(CXX) -g -m64 
 
@@ -54,11 +53,12 @@ LIBRAP = -L$(RAPGAP)/lib -lrapgap33 -lar4 -lbases
 #your environment
 
 # BNL:
-FLUKA = /afs/rhic/eic/PACKAGES/fluka-64/
-LIB1 = -L/cern64/pro/lib -lmathlib -lkernlib -lpacklib_noshift -ldl -lm 
+FLUKA = /home/ANL/ehrhart/ldgeom/software/fluka/
+#LIB1 = -L/home/ANL/ehrhart/ldgeom/software/cernlib/lib -lnanocernlib_mathlib -lnanocernlib_packlib -ldl -lm 
+LIB1 = -L/usr/lib64/cernlib/2006/lib -lmathlib -lkernlib -lpacklib -ldl -lm 
 LIB2 = -L$(FLUKA) -lflukahp
-LIB3 = -L/afs/rhic/eic/lib -lLHAPDF 
-#LIB3 = -L/afs/rhic.bnl.gov/eic/restructured/env/EIC2018a/lib -lLHAPDF 
+LIB3 = -L/home/ANL/ehrhart/ldgeom/software/lhapdf/lib -lLHAPDF 
+#
 # JLAB:
 #FLUKA = /u/group/ldgeom/PACKAGES/fluka-64/
 #LIB1 = -L/u/site/cernlib/x86_64_rhel6/2005/lib -lmathlib -lkernlib -lpacklib -ldl -lm 
