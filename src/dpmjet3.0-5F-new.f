@@ -2838,12 +2838,9 @@ C     &                LEMCCK,LHADRO(0:9),LSEADI,LEVAPO,IFRAME,ITRSPT
 
       IF ((NPMASS.GT.1).OR.(NTMASS.GT.1)) THEN
 
-         if(IOULEV(4).GE.2 .AND. NEVHKK.LE.IOULEV(5)) then
+         if (IOULEV(4).GE.2) then
             WRITE(*,*) 'Before DT_FOZOCA:'
-            CALL DT_PYOUTEP(4)
-         endif
-         if(IOULEV(4).GE.2) then
-            WRITE(*,*) 'Before DT_FOZOCA:'
+            if(NEVHKK.LE.IOULEV(5)) CALL DT_PYOUTEP(4)
             CALL EVTSUM(P5TMP,IZTMP,IATMP,.TRUE.,.TRUE.)
          endif
 
@@ -2855,12 +2852,9 @@ C     &                LEMCCK,LHADRO(0:9),LSEADI,LEVAPO,IFRAME,ITRSPT
             GOTO 9999
          ENDIF
 
-         if(IOULEV(4).GE.2 .AND. NEVHKK.LE.IOULEV(5)) then
+         if (IOULEV(4).GE.2) then
             WRITE(*,*) 'After DT_FOZOCA:'
-            CALL DT_PYOUTEP(4)
-         endif
-         if(IOULEV(4).GE.2) then
-            WRITE(*,*) 'After DT_FOZOCA:'
+            if (NEVHKK.LE.IOULEV(5)) CALL DT_PYOUTEP(4)
             CALL EVTSUM(P5TMP,IZTMP,IATMP,.TRUE.,.TRUE.)
          endif
 
@@ -17768,8 +17762,8 @@ C     SID = SQRT((ONE-COD)*(ONE+COD))
       IMPLICIT DOUBLE PRECISION (A-H,O-Z)
       SAVE
 
-      DOUBLE PRECISION X0,Z0,Z1,Z2,A0,B0,C0,A1,B1,C1,A2,B2,C2,CDFN,CDF,
-     &     CDFPLUS,CDFMINUS
+      DOUBLE PRECISION X0,Z0,Z1,Z2,A0,B0,C0,A1,B1,C1,A2,B2,C2,NN,CDFN,
+     &     CDF,CDFPLUS,CDFMINUS
       DOUBLE PRECISION CDFT(1:10000)
 
       PARAMETER (PI=3.14159265359D+00)
