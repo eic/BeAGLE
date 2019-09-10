@@ -941,7 +941,7 @@ C      DO I=2,IT+1
             WRITE(*,*)'Lab sums of stable particles:'
          ENDIF
          IF (INRLEV.GT.1) THEN
-            CALL EVTSUM(P5SUM,IZSUM,IASUM,VERBOSE)
+            CALL EVTSUM(P5SUM,IZSUM,IASUM,VERBOSE,.FALSE.)
          ELSE
 C     For pass-through mode, sum with 1000 treated as stable 
             DO IDIM=1,NDIM
