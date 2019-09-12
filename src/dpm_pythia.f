@@ -441,14 +441,23 @@ C      write(*,*) '1st call to pyinit, MYNGEN=',MYNGEN
 *cascade process (those particles decay way out of nuclear
 *environment), we will switch them off in pythia initialzation
 *but turn on for decay after all the particle generation is done
-* input: MODE 1: swith off decay for the list particles
-*             2: swith on decay for the list particles
+* input: MODE 1: switch off decay for the list particles
+*             2: Restore original decay state for the list particles
+* MDB 2019-09-11 Major change. Mode 2 used to switch on decay, now it
+*     restores the status quo ante. Also the routine will printout 
+*     the initial state of the MDCY array.
+*
       SUBROUTINE DT_PYDECY(MODE)
 
       include 'pythia.inc'              ! All PYTHIA commons blocks
 
+      LOGICAL LFIRST
+      DATA LFIRST /.TRUE./
+      SAVE LFIRST
+      CHARACTER PNAME*16
+
 *c... Extended to allow jpsi, phi to decay outside nuclei
-      DIMENSION IDXSTA(40)
+      DIMENSION IDXSTA(40),MDCYINI(40)
       DATA IDXSTA
 *          K0s   pi0  lam   alam  sig+  asig+ sig-  asig- tet0  atet0
      &  /  310,  111, 3122,-3122, 3222,-3222, 3112,-3112, 3322,-3322,
@@ -461,9 +470,23 @@ C      write(*,*) '1st call to pyinit, MYNGEN=',MYNGEN
 
       INTEGER MODE
 
+c...Store & printout initial decay status on first call. 
+      IF (LFIRST) THEN
+         WRITE(*,*)
+         WRITE(*,*) "WEAK DECAY TABLE"
+         WRITE(*,*) "Particle, PID, MDCY value"
+         DO I=1,37
+            MDCYINI(I) = MDCY(PYCOMP(IDXSTA(I)),1)
+            CALL PYNAME(IDXSTA(I),PNAME)
+            WRITE(*,*) PNAME, IDXSTA(I), MDCYINI(I)
+         ENDDO
+         WRITE(*,*)
+         LFIRST=.FALSE.
+      ENDIF
+
       GOTO(1,2) MODE
 
-c...swith off decay 
+c...Switch off decay 
 1     CONTINUE
 
       DO I=1,37
@@ -472,11 +495,12 @@ c...swith off decay
 
       RETURN
 
-c...swith on decay 
+c...Restore initial decay settings
 2     CONTINUE
 
       DO I=1,37
-         MDCY(PYCOMP(IDXSTA(I)),1) = 1
+C         MDCY(PYCOMP(IDXSTA(I)),1) = 1
+         MDCY(PYCOMP(IDXSTA(I)),1) = MDCYINI(I)
       ENDDO
 
       RETURN
