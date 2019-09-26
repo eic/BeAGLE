@@ -83,7 +83,10 @@ C         WRITE(*,*)'Calc. A*AMUC12+EMVGEV*EXMSAZ:',AZMASS
                ELSEIF (Z.EQ.82 .AND. A.EQ.208) THEN
                   AZMASS = AZMASS + 355823.5114D-09
                ELSE
-                  STOP 'AZMASS ERROR. Method 2 not allowed w/ this A,Z'
+                  WRITE(*,*) 'AZMASS ERROR. Method 2 not allowed'
+     &                 //"w/ this A,Z:",A," ",Z,". Using method 3."
+                  EXRESU=EXMSAZ(DBLE(A),DBLE(Z),.TRUE.,IZDUM)
+                  AZMASS = A*AMUC12+EMVGEV*EXRESU
                ENDIF
             ENDIF
          ENDIF
