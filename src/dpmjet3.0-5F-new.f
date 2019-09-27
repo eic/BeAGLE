@@ -5075,10 +5075,10 @@ C            ENDIF
      &                EBINDP(2),EBINDN(2),EPOT(2,210),
      &                ETACOU(2),ICOUL,LFERMI      
       
-* for now only A > 12 assign SRC pairs and bring them half way
-* closer without changing the center of mass position.
+C     for now only A > 12 assign SRC pairs and bring them half way
+C     closer without changing the center of mass position.
       
-* Initialize SRC_PARTNER_INDEX = -1
+C     Initialize SRC_PARTNER_INDEX = -1
 
       SRC_PARTNER_INDEX = -1
 
@@ -5090,13 +5090,13 @@ C            ENDIF
          WRITE(*,*) 'mass: ', PHKK(5,IIMAIN)
       endif
 
-      IF( (NMASS .GE. 12) .AND. (IFMDIST .GE. 1) ) THEN
+      IF( (NMASS .GE. 12) .AND. (IFMDIST .GE. 4) ) THEN
         C00 = 9999.0D0
         D00 = DT_RNDM(D00)
         IF( D00 .LE. 0.2D0 ) THEN ! now hard-coded 20% SRC nucleons probability
           
-* find the nearest neighbor and record its index number K2 with 5 times
-* more probability of finding pn pair than pp/nn pair, using B00 random number. 
+C     find the nearest neighbor and record its index number K2 with 5 times
+C     more probability of finding pn pair than pp/nn pair, using B00 random number. 
 
           K1 = IIMAIN
           B00 = DT_RNDM(B00)
@@ -5105,17 +5105,17 @@ C            ENDIF
           ELSE
             IS_PN = 1
           ENDIF  
-          DO J=1,NMASS
+          DO J=2,NMASS+1
             IF( J .EQ. K1 ) THEN 
-              WRITE(*,*) 'SAME NUCLEON! '
+C               WRITE(*,*) 'SAME NUCLEON! '
               CONTINUE
             ENDIF
-            IF((IS_PN.EQ.1).AND.(PHKK(5,K1).EQ.PHKK(5,J))) THEN
-              WRITE(*,*) 'PN pair is required, continue looking '
+            IF((IS_PN.EQ.1).AND.(PHKK(5,K1).NE.PHKK(5,J))) THEN
+C               WRITE(*,*) 'PN pair is required, continue looking '
               CONTINUE
             ENDIF
-            IF((IS_PN.EQ.0).AND.(PHKK(5,K1).NE.PHKK(5,J))) THEN
-              WRITE(*,*) 'PN pair is not required, continue looking '
+            IF((IS_PN.EQ.0).AND.(PHKK(5,K1).EQ.PHKK(5,J))) THEN
+C               WRITE(*,*) 'PN pair is not required, continue looking '
               CONTINUE  
             ENDIF
           
@@ -5129,31 +5129,34 @@ C            ENDIF
             ENDIF
           ENDDO
 
-          WRITE(*,*) 'SRC partner nucleon: ', K2
-          WRITE(*,*) 'SRC partner nucleon distance ~ ', SQRT(C00)
-          WRITE(*,*) 'px: ', PHKK(1,K2)
-          WRITE(*,*) 'py: ', PHKK(2,K2)
-          WRITE(*,*) 'pz: ', PHKK(3,K2)
-          WRITE(*,*) 'mass: ', PHKK(5,K2)
+C           WRITE(*,*) 'SRC partner nucleon: ', K2
+C           WRITE(*,*) 'SRC partner nucleon distance ~ ', SQRT(C00)
+C           WRITE(*,*) 'px: ', PHKK(1,K2)
+C           WRITE(*,*) 'py: ', PHKK(2,K2)
+C           WRITE(*,*) 'pz: ', PHKK(3,K2)
+C           WRITE(*,*) 'mass: ', PHKK(5,K2)
 
-          CALL DT_KFERMI(P00,IFMDIST) !re-sample momentum using deuteron high momentum tail
-          P00=P00*FERMOD
-          WRITE(*,*) 'Fermi momentum P00 ', P00
-          WRITE(*,*) 'Distance (fm) scale ~ ', 0.197D0/P00
+          CALL DT_KFERMI(P00,NMASS,IFMDIST) 
+            !re-sample momentum using deuteron high momentum tail
+          P00=P00*(PFERMP(2)+PFERMN(2))/2.0D0 
+            !Take the average of proton and neutron momentum
+
+C         WRITE(*,*) 'Fermi momentum P00 ', P00
+C         WRITE(*,*) 'Distance (fm) scale ~ ', 0.197D0/P00
           CALL DT_DPOLI(POLC,POLS)
           CALL DT_DSFECF(SFE,CFE)
           CXTA = POLS*CFE
           CYTA = POLS*SFE
           CZTA = POLC
 
-          MAIN_PX = (PHKK(1,K1)+PHKK(1,K2))/2.0D0 + CXTA*P00
-          MAIN_PY = (PHKK(2,K1)+PHKK(2,K2))/2.0D0 + CYTA*P00
-          MAIN_PZ = (PHKK(3,K1)+PHKK(3,K2))/2.0D0 + CZTA*P00
+          MAIN_PX = PHKK(1,K1) + CXTA*P00
+          MAIN_PY = PHKK(2,K1) + CYTA*P00
+          MAIN_PZ = PHKK(3,K1) + CZTA*P00
           MAIN_E  = SQRT(MAIN_PX**2+MAIN_PY**2+MAIN_PZ**2+PHKK(5,K1)**2)
           
-          PAIR_PX = (PHKK(1,K1)+PHKK(1,K2))/2.0D0 - CXTA*P00
-          PAIR_PY = (PHKK(2,K1)+PHKK(2,K2))/2.0D0 - CYTA*P00
-          PAIR_PZ = (PHKK(3,K1)+PHKK(3,K2))/2.0D0 - CZTA*P00
+          PAIR_PX = PHKK(1,K2) - CXTA*P00
+          PAIR_PY = PHKK(2,K2) - CYTA*P00
+          PAIR_PZ = PHKK(3,K2) - CZTA*P00
           PAIR_E  = SQRT(PAIR_PX**2+PAIR_PY**2+PAIR_PZ**2+PHKK(5,K2)**2)
 
           PHKK(4,K1) = MAIN_E
@@ -5172,17 +5175,17 @@ C            ENDIF
                USER3 = P00
           ENDIF
 
-          WRITE(*,*) 'SRC main nucleon after modification: ', K1
-          WRITE(*,*) 'px: ', PHKK(1,K1)
-          WRITE(*,*) 'py: ', PHKK(2,K1)
-          WRITE(*,*) 'pz: ', PHKK(3,K1)
-          WRITE(*,*) 'mass: ', PHKK(5,K1)
+C           WRITE(*,*) 'SRC main nucleon after modification: ', K1
+C           WRITE(*,*) 'px: ', PHKK(1,K1)
+C           WRITE(*,*) 'py: ', PHKK(2,K1)
+C           WRITE(*,*) 'pz: ', PHKK(3,K1)
+C           WRITE(*,*) 'mass: ', PHKK(5,K1)
 
-          WRITE(*,*) 'SRC partner nucleon after modification: ', K2
-          WRITE(*,*) 'px: ', PHKK(1,K2)
-          WRITE(*,*) 'py: ', PHKK(2,K2)
-          WRITE(*,*) 'pz: ', PHKK(3,K2)
-          WRITE(*,*) 'mass: ', PHKK(5,K2)
+C           WRITE(*,*) 'SRC partner nucleon after modification: ', K2
+C           WRITE(*,*) 'px: ', PHKK(1,K2)
+C           WRITE(*,*) 'py: ', PHKK(2,K2)
+C           WRITE(*,*) 'pz: ', PHKK(3,K2)
+C           WRITE(*,*) 'mass: ', PHKK(5,K2)
 
           SRC_PARTNER_INDEX = int(K2)
 
@@ -5197,17 +5200,25 @@ C            ENDIF
         ENDIF  
 
          
-* start to bring them together at a distance of ~ 1/n(k) fm
+C       start to bring them together at a distance of ~ 1/n(k) fm
+C       IFMDIST = 3 and 4 -> switching "MOVING" on and off, respectively
         
-        IF( (K1 .GT. 0) .AND. (K2 .GT. 0) ) THEN
+        IF( (K1 .GT. 0) .AND. (K2 .GT. 0) .AND. (IFMDIST .EQ. 5) ) THEN
+          WRITE(*,*) "Start to move the nucleons"
           DIST_VALUE = SQRT(C00)
           X_SPACE = (VHKK(1,K1) - VHKK(1,K2))/DIST_VALUE
           Y_SPACE = (VHKK(2,K1) - VHKK(2,K2))/DIST_VALUE
           Z_SPACE = (VHKK(3,K1) - VHKK(3,K2))/DIST_VALUE
 
           MOVE = DIST_VALUE
-          MOVE = MOVE - (0.197D0/P00)*1.0D-15
+          MOVE = MOVE - (0.197D0/P00)*1.0D-12
           MOVE = MOVE/2.0D0
+
+          IF( P00 .LT. 0.25D0 ) THEN
+            MOVE = 0.0D0
+          ELSE
+            MOVE = (DIST_VALUE-(0.197D0/P00)*1.0D-12)/2D0
+          ENDIF
 
           VHKK(1,K1) = VHKK(1,K1) - MOVE*X_SPACE
           VHKK(2,K1) = VHKK(2,K1) - MOVE*Y_SPACE
@@ -5216,15 +5227,16 @@ C            ENDIF
           VHKK(1,K2) = VHKK(1,K2) + MOVE*X_SPACE
           VHKK(2,K2) = VHKK(2,K2) + MOVE*Y_SPACE
           VHKK(3,K2) = VHKK(3,K2) + MOVE*Z_SPACE
+
         ENDIF
 
       ENDIF  
 
-* for Deuteron only, if IFMDIST .GE. 1, bring them closer 
-* at a distance ~ 1/n(k) without changing momentum. IFMDIST = 1 
-* already samples high momentum for deuteron.
+C     for Deuteron only, if IFMDIST .EQ. 3, bring them closer 
+C     at a distance ~ 1/n(k) without changing momentum. IFMDIST = 1 
+C     already samples high momentum for deuteron.
 
-      IF( (NMASS .EQ. 2) .AND. (IFMDIST .GE. 1) ) THEN
+      IF( (NMASS .EQ. 2) .AND. (IFMDIST .EQ. 3) ) THEN
         K1 = 1
         K2 = 2
         DIST1 = (VHKK(1,K1+1)-VHKK(1,K2+1))**2
@@ -5238,7 +5250,12 @@ C            ENDIF
         Z_SPACE = (VHKK(3,K1+1) - VHKK(3,K2+1))/DIST_VALUE
 
         P00 = SQRT(PHKK(1,K1+1)**2+PHKK(2,K1+1)**2+PHKK(3,K1+1)**2)
-        MOVE = (DIST_VALUE-(0.197D0/P00)*1.0D-15)/2D0
+        
+        IF( P00 .LT. 0.25D0 ) THEN
+          MOVE = 0.0D0
+        ELSE
+          MOVE = (DIST_VALUE-(0.197D0/P00)*1.0D-12)/2D0
+        ENDIF
 
         VHKK(1,K1+1) = VHKK(1,K1+1) - MOVE*X_SPACE
         VHKK(2,K1+1) = VHKK(2,K1+1) - MOVE*Y_SPACE
@@ -5246,7 +5263,8 @@ C            ENDIF
 
         VHKK(1,K2+1) = VHKK(1,K2+1) + MOVE*X_SPACE
         VHKK(2,K2+1) = VHKK(2,K2+1) + MOVE*Y_SPACE
-        VHKK(3,K2+1) = VHKK(3,K2+1) + MOVE*Z_SPACE
+        VHKK(3,K2+1) = VHKK(3,K2+1) + MOVE*Z_SPACE 
+
       ENDIF
     
       RETURN
@@ -5304,10 +5322,10 @@ C            ENDIF
          ! Use IFMDIST, 3rd varaible in control card of FERMI, to switch between
          ! different k momentum distributions
 
-         IF ( (NMASS.EQ.2) .AND. (IFMDIST.GE.1) ) THEN
-            CALL DT_KFERMI(PABS,IFMDIST)
+         IF ((NMASS.GE.2) .AND. (NMASS.LE.4) .AND. (IFMDIST.GE.1) ) THEN
+            CALL DT_KFERMI(PABS,NMASS,IFMDIST)
          ELSE
-            CALL DT_DFERMI(PABS)
+            CALL DT_DFERMI(PABS,NMASS)
          ENDIF
          PABS = PFERM*PABS
 C        IF (PABS.GE.PBIND) THEN
@@ -17723,41 +17741,152 @@ C     SID = SQRT((ONE-COD)*(ONE+COD))
 *
 *===dfermi=============================================================*
 *
-      SUBROUTINE DT_DFERMI(GPART)
+      SUBROUTINE DT_DFERMI(GPART,ANUCLEUS)
 
 ************************************************************************
 * Find largest of three random numbers.                                *
 ************************************************************************
 
+C       IMPLICIT DOUBLE PRECISION (A-H,O-Z)
+C       SAVE
+
+C       DIMENSION G(3)
+
+C       DO 10 I=1,3
+C         G(I)=DT_RNDM(GPART)
+   
+C    10 CONTINUE
+C       IF (G(3).LT.G(2)) GOTO 40
+C       IF (G(3).LT.G(1)) GOTO 30
+C       GPART = G(3)
+C    20 RETURN
+C    30 GPART = G(1)
+C       GOTO 20
+C    40 IF (G(2).LT.G(1)) GOTO 30
+C       GPART = G(2)
+C       GOTO 20
+
+************************************************************************
+* Use n(k) in Claudio Ciofi & S. Simula, PRC VOLUME 53, NUMBER 4, 1996.                                *
+************************************************************************
+
+C Anything between Fe and Pb will be Pb n(k), similar for other nucleus.
+
       IMPLICIT DOUBLE PRECISION (A-H,O-Z)
       SAVE
+      
+      DOUBLE PRECISION X0,Z0,Z1,Z2,A0,B0,C0,D0,E0,F0,CDFN,
+     &     CDF,CDFPLUS,CDFMINUS
+      DOUBLE PRECISION CDFT(1:10000)
 
-      DIMENSION G(3)
+      PARAMETER (PI=3.14159265359D+00)
+      IF( ANUCLEUS .GT. 208 ) THEN
+        A0 = 1.08D0
+        B0 = 0.118D0
+        C0 = 0.0D0
+        D0 = 0.0D0
+        E0 = 0.0D0
+        F0 = 0.0D0
+      ELSE IF( (ANUCLEUS .LE. 208) .OR. (ANUCLEUS .GT. 56) ) THEN 
+        A0 = 1.80D0
+        B0 = 4.77D0
+        C0 = 0.0D0
+        D0 = 25.5D0
+        E0 = 0.0D0
+        F0 = 40.3D0
+      ELSE IF( (ANUCLEUS .LE. 56) .OR. (ANUCLEUS .GT. 40)  ) THEN
+        A0 = 3.57D0
+        B0 = 4.97D0
+        C0 = 0.0D0
+        D0 = 19.8D0
+        E0 = 15.0D0
+        F0 = 0.0D0
+      ELSE IF( (ANUCLEUS .LE. 40) .OR. (ANUCLEUS .GT. 16)  ) THEN
+        A0 = 3.24D0
+        B0 = 3.72D0
+        C0 = 0.0D0
+        D0 = 11.1D0
+        E0 = 0.0D0
+        F0 = 0.0D0
+      ELSE IF( (ANUCLEUS .LE. 16) .OR. (ANUCLEUS .GT. 12)  ) THEN
+        A0 = 2.74D0
+        B0 = 3.33D0
+        C0 = 6.66D0
+        D0 = 0.0D0
+        E0 = 0.0D0
+        F0 = 0.0D0
+      ELSE IF( (ANUCLEUS .LE. 12) .OR. (ANUCLEUS .GT. 4)  ) THEN
+        A0 = 2.61D0
+        B0 = 2.66D0
+        C0 = 0.0D0
+        D0 = 0.0D0
+        E0 = 0.0D0
+        F0 = 0.0D0  
+      ELSE 
+        WRITE(*,*) "Should not be called here.ERROR2!ANUCLEUS=",ANUCLEUS
+      ENDIF 
 
-      DO 10 I=1,3
-        G(I)=DT_RNDM(GPART)
-   
+C     Random number generation between 0 and 1     
+      E = DT_RNDM(GPART)
+!First, calculate the normalization:
+
+      DO 10 I = 1,10000
+        Z0 = A0 * EXP(-B0*X0*X0)
+        Z1 = 1D0 + C0*X0*X0 + D0*X0*X0*X0*X0
+        Z2 = E0*X0*X0*X0*X0*X0*X0 + F0*X0*X0*X0*X0*X0*X0*X0*X0
+
+        CDF = CDF + (Z0*(Z1+Z2))*(4.0D0*PI*X0*X0)*0.001D0
+        X0 = X0 + 0.001D0
+
    10 CONTINUE
-      IF (G(3).LT.G(2)) GOTO 40
-      IF (G(3).LT.G(1)) GOTO 30
-      GPART = G(3)
-   20 RETURN
-   30 GPART = G(1)
-      GOTO 20
-   40 IF (G(2).LT.G(1)) GOTO 30
-      GPART = G(2)
-      GOTO 20
+
+
+!Second, calculate CDF and see if RANDOM NUMBER matches CDF, return X0 value.
+!C and D can be switched using KRANGE (IFMDIST), where 1 is minimum-bias k-
+!distribution, and 2 starts to sample from 99.9% of the cross section (tail of k-momentum)
+
+      CDFN = CDF
+      X0 = 0.000D0
+      CDF = 0.000D0
+
+      DO 20 I = 1,10000
+        Z0 = A0 * EXP(-B0*X0*X0)
+        Z1 = 1D0 + C0*X0*X0 + D0*X0*X0*X0*X0
+        Z2 = E0*X0*X0*X0*X0*X0*X0 + F0*X0*X0*X0*X0*X0*X0*X0*X0
+        CDF = CDF + (0.001D0/CDFN)*Z0*(Z1+Z2)*(4.0D0*PI*X0*X0)
+        X0 = X0 + 0.001D0
+
+        CDFT(I) = CDF
+        !T for tolorence, this needs to be set dynamically
+        IF( I .EQ. 1 ) THEN
+          T = 0.005D0
+        ELSE
+          T = CDFT(I)-CDFT(I-1)
+        ENDIF
+        
+        CDFPLUS = CDF + T
+        CDFMINUS = CDF + 10D-20
+
+        IF( (E .GE. CDFMINUS) .AND. (E .LT. CDFPLUS) ) THEN
+          GPART = X0
+          RETURN
+        ELSE
+          GOTO 20
+        ENDIF
+     
+   20 CONTINUE
 
       END
 
 *
 *===Added by KONG TU for realistic intrinsic k momentum distribution===*
 *
-      SUBROUTINE DT_KFERMI(GGPART,KRANGE)
+      SUBROUTINE DT_KFERMI(GGPART,ANUCLEUS,KRANGE)
 
-************************************************************************
-* Sample realistic momentum k distribution in A = 2 (Deuteron)         *       
-************************************************************************
+****************************************************************************
+* Sample realistic momentum k distribution in A = 2-4 (Deuteron to Helium4)*
+* These are n0k parametrization not including n1k                          *        
+****************************************************************************
 
       IMPLICIT DOUBLE PRECISION (A-H,O-Z)
       SAVE
@@ -17792,9 +17921,12 @@ C     momentum tail as for k > 3 fm**-1
 C     Different n(k) distribution.  
 C     11, 12, 13, 14 are alt 1, 2, 3, 4, respectively.
 C     NN is normalization to unity.
+C     1 and 3 are the same, where 3 turns on "MOVING"
+C     2 is > 0.993 cross section
+C     4 and 5 are heavy tails, where 5 turns on "MOVING" for A>12
 
       E = C
-      IF( KRANGE .EQ. 1 ) THEN
+      IF( (KRANGE .EQ. 1) .OR. (KRANGE .EQ. 3)  ) THEN ! 
         E = C
         B2 = 0.220D0
         NN = 1.0D0
@@ -17802,6 +17934,10 @@ C     NN is normalization to unity.
         E = D
         B2 = 0.220D0
         NN = 1.0D0
+      ELSE IF( (KRANGE .GE. 4) .AND. (KRANGE .LE. 5) ) THEN
+        E = C
+        A0 = 0.0D0
+        A1 = 0.0D0
       ELSE IF( KRANGE .EQ. 11 ) THEN
         E = C
         B2 = 0.10D0
@@ -17825,6 +17961,40 @@ C     NN is normalization to unity.
       ELSE 
         E = C
       ENDIF
+
+C     Overwrite KRANGE for He3 and He4
+
+      IF( ANUCLEUS .EQ. 3 ) THEN
+        A0 = 31.7D0
+        B0 = 1.32D0
+        C0 = 5.98D0
+        A1 = 0.00266D0
+        B1 = 0.365D0
+        C1 = 0.0D0
+        A2 = 0.0D0
+        B2 = 0.0D0
+        C2 = 0.0D0 
+        NN = 1.0D0
+        E = C
+      ELSE IF( ANUCLEUS .EQ. 4 ) THEN
+        A0 = 4.33D0
+        B0 = 1.54D0
+        C0 = 0.419D0
+        A1 = 5.49D0
+        B1 = 4.90D0
+        C1 = 0.0D0
+        A2 = 0.0D0
+        B2 = 0.0D0
+        C2 = 0.0D0 
+        NN = 1.0D0
+        E = C
+C       ELSE IF( ANUCLEUS .EQ. 2 ) THEN
+C C       DO NOTHING  
+C       ELSE
+C         WRITE(*,*) "Should not be called here.ERROR1!ANUCLEUS=",ANUCLEUS
+      ENDIF 
+
+
 
 !First, calculate the normalization:
 
