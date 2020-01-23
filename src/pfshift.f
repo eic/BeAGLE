@@ -1,4 +1,4 @@
-      SUBROUTINE PFSHIFT(WRAW,W2RAW,MNUCL)
+      SUBROUTINE PFSHIFT(WRAW,W2RAW,Q2,NU,MNUCL,PDEUT,IKIN)
 C
 C     2018-07-13 Mark D. Baker - Initial Version
 C
@@ -6,6 +6,31 @@ C     This subroutine adds the struck nucleon pF back to the
 C     Pythia subevent partonic skeleton after the fact.
 C     We start and end in the TRF, but operate in the naive HCMS
 C     defined by gamma* + N at rest in nuclear TRF.
+C
+C     NOTE: For now, we are ignoring the possibility of PDEUT(1-3)
+C           being non-zero
+C
+C     Input: WRAW, W2RAW - from Pythia subevent VINT(1),VINT(2)
+C            Q2, NU - from Pythia
+C            MNUCL - struck nucleon for IKIN=1 (VINT(4)), spectator for IKIN=2
+C            PDEUT - Deuteron "5"-momentum, irrelevant for IKIN=1
+C            IKIN - model for correct Pythia subsystem Wmu   
+C
+C     Common block input: P(mu)_true-P(mu)_naive OR use k
+C                         PXF,PYF,PZF,EKF = k & E(k)-m in the TRF
+C                         DPF(4) is in the naive HCMS 
+C
+C     There are two models for the "correct" Pythia subsystem Wmu.
+C     In both cases, q comes from Pythia.
+C     IKIN=1: incoming struck nucleon p on mass shell but with additional
+C              3-Fermi momentum. Then use W=p+q
+C     IKIN=2: Appropriate especially for SRC & deuteron case. Could be used
+C              for bulk Fermi momentum too...
+C              W = q + P - pspec'
+C              where P is an incoming on-shell deuteron 
+C              pspec' given by an on-shell spectator with 3-momentum -k
+C     IKIN=0: Calculate IKIN=1, for filling in USERSET 3, but don't
+C     actually change the event record.
 C
 C     Step 1 is to scale all momenta in the HCMS by a common factor
 C     ASCALE so that the W2 is correct for gamma* + moving N rather
@@ -19,11 +44,10 @@ C     formula and should therefore converge immediately.
 C
 C     Step 2 is to boost all momenta so the that subevent has the
 C     correct momentum in the HCMS (and ultimately TRF)
-C 
-C     WRAW, W2RAW, MNUCL are input parameters only - from VINT(1),(2),(4)
 C
       IMPLICIT NONE
-      DOUBLE PRECISION WRAW, W2RAW, MNUCL
+      DOUBLE PRECISION WRAW, W2RAW, Q2, NU, MNUCL, PDEUT(5)
+      INTEGER IKIN
 
       include 'beagle.inc'
 C      include "py6strf.inc"   ! Temporary! Just use for debug output
@@ -55,18 +79,21 @@ C Local
       PARAMETER (MAXPRTS=20)
       PARAMETER (NDIM=4)
       PARAMETER (NDIMM=5)
-      DOUBLE PRECISION W2F, W2TRY(MAXTRY), PSUM(NDIM) ! PSMTRY(NDIM)
-C      DOUBLE PRECISION PSMTR1(NDIM),PSMTR2(NDIM), EETEMP
-C      DOUBLE PRECISION PSUM1(NDIM),PSUM2(NDIM), SUMM2, SUMM1
+      DOUBLE PRECISION W2F, W2TRY(MAXTRY), PSUM(NDIM) 
       DOUBLE PRECISION ASCALE(MAXTRY), PHIGH2, SQRM1, SQRM2, ASCLFL
-      DOUBLE PRECISION ASCTMP1 ! ASCTMP2, ASCTMP3
-      DOUBLE PRECISION W2TTMP1 ! W2TTMP2, W2TTMP3 
-      DOUBLE PRECISION S2SUM ! DELTAA, EPSIL1, S4SUM, BETA2
+      DOUBLE PRECISION ASCTMP1, W2TTMP1, S2SUM 
       DOUBLE PRECISION FERBX, FERBY, FERBZ, FERGAM
       INTEGER NPRTNS,NLSCAT,IDIM,NSCLTR, ITRK
       DOUBLE PRECISION PTMP(MAXPRTS,NDIMM)
       INTEGER INDXP(MAXPRTS)
       LOGICAL W2FAIL
+      DOUBLE PRECISION ESPEC,WZIRF,W0IRF,WZHCMS,W0HCMS
+
+      IF (IOULEV(4).GE.2 .AND. NEVENT.LE.IOULEV(5)) then
+         WRITE(*,*)"PFSHIFT(WRAW,W2RAW,Q2,NU,MNUCL,PDEUT,IKIN)"
+         WRITE(*,*)WRAW,W2RAW,Q2,NU,MNUCL
+         WRITE(*,*)PDEUT(1),PDEUT(2),PDEUT(3),PDEUT(4),PDEUT(5),IKIN
+      ENDIF
 
       IF (WRAW.LT.1.0 .OR. ABS(W2RAW-WRAW*WRAW).GT.0.001 .OR.
      & MNUCL.LT.0.9 .OR. MNUCL.GT.1.0) THEN
@@ -76,7 +103,23 @@ C      DOUBLE PRECISION PSUM1(NDIM),PSUM2(NDIM), SUMM2, SUMM1
 C     Boost into naive HCMS  (assumes nucleon at rest in A-TRF)
       CALL PYROBO(0,0,0.0D0,0.0D0,0.0D0,0.0D0,-BGCMS(2)/GACMS(2))
 
-      W2F = W2RAW + 2.*WRAW*DPF(4) - 2.*MNUCL*EKF
+      IF (IKIN.EQ.0 .OR. IKIN.EQ.1) THEN
+         W2F = W2RAW + 2.*WRAW*DPF(4) - 2.*MNUCL*EKF
+      ELSEIF (IKIN.EQ.2) THEN
+C         ESPEC=SQRT(MNUCL*MNUCL+PXF*PXF+PYF*PYF+PZF*PZF)
+C         W2F = 2.*PDEUT(5)*NU - Q2 + PDEUT(5)*PDEUT(5) + MNUCL*MNUCL
+C     &        -2.*ESPEC*(NU+PDEUT(5))-2*PZF*SQRT(Q2+NU*NU)
+         ESPEC=SQRT(MNUCL*MNUCL+(PDEUT(1)-PXF)**2+(PDEUT(2)-PYF)**2+
+     &        (PDEUT(3)-PZF)**2)
+         W2F = 2.*(PDEUT(4)-ESPEC)*NU - Q2 + PDEUT(5)*PDEUT(5) + 
+     &        MNUCL*MNUCL - 2.*ESPEC*PDEUT(5) - 2*PZF*SQRT(Q2+NU*NU) +
+     &        2.*(PDEUT(1)*(PDEUT(1)-PXF)+PDEUT(2)*(PDEUT(2)-PYF)+
+     &            PDEUT(3)*(PDEUT(3)-PZF))
+      ELSE
+         WRITE(*,*) 'PFSHIFT ERROR: Illegal IKIN =',IKIN
+         W2F = W2RAW
+      ENDIF
+
       IF (IOULEV(4).GE.2 .AND. NEVENT.LE.IOULEV(5)) THEN
          write(*,*) "W2 ignore pF:", W2RAW
          write(*,*) "W2 corrected: ", W2F
@@ -93,17 +136,9 @@ C     Analyze the events and extract the "partonic" skeleton
       NPRTNS=0
       NLSCAT=0
       S2SUM=0.0D0
-C      S4SUM=0.0D0
       DO IDIM=1,NDIM
          PSUM(IDIM)=0.0D0       ! sum p^mu for all stable except e'
-C         PSUM1(IDIM)=0.0D0      ! sum p^mu for pz<0: P1
-C         PSUM2(IDIM)=0.0D0      ! sum p^mu for pz>=0: P2
-c         PSMTRY(IDIM)=0.0D0     ! as above, but after momentum scaling
-C         PSMTR1(IDIM)=0.0D0
-C         PSMTR2(IDIM)=0.0D0
       ENDDO
-C      SUMM1=0.0D0               ! sum m^2 for pz<0 - along P1
-C      SUMM2=0.0D0               ! sum m^2 for pz>0 - along P2
       DO ITRK=1,N
          IF(K(ITRK,1).EQ.1 .OR. K(ITRK,1).EQ.2) THEN
             IF ( (ABS(K(ITRK,2)).EQ.11 .OR. ABS(K(ITRK,2)).EQ.13) .AND.
@@ -175,8 +210,6 @@ C
       S2SUM = 0.0D0
       DO IDIM=1,NDIM
          PSUM(IDIM)=0.0D0
-C         PSUM1(IDIM)=0.0D0
-C         PSUM2(IDIM)=0.0D0
       ENDDO
       DO ITRK=1,NPRTNS
          DO IDIM=1,NDIM
@@ -304,10 +337,23 @@ C         USER3=DBLE(NPRTNS)
             USER3=DBLE(NSCLTR)
          ENDIF
       ENDIF
-      IF (IFERPY.GT.1) THEN
+C
+      IF (IKIN.GT.0) THEN
          FERBX = DPF(1)/SQRT(W2TRY(NSCLTR)) 
          FERBY = DPF(2)/SQRT(W2TRY(NSCLTR)) 
-         FERBZ = DPF(3)/SQRT(W2TRY(NSCLTR))
+         IF (IKIN.EQ.1) THEN
+            FERBZ = DPF(3)/SQRT(W2TRY(NSCLTR))
+         ELSEIF (IKIN.EQ.2) THEN
+C     Note: Wmu transverse quantities are PXF,PYF=DPF(1,2). WZ,W0:
+            WZIRF = SQRT(Q2+NU*NU)+PZF
+            W0IRF = NU + PDEUT(5) - ESPEC
+            CALL DT_LTNUC(WZIRF,W0IRF,WZHCMS,W0HCMS,3)
+            FERBZ = WZHCMS/SQRT(W2TRY(NSCLTR))
+         ELSE
+            FERBZ = 0.0D0
+            FERBY = 0.0D0
+            FERBX = 0.0D0
+         ENDIF
          FERGAM = SQRT(1.0D0+FERBX*FERBX+FERBY*FERBY+FERBZ*FERBZ)
          FERBX = FERBX/FERGAM
          FERBY = FERBY/FERGAM

@@ -273,7 +273,11 @@ C....Modified by liang to use a random number seed from input++
 c....Since we need to use FSEED card read in this random number seed
 c....initialization will be moved to the START card region
 *   initialization and test of the random number generator
+C  2019-12-02 MDB Move Fluka initializations NCDTRD, INCINI here
          IF (ITRSPT.NE.1) THEN
+
+            CALL NCDTRD
+            CALL INCINI
 
             IJKLIN = -1
             INSEED = 1
@@ -705,8 +709,10 @@ C        CALL SHMAKF(IDUM,IDUM,IEMUMA(NCOMPO),IEMUCH(NCOMPO))
 *       what (1) = -1 Fermi-motion of nucleons not treated          *
 *                  +1 DPMJET has pF, but Pythia sub-event doesn't   *
 *                  +2 DPMJET has pF, Pythia sub-event skeleton      *
-*                     given pF after the fact.                      *
-*                  +3 Pythia sub-event uses correct pF (NYI)        *
+*                     given pF after the fact using on mass-shell   *
+*                     incoming struck nucleon w/ pF                 *
+*                  +3 Deuteron/SRC kinematics. A>2 non-SRC events   *
+*                     revert to 2.                                  *
 *                                                 default: 1        *
 *       what (2) =    scale factor for Fermi-momentum  (D=0.55)     *
 *                         (should be set to 0.62 for what(3)>0)     *
@@ -714,10 +720,15 @@ C        CALL SHMAKF(IDUM,IDUM,IEMUMA(NCOMPO),IEMUCH(NCOMPO))
 *                   0=DPMJET (D)                                    *
 *                   1=From PRC 53 (1996) 1689R: Deuteron only       *
 *                   2=High k tail only from version 1               *
+*                   3=Deuterons as in 1, but move nucleons to a     *
+*                     relative distance of hbar/k for k>0.25 GeV.   *
+*                   4=Add SRC (20%)for A>=12. Nucleons don't move.  *
+*                   5=SRC as in 4 and pair nucleons moved to        *
+*                     relative distance hbar/k in IRF if k>0.25 GeV.*
 *       what (4) = post-processing to correct 4-mom. errors for D.  *
 *                   0=No                                            *
 *                   1=Ad-hoc ion rest frame energy correction.      *
-*                   2=Light-cone-kinematics energy/pz correction.NYI*
+*                  NOTE: Post-processing not needed for what(1)>2   *
 *                                                 default: 0        *
 *       what (5,6), sdum   no meaning                               *
 *                                                                   *
@@ -734,7 +745,11 @@ C        CALL SHMAKF(IDUM,IDUM,IEMUMA(NCOMPO),IEMUCH(NCOMPO))
       IF (XMOD.GE.ZERO) FERMOD = XMOD
       IFMDIST = NINT(WHAT(3))
       IFMPOST = NINT(WHAT(4))
-      IF (IFMPOST.GT.1) STOP("LIGHT-CONE-INSPIRED CORRECTION NYI.")
+      IF (IFMPOST.EQ.1 .AND. IFERPY.GT.2) THEN
+         IFMPOST=0
+         WRITE(*,*)"WARNING: IFMPOST=1 incompatible with IFERPY>2."
+         WRITE(*,*)"         Setting IFMPOST=0"
+      ENDIF
       GOTO 10
 
 *********************************************************************
@@ -1023,6 +1038,7 @@ C...for pythia model
 *                        = 3 Full DPMJET treatment                  *
 *       what (3)         = Boost to lab frame (defined by MOMENTUM) *
 *                          0 = no (default)  1 = yes                *
+*       what (4)         = Format 0=new (D), -1=old(pre-LC)
 *********************************************************************
 
   240 CONTINUE
@@ -1066,6 +1082,7 @@ c...added by Mark to include rapgap 6/12/2018
          IFSEED = NINT(WHAT(1))
          INRLEV = NINT(WHAT(2))
          IGDOBST = NINT(WHAT(3))
+         OLDOUT = (NINT(WHAT(4)).EQ.-1)
          IF (INRLEV.EQ.0) INRLEV=1
       ELSE
          STOP ' Unknown model !'
@@ -2424,11 +2441,16 @@ C         WRITE(*,*) '          USER3 = # of "partons"'
          WRITE(*,*) '          USER1 = NHYPER'
          WRITE(*,*) '          USER2 = ZSUM'
          WRITE(*,*) '          USER3 = IDHYP(1)'
+      ELSEIF (USERSET.EQ.14) THEN
+         WRITE(*,*) 'USERSET 14 selected. Fermi debug.'
+         WRITE(*,*) '           USER1 = kx'
+         WRITE(*,*) '           USER2 = ky'
+         WRITE(*,*) '           USER3 = P00=k'
       ELSEIF (USERSET.EQ.15) THEN
          WRITE(*,*) 'USERSET 15 selected. Fermi debug.'
-         WRITE(*,*) '           USER1 = P00'
-         WRITE(*,*) '           USER2 = FERM*P00'
-         WRITE(*,*) '           USER3 = P00*PFERMP(0)'
+         WRITE(*,*) '           USER1 = pxmiss'
+         WRITE(*,*) '           USER2 = pxspec'
+         WRITE(*,*) '           USER3 = P00'
       ENDIF
       GOTO 10
 
@@ -2618,10 +2640,11 @@ C     IF (IDP.EQ.27) IDP = 6
 * initialization of evaporation-module
 
 *  initialize evaporation if the code is not used as Fluka event generator
-      IF (ITRSPT.NE.1) THEN
-         CALL NCDTRD
-         CALL INCINI
-      ENDIF
+C 2019-12-02 MDB Move this earlier.
+C      IF (ITRSPT.NE.1) THEN
+C         CALL NCDTRD
+C         CALL INCINI
+C      ENDIF
       IF (LEVPRT) LHEAVY = .TRUE.
 * save the default JETSET-parameter
       CALL DT_JSPARA(0)
@@ -5078,9 +5101,14 @@ C            ENDIF
 C     for now only A > 12 assign SRC pairs and bring them half way
 C     closer without changing the center of mass position.
       
-C     Initialize SRC_PARTNER_INDEX = -1
+C     Initialize SRC_PARTNER_INDEX = -1 & User variables
 
       SRC_PARTNER_INDEX = -1
+      IF (14.LE.USERSET .AND.  USERSET.LE.15) THEN
+         USER1=0.0D0
+         USER2=0.0D0
+         USER3=0.0D0
+      ENDIF
 
       if(IOULEV(4).GE.2 .AND. NEVENT.LE.IOULEV(5)) then
          WRITE(*,*) 'Pythia pick this nucleon: ', IIMAIN
@@ -5097,10 +5125,12 @@ C     Initialize SRC_PARTNER_INDEX = -1
           
 C     find the nearest neighbor and record its index number K2 with 5 times
 C     more probability of finding pn pair than pp/nn pair, using B00 random number. 
+C     MDB Use 18x, not 4x which was coded up before. 
 
           K1 = IIMAIN
           B00 = DT_RNDM(B00)
-          IF( B00 .LE. 0.2D0 ) THEN
+C          IF( B00 .LE. 0.2D0 ) THEN
+          IF( B00 .LE. 1.0D0/19.0D0 ) THEN
             IS_PN = 0
           ELSE
             IS_PN = 1
@@ -5109,12 +5139,10 @@ C     more probability of finding pn pair than pp/nn pair, using B00 random numb
             IF( J .EQ. K1 ) THEN 
 C               WRITE(*,*) 'SAME NUCLEON! '
               CONTINUE
-            ENDIF
-            IF((IS_PN.EQ.1).AND.(PHKK(5,K1).NE.PHKK(5,J))) THEN
+            ELSEIF ((IS_PN.EQ.1).AND.(PHKK(5,K1).NE.PHKK(5,J))) THEN
 C               WRITE(*,*) 'PN pair is required, continue looking '
               CONTINUE
-            ENDIF
-            IF((IS_PN.EQ.0).AND.(PHKK(5,K1).EQ.PHKK(5,J))) THEN
+            ELSEIF ((IS_PN.EQ.0).AND.(PHKK(5,K1).EQ.PHKK(5,J))) THEN
 C               WRITE(*,*) 'PN pair is not required, continue looking '
               CONTINUE  
             ENDIF
@@ -5129,20 +5157,24 @@ C               WRITE(*,*) 'PN pair is not required, continue looking '
             ENDIF
           ENDDO
 
-C           WRITE(*,*) 'SRC partner nucleon: ', K2
-C           WRITE(*,*) 'SRC partner nucleon distance ~ ', SQRT(C00)
-C           WRITE(*,*) 'px: ', PHKK(1,K2)
-C           WRITE(*,*) 'py: ', PHKK(2,K2)
-C           WRITE(*,*) 'pz: ', PHKK(3,K2)
-C           WRITE(*,*) 'mass: ', PHKK(5,K2)
+          if(IOULEV(4).GE.2 .AND. NEVENT.LE.IOULEV(5)) then
+             WRITE(*,*) 'SRC partner nucleon: ', K2
+             WRITE(*,*) 'SRC partner nucleon distance ~ ', SQRT(C00)
+             WRITE(*,*) 'px: ', PHKK(1,K2)
+             WRITE(*,*) 'py: ', PHKK(2,K2)
+             WRITE(*,*) 'pz: ', PHKK(3,K2)
+             WRITE(*,*) 'mass: ', PHKK(5,K2)
+          endif
 
           CALL DT_KFERMI(P00,NMASS,IFMDIST) 
             !re-sample momentum using deuteron high momentum tail
           P00=P00*(PFERMP(2)+PFERMN(2))/2.0D0 
             !Take the average of proton and neutron momentum
 
-C         WRITE(*,*) 'Fermi momentum P00 ', P00
-C         WRITE(*,*) 'Distance (fm) scale ~ ', 0.197D0/P00
+          if(IOULEV(4).GE.2 .AND. NEVENT.LE.IOULEV(5)) then
+             WRITE(*,*) 'Fermi momentum P00 ', P00
+             WRITE(*,*) 'Distance (fm) scale ~ ', 0.197D0/P00
+          endif
           CALL DT_DPOLI(POLC,POLS)
           CALL DT_DSFECF(SFE,CFE)
           CXTA = POLS*CFE
@@ -5169,31 +5201,44 @@ C         WRITE(*,*) 'Distance (fm) scale ~ ', 0.197D0/P00
           PHKK(2,K2) = PAIR_PY
           PHKK(3,K2) = PAIR_PZ
 
-          IF (USERSET.EQ.15) THEN
+C     MDB - Fill variables needed elsewhere.
+          PXF = MAIN_PX
+          PYF = MAIN_PY
+          PZF = MAIN_PZ
+          EKF = MAIN_E - PHKK(5,K1)
+          
+          IF (USERSET.EQ.14) THEN
+             USER1 = CXTA*P00
+             USER2 = CYTA*P00
+             USER3 = P00
+          ELSEIF (USERSET.EQ.15) THEN
                USER1 = PHKK(1,K1)
                USER2 = PHKK(1,K2)
                USER3 = P00
           ENDIF
 
-C           WRITE(*,*) 'SRC main nucleon after modification: ', K1
-C           WRITE(*,*) 'px: ', PHKK(1,K1)
-C           WRITE(*,*) 'py: ', PHKK(2,K1)
-C           WRITE(*,*) 'pz: ', PHKK(3,K1)
-C           WRITE(*,*) 'mass: ', PHKK(5,K1)
-
-C           WRITE(*,*) 'SRC partner nucleon after modification: ', K2
-C           WRITE(*,*) 'px: ', PHKK(1,K2)
-C           WRITE(*,*) 'py: ', PHKK(2,K2)
-C           WRITE(*,*) 'pz: ', PHKK(3,K2)
-C           WRITE(*,*) 'mass: ', PHKK(5,K2)
+          if(IOULEV(4).GE.2 .AND. NEVENT.LE.IOULEV(5)) then
+             WRITE(*,*) 'SRC main nucleon after modification: ', K1
+             WRITE(*,*) 'px: ', PHKK(1,K1)
+             WRITE(*,*) 'py: ', PHKK(2,K1)
+             WRITE(*,*) 'pz: ', PHKK(3,K1)
+             WRITE(*,*) 'mass: ', PHKK(5,K1)
+             WRITE(*,*)
+             WRITE(*,*) 'SRC partner nucleon after modification: ', K2
+             WRITE(*,*) 'px: ', PHKK(1,K2)
+             WRITE(*,*) 'py: ', PHKK(2,K2)
+             WRITE(*,*) 'pz: ', PHKK(3,K2)
+             WRITE(*,*) 'mass: ', PHKK(5,K2)
+          endif
 
           SRC_PARTNER_INDEX = int(K2)
 
         ELSE
-          PHKK(4,IIMAIN)  = PHKK(4,IIMAIN)
-          PHKK(1,IIMAIN)  = PHKK(1,IIMAIN)
-          PHKK(2,IIMAIN)  = PHKK(2,IIMAIN)
-          PHKK(3,IIMAIN)  = PHKK(3,IIMAIN)
+C     MDB removed this No-op
+C          PHKK(4,IIMAIN)  = PHKK(4,IIMAIN)
+C          PHKK(1,IIMAIN)  = PHKK(1,IIMAIN)
+C          PHKK(2,IIMAIN)  = PHKK(2,IIMAIN)
+C          PHKK(3,IIMAIN)  = PHKK(3,IIMAIN)
 
           K1 = -1
           K2 = -1
@@ -17917,7 +17962,8 @@ C     Random number generation between 0 and 1
       C = DT_RNDM(GGPART)
 C     Random number generation between 0.993 and 1, to select higher k 
 C     momentum tail as for k > 3 fm**-1
-      D = 0.993D0 + (1.0D0-0.993D0)*DT_RNDM(GGPART)  
+      D = 0.993D0 + (1.0D0-0.993D0)*C  
+C      D = 0.993D0 + (1.0D0-0.993D0)*DT_RNDM(GGPART)  
 C     Different n(k) distribution.  
 C     11, 12, 13, 14 are alt 1, 2, 3, 4, respectively.
 C     NN is normalization to unity.
@@ -17935,9 +17981,13 @@ C     4 and 5 are heavy tails, where 5 turns on "MOVING" for A>12
         B2 = 0.220D0
         NN = 1.0D0
       ELSE IF( (KRANGE .GE. 4) .AND. (KRANGE .LE. 5) ) THEN
-        E = C
-        A0 = 0.0D0
-        A1 = 0.0D0
+C     MDB 20% SRC means 5 chances to catch the 4% tail of a quasideuteron...
+        E = 0.96D0 + (1.0D0-0.96D0)*C
+        B2 = 0.220D0
+        NN = 1.0D0
+C        E = C
+C        A0 = 0.0D0
+C        A1 = 0.0D0
       ELSE IF( KRANGE .EQ. 11 ) THEN
         E = C
         B2 = 0.10D0

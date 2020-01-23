@@ -272,6 +272,16 @@ C. Could also use PARU(2)
       double precision twopi
       parameter (twopi=6.283185307179586d0)
 
+C...Pythia Commons. Spell out to avoid IMPLICIT NONE clash w/ pythia.inc. 
+      COMMON/PYINT1/MINT(400),VINT(400)
+      COMMON/PYPARS/MSTP(200),PARP(200),MSTI(200),PARI(200)
+      INTEGER MINT,MSTP,MSTI
+      DOUBLE PRECISION VINT,PARP,PARI
+
+* added by liang to store the output event variables 1/20/12
+      COMMON /EVTOUT/ XBJOUT,YYOUT,W2OUT,NUOUT,Q2OUT
+      DOUBLE PRECISION XBJOUT,YYOUT,W2OUT,NUOUT,Q2OUT
+
 C...output file name definition
       COMMON /OUNAME/ outname
       CHARACTER*256 outname
@@ -383,7 +393,9 @@ c...mode 2 is used to output the event list
 C
 C TEMPTEMP
 C
-      write(*,*)'x_bj,y,Q2: ',x_bj,' ',y,' ',Q2
+      write(*,*)'x_bj(M=m=0), x_bj(Q2,y,s,M,m), XBJOUT',x_bj,' ',
+     &     Q2R/DBLE(YY)/(SSS-VINT(4)*VINT(4)-VINT(303)),' ',XBJOUT
+      write(*,*)'y,Q2: ',x_bj,' ',y,' ',Q2
       write(*,*)'xgam,x_pom,t,p_t: ',xgam,' ',x_pom,' ',t,' ',p_t
 
       IF (OLDOUT) THEN
@@ -532,7 +544,7 @@ C     Writeout RAPGAP in BeAGLE format
 
 c...mode 3 is used to print the whole statistics information
 3     CONTINUE
-      CALL RAEND(20)	
+      CALL RAEND(20)
 C      CALL PYSTAT(1)
 C      CALL PYSTAT(4)
       CALL PTIME(' rapgap  ',2,0)
@@ -558,11 +570,15 @@ C      CALL PYSTAT(4)
       include 'rgpara1.inc'   ! DOUBLE PRECISION Q2
       include 'rgpart.inc'    ! DOUBLE SSS, PBEAM(2,5)...
 
-C...Pythia CommonS. Spell out to avoid IMPLICIT NONE clash w/ pythia.inc. 
+C...Pythia Commons. Spell out to avoid IMPLICIT NONE clash w/ pythia.inc. 
       COMMON/PYINT1/MINT(400),VINT(400)
-      INTEGER MINT,VINT
       COMMON/PYPARS/MSTP(200),PARP(200),MSTI(200),PARI(200)
-      INTEGER MSTP,PARP,MSTI,PARI
+      INTEGER MINT,MSTP,MSTI
+      DOUBLE PRECISION VINT,PARP,PARI
+
+* added by liang to store the output event variables 1/20/12
+      COMMON /EVTOUT/ XBJOUT,YYOUT,W2OUT,NUOUT,Q2OUT
+      DOUBLE PRECISION XBJOUT,YYOUT,W2OUT,NUOUT,Q2OUT
 
       IF (MODE.EQ.1) THEN
          CALL PTIME(' event  ',1,0)
@@ -572,11 +588,14 @@ C TEMPTEMP
          CALL PYLIST(2)
          Q2evt = Q2
          Yevt = DBLE(YY)
+         Q2OUT = Q2evt
+         YYOUT = Yevt
+         XBJOUT = XPR
          write(*,*) 'Rapgap Q2, y:',Q2,YY
          write(*,*) 'Rapgap s, xel, xpr',SSS,XEL,XPR
 C Fill info. into Pythia common blocks?
          VINT(302)=SSS
-         VINT(307)=Q2
+         VINT(307)=Q2evt
          VINT(309)=Yevt
          write(*,*) 'PBEAM(1,*):',PBEAM(1,1),PBEAM(1,2),PBEAM(1,3),
      &        PBEAM(1,4),PBEAM(1,5)
@@ -587,9 +606,13 @@ C Fill info. into Pythia common blocks?
          PARI(34)=DBLE(XPR)
          PARI(18)=DBLE(PT2H)
          PARI(14)=DBLE(SHH)
-C TEMPTEMP
-         VINT(4)=0.93827
-         VINT(303)=0.000511**2
+C TEMPTEMP for VINT(4) and VINT(303)
+         VINT(4)=0.93827d0
+         VINT(303)=(0.511d-3)**2
+         W2OUT = Q2evt*(1.0d0/XBJOUT-1.0d0)+VINT(4)*VINT(4)
+         NUOUT = Q2evt/(2.0d0*VINT(4)*XBJOUT)
+         VINT(2) = W2OUT
+         VINT(1) = SQRT(VINT(2))
          CALL PTIME(' event  ',2,0)
          IREJ=0
       ELSEIF (MODE.EQ.2) THEN

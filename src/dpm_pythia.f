@@ -645,6 +645,7 @@ C  Local
 
       LOGICAL LFIRST
       INTEGER IREJ, IIMAIN, IIMAINN
+      DOUBLE PRECISION PDEUT(5), MNUCL
 
       SAVE LFIRST
 
@@ -1040,8 +1041,61 @@ C Calculate kinematics for Fermi momentum correction.
 C We are in the nuclear TRF with gamma* along z. 
 c VINT(1-4) is W, W2, -SQRT(Q2), M_N
 
-      if(USERSET.EQ.3 .OR. IFERPY.EQ.2) then
-         CALL PFSHIFT(VINT(1),VINT(2),VINT(4))
+C     Find and flag the spectator nucleon for the Deuteron
+      IF (ITZ.EQ.1 .AND. IT.EQ.2) THEN
+         IF(IOULEV(4).GE.2 .AND. NEVENT.LE.IOULEV(5)) THEN
+            WRITE(*,*)"I  ISTHKK(I)  IDHKK(I) PHKK(5,I)"
+            DO IHKK=1,NHKK
+               WRITE(*,*)IHKK,ISTHKK(IHKK),IDHKK(IHKK),PHKK(5,IHKK)
+            ENDDO
+         ENDIF
+         DO IHKK=1,NHKK 
+            IF (ISTHKK(IHKK).EQ.14) THEN
+               IIMAINN = IHKK
+               GOTO 31
+            ENDIF
+         ENDDO
+         STOP 'FATAL: Could not find a spectator nucleon in deuteron.'
+         IF(IOULEV(4).GE.2 .AND. NEVENT.LE.IOULEV(5)) THEN
+            WRITE(*,*)"I=IIMAINN  ISTHKK(I)  IDHKK(I) PHKK(5,I)"
+            WRITE(*,*)IIMAINN,ISTHKK(IIMAINN),IDHKK(IIMAINN),
+     &           PHKK(5,IIMAINN)
+         ENDIF
+ 31      CONTINUE
+      ENDIF
+
+      if (USERSET.EQ.3 .OR. IFERPY.GT.1) then
+         VALNU = 0.5D0*VINT(309)*(VINT(302)-VINT(4)**2-VINT(303)**2)
+     &        /VINT(4)
+C     For now, the deuteron is at rest in the IRF (may change for SRC)
+C     Not used unless IFERPY>2
+         PDEUT(1)=0.0D0
+         PDEUT(2)=0.0D0
+         PDEUT(3)=0.0D0
+         PDEUT(5)=AZMASS(IT,ITZ,ITMMOD)
+         PDEUT(4)=PDEUT(5)
+         MNUCL=VINT(4)
+         if (IFERPY.EQ.2) then
+            CALL PFSHIFT(VINT(1),VINT(2),VINT(307),VALNU,MNUCL,PDEUT,1)
+         elseif (IFERPY.EQ.3) then
+            if (IIMAINN.NE.-1) then
+C     Here MNUCL is the SPECTATOR (not struck) nucleon mass from D or SRC-pair:
+               MNUCL=PHKK(5,IIMAINN)
+               PDEUT(1)=PHKK(1,IIMAIN)+PHKK(1,IIMAINN)
+               PDEUT(2)=PHKK(2,IIMAIN)+PHKK(2,IIMAINN)
+               PDEUT(3)=PHKK(3,IIMAIN)+PHKK(3,IIMAINN)
+               PDEUT(4)=SQRT(PDEUT(1)*PDEUT(1)+PDEUT(2)*PDEUT(2)+
+     &              PDEUT(3)*PDEUT(3)+PDEUT(5)*PDEUT(5))
+
+               CALL PFSHIFT(VINT(1),VINT(2),VINT(307),VALNU,MNUCL,PDEUT,
+     &              2)
+            else
+               CALL PFSHIFT(VINT(1),VINT(2),VINT(307),VALNU,MNUCL,PDEUT,
+     &              1)
+            endif
+         else
+            CALL PFSHIFT(VINT(1),VINT(2),VINT(307),VALNU,MNUCL,PDEUT,0)
+         endif
          if(IOULEV(4).GE.2 .AND. NEVENT.LE.IOULEV(5)) THEN
             write(*,*) "DT_PYEVNTEP: TRF g*=z, after pf post-fix"
             CALL PYLIST(2)
@@ -1052,19 +1106,15 @@ C... If requested, fix the e+D event kinematics.
       if (IFMPOST.GT.0) then
          if (ITZ.NE.1 .OR. IT.NE.2) 
      &        STOP "FATAL: CAN ONLY POST-FIX DEUTERON KINEMATICS"
+         if (IFERPY.GT.2) 
+     &        STOP "FATAL: IFERPY>2 and IFMPOST>0 are incompatible"
 C...     Copy the spectator nucleon to the PYTHIA event record 
 C...     and flag it as having been involved in the interaction 
 C...     but not needing a ptkick using temporary value -12
-         DO IHKK=1,NHKK 
-            IF (ISTHKK(IHKK).EQ.14) THEN
-               NINTS=NINTS+1
-               IINTER(NINTS)=IHKK
-               ISTHKK(IHKK)=-12
-               GOTO 31
-            ENDIF
-         ENDDO
-         STOP 'FATAL: Could not find a spectator nucleon in deuteron.'
- 31      CONTINUE
+C     nu = y(s-M2-m2)/2M  where M=M_nucleon and m=m_lepton
+         NINTS=NINTS+1
+         IINTER(NINTS)=IIMAINN
+         ISTHKK(IIMAINN)=-12
          N = N + 1
          P(N,1) = PHKK(1,IINTER(NINTS))
          P(N,2) = PHKK(2,IINTER(NINTS))
@@ -1083,7 +1133,6 @@ C...  Note: Can't fill V(N,I) yet or PYROBO will boost it around.
          PosAlt(NINTS,3) = VHKK(3,IINTER(NINTS))
          PosAlt(NINTS,4) = VHKK(4,IINTER(NINTS))
          MomAlt(NINTS) = IINTER(NINTS)
-C     nu = y(s-M2-m2)/2M  where M=M_nucleon and m=m_lepton
          VALNU = 0.5D0*VINT(309)*(VINT(302)-VINT(4)**2-VINT(303)**2)
      &        /VINT(4)
          QQ=VINT(307)
@@ -1106,10 +1155,32 @@ C...Struck "parton" is the (non e') particle with highest pz (along g*)
 c...  For the non-main interactions, just do a ptkick & recoil
 C...  Copy the recoiling nucleon to the PYTHIA event record 
 C...  and flag it as special.
-C...  If it is the spectator nucleon from e+D, leave it alone.
+C...  If it is a spectator nucleon from e+D, leave it alone.
+C...  If it is a spectator nucleon from e+A, put in the event record, but 
+C...  don't ptkick it...
       DO IINT=1,NINTS
          IF (ISTHKK(IINTER(IINT)).EQ.-12) THEN
             ISTHKK(IINTER(IINT))=12
+            IF (IT.GT.2) THEN
+               N = N + 1
+               P(N,1) = PHKK(1,IINTER(IINT))
+               P(N,2) = PHKK(2,IINTER(IINT))
+               P(N,3) = PHKK(3,IINTER(IINT))
+               P(N,4) = PHKK(4,IINTER(IINT))
+               P(N,5) = PHKK(5,IINTER(IINT))
+               K(N,1) = 1
+               K(N,2) = IDHKK(IINTER(IINT)) 
+               K(N,3) = IINTER(IINT)
+               K(N,4) = 0
+               K(N,5) = 0
+C...  Note: Can't fill V(N,I) yet or PYROBO will boost it around.
+               NPOS(IINT) = N
+               PosAlt(IINT,1) = VHKK(1,IINTER(IINT))
+               PosAlt(IINT,2) = VHKK(2,IINTER(IINT))
+               PosAlt(IINT,3) = VHKK(3,IINTER(IINT))
+               PosAlt(IINT,4) = VHKK(4,IINTER(IINT))
+               MomAlt(IINT) = IINTER(IINT)
+            ENDIF
          ELSEIF (IINT.NE.IMAIN) THEN
             N = N + 1
             P(N,1) = PHKK(1,IINTER(IINT))
@@ -1801,7 +1872,7 @@ C
          USER2 = YYSPLAT
       ELSEIF (USERSET.EQ.5) THEN         
          USER2 = SIGEFF
-      ELSEIF (USERSET.GE.8) THEN         
+      ELSEIF (USERSET.GE.8.AND.USERSET.LT.14) THEN         
          VERBOSE = (IOULEV(4).GE.2 .AND. NEVENT.LE.IOULEV(5))
          AMASS1 = AZMASS(IT,ITZ,1)
          AMASS2 = AZMASS(IT,ITZ,2)

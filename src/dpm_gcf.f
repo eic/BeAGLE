@@ -12,7 +12,7 @@ C...intialize GCF-reading code when using dpmjet
 *     input/output variable:
 *           NEVTS    # of events to read. If 0, then read all events
 *                    If NEVTS># entries or NEVTS=0, set NEVTS=# entries
-
+*
       IMPLICIT NONE
 C      include 'pythia.inc'              ! All PYTHIA commons blocks
 C      include "mc_set.inc"
@@ -203,6 +203,8 @@ C      CALL DT_PYDECY(1)
 *     output:
 *           Q2    Q2 of this current event 
 *           YY    Y of this current event  
+*
+*     Variable OLDOUT from "beagle.inc" controls the input format.
 
       IMPLICIT NONE
 C      include "mc_set.inc"
@@ -329,11 +331,18 @@ C  Local
       DOUBLE PRECISION PFERR, PPSUM(NDIM)
 
       CALL DT_EVTINI
-      READ(LINP,*) IDUM, IEVENT, ltype, IT, ITZ, PZLEP, RECTYPE, 
-     &     LEADTYPE, Q2OUT, XBJOUT, NUOUT, LEPTONPHI, PXF, PYF, PZF,
-     &     EEXC(2), RAEVT, nrTracks
-      IF (IEVENT.LE.5) WRITE(*,*) RAEVT
-
+      IF (OLDOUT) THEN
+         READ(LINP,*) IDUM, IEVENT, ltype, IT, ITZ, PZLEP, RECTYPE, 
+     &        LEADTYPE, Q2OUT, XBJOUT, NUOUT, LEPTONPHI, PXF, PYF, PZF,
+     &        EEXC(2), RAEVT, nrTracks
+         IF (IEVENT.LE.5) WRITE(*,*) 'weight: ', RAEVT
+      ELSE
+         READ(LINP,*) IDUM, IEVENT, ltype, IT, ITZ, PZLEP, RECTYPE, 
+     &        LEADTYPE, Q2OUT, XBJOUT, NUOUT, LEPTONPHI, PXF, PYF, PZF,
+     &        EEXC(2), RAEVT, SIGEFF, nrTracks
+         IF (IEVENT.LE.5) WRITE(*,*) 'lcweight: ', RAEVT, ' oldweight',
+     &        SIGEFF
+      ENDIF
       IF (IDUM.NE.0 .OR. nrTracks.NE.9 .OR. EEXC(2).LT.-TINY10 .OR.
      &     IEVENT.NE.NEVENT) STOP
      &     'DT_GCFEVNTQE: Bad event header format in GCF input file.'
@@ -575,7 +584,12 @@ C
 *                 2:event output
 *                 3:total statistics print - JUST CLOSES FILE
 *                 4:event output to screen (for debugging) 
-
+*
+*     Variable OLDOUT from "beagle.inc" controls the output format.
+*                        lcweight           oldweight (internal / output)
+*     OLDOUT=.FALSE.      RAEVT             SIGEFF / sigma_rad
+*     OLDOUT=.TRUE.         --              RAEVT
+*
       IMPLICIT NONE
 C      IMPLICIT DOUBLE PRECISION(A-H, O-Z)
 
@@ -917,9 +931,7 @@ C      DO I=2,IT+1
             WRITE(*,*) 'DT_GCEOUTQE ERROR: IN-NUCLEON ISTHKK=',ISTHKK(I)
          ENDIF
       ENDDO
-      IF (USERSET.EQ.5) THEN         
-         USER2 = SIGEFF
-      ELSEIF (USERSET.GE.8) THEN         
+      IF (USERSET.GE.8) THEN         
          VERBOSE = (IOULEV(4).GE.1 .AND. NEVENT.LE.IOULEV(5))
          AMASS1 = AZMASS(IT,ITZ,1)
          AMASS2 = AZMASS(IT,ITZ,2)
@@ -1018,12 +1030,13 @@ C      WRITE(*,*)
 C
 C      Not sure how "xbeamparton = pari(33)" is defined. So 0.0.
 C      Leave 0 the "hat" variables and the "radcorr" variables
+      if (OLDOUT) SIGEFF=0.0D0
       write(29,33) 0, ievent, genevent, ltype, it, itz, pzlep, 
      &        pztarg, pznucl, crang, crori, RECTYPE, LEADTYPE,
      &        LEADTYPE, 1.0D0, 22, 0.0D0, 0.0D0,
      &        YYOUT, Q2OUT, XBJOUT, W2OUT, NUOUT,
-     &        LEPTONPHI, 0.0D0, 0.0D0, 0.0D0, 0.0D0, 0.0D0, 0.0, 0.0,
-     &        0.0D0, 0.0D0, 0.0D0, 0.0D0,
+     &        LEPTONPHI, 0.0D0, 0.0D0, 0.0D0, 0.0D0, 0.0D0, 0.0D0, 
+     &        0.0D0, 0.0D0, SIGEFF, 0.0D0, 0.0D0,
      &        0.0D0, BBEA, PHIB, THKB, THKSCL, NCOLLT, NCOLLI,
      &        NWND, NWDCH,
      &        NNEVAP, NPEVAP, AREMN, NINC, NINCCH, DFIRST, DAVG,
@@ -1032,7 +1045,8 @@ C      Leave 0 the "hat" variables and the "radcorr" variables
 C Note: Use E rather than F format for GCF RAEVT (weight)
  33   format((I4,1x,$),(I10,1x,$),4(I4,1x,$),4(f12.6,1x,$),3(I4,1x,$),
      &     I6,1x,$,f9.6,1x,$,I6,1x,$,2(f12.6,1x,$),7(f18.11,3x,$),
-     &     11(f19.9,3x,$),4(f10.6,1x,$),9(I5,1x,$),2(f10.6,1x,$),
+     &     7(f19.9,3x,$),(e17.8,1x,$),3(f19.9,3x,$),4(f10.6,1x,$),
+     &     9(I5,1x,$),2(f10.6,1x,$),
      &     3(f15.6,1x,$),f12.6,1x,$,4(e17.8,1x,$),I6,/)
       write(29,*)'============================================'
 
@@ -1170,8 +1184,8 @@ c...print a title for the event file - use formats from case 2
      &     pztarg, pznucl, crang, crori, RECTYPE, LEADTYPE,
      &     LEADTYPE, 1.0D0, 22, 0.0D0, 0.0D0,
      &     YYOUT, Q2OUT, XBJOUT, W2OUT, NUOUT,
-     &     LEPTONPHI, 0.0D0, 0.0D0, 0.0D0, 0.0D0, 0.0D0, 0.0, 0.0,
-     &     0.0D0, 0.0D0, 0.0D0, 0.0D0,
+     &     LEPTONPHI, 0.0D0, 0.0D0, 0.0D0, 0.0D0, 0.0D0, 0.0D0, 
+     &     0.0D0, 0.0D0, SIGEFF, 0.0D0, 0.0D0,
      &     0.0D0, BBEA, PHIB, THKB, THKSCL, NCOLLT, NCOLLI,
      &     NTW, NTCW,
      &     NNEVAP, NPEVAP, AREMN, NINC, NINCCH, DFIRST, DAVG,
