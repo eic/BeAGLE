@@ -360,8 +360,6 @@ C... Note: for now, treat the (A-2)* as stable.
          PPSUM(IDIM)=0.0D0
       ENDDO
       QCHG=0
-      WRITE(*,*)'I,ISTHKK,IDHKK,JMOHKK(1-2),JDAHKK,PHKK(1-5),'//
-     & 'IDRES,IDXRES,NOBAM'
 
       DO ITRK = 1, nrTracks
          READ(LINP,*) IDUM, ISTHKK(ITRK), IDHKK(ITRK), JMOHKK(2,ITRK),
