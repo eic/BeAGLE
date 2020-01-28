@@ -787,6 +787,11 @@ c...NPOINT(4), the position where final particle starts is very important!!
 
       IREJ=0
 
+      IF (IOULEV(4).GE.2) THEN
+         WRITE(*,*) 'Start of DT_PYEVNTEP(mode=2)'
+         CALL PYLIST(2) 
+      ENDIF
+
 c      IF(LFIRST) GOTO 9999
 
 C     MDB 2017-02-22
