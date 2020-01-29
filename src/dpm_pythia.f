@@ -1447,11 +1447,12 @@ c... Set VHKK for recoiling nucleons.
 c...set BAM ID for the particles         
          IDBAM(I)=IDT_ICIHAD(IDHKK(I))
 c...change the IS of scattered lepton from 1 to 99 in order to avoid its 
-c...interaction in cascade. 
-         IF( (ISTHEP(J).EQ.1).AND.(JMOHEP(1,J).EQ.3).AND.
+c...interaction in cascade. Mother is 3 for Pythia, 1 for RAPGAP
+         IF( (ISTHEP(J).EQ.1).AND.
+     &        (JMOHEP(1,J).EQ.3 .OR. JMOHEP(1,J).EQ.1).AND.
      &        (ABS(IDHEP(J)).EQ.11.OR.ABS(IDHEP(J)).EQ.13) ) THEN
             ISTHKK(I)=99
-            JMOHKK(1,I)=JMOHEP(1,J)
+C            JMOHKK(1,I)=JMOHEP(1,J)
          ENDIF
          NHKK=NHKK+1
 

@@ -373,32 +373,40 @@ c     & msti(1),', X=',XBJOUT,' Q2=',Q2OUT
 c...mode 2 is used to output the event list
 2     CONTINUE
 
-      x_bj = SNGL(Q2R/DBLE(YY)/SSS)
-      y = yy
-      xgam = xel/yy
-      Q2 = SNGL(Q2R)
-      x_pom = XFGKI
-      t = T2GKI
-      ipro = ipror
-      idir = idirr
-      sigm = sngl(avgi)
-      s_h = shh
-      if(ipror.eq.12) shh = 0.
-      p_t = sqrt(pt2h)
-      phi_e = pyangl(P(4,1),P(4,2))
-      do I=1,n
-         if(k(i,2).eq.2212.and.k(i,1).eq.1) isprot =i
-      enddo
-      phi_p=pyangl(P(isprot,1),P(isprot,2))
-C
+      WRITE (*,*) 'Temporary PYLIST inside of DT_RGOUTEP'
+      CALL PYLIST(2)
+      IF (.NOT. OLDOUT) THEN
+C     Fix a few missing things in RAPGAP
+         K(1,4) = 3
+         K(1,5) = 4
+C     Writeout RAPGAP in BeAGLE format
+         CALL DT_PYOUTEP(MODE)     
+      ELSE
+        x_bj = SNGL(Q2R/DBLE(YY)/SSS)
+        y = yy
+        xgam = xel/yy
+        Q2 = SNGL(Q2R)
+        x_pom = XFGKI
+        t = T2GKI
+        ipro = ipror
+        idir = idirr
+        sigm = sngl(avgi)
+        s_h = shh
+        if(ipror.eq.12) shh = 0.
+        p_t = sqrt(pt2h)
+        phi_e = pyangl(P(4,1),P(4,2))
+        do I=1,n
+           if(k(i,2).eq.2212.and.k(i,1).eq.1) isprot =i
+        enddo
+        phi_p=pyangl(P(isprot,1),P(isprot,2))
+C     
 C TEMPTEMP
 C
-      write(*,*)'x_bj(M=m=0), x_bj(Q2,y,s,M,m), XBJOUT',x_bj,' ',
-     &     Q2R/DBLE(YY)/(SSS-VINT(4)*VINT(4)-VINT(303)),' ',XBJOUT
-      write(*,*)'y,Q2: ',x_bj,' ',y,' ',Q2
-      write(*,*)'xgam,x_pom,t,p_t: ',xgam,' ',x_pom,' ',t,' ',p_t
-
-      IF (OLDOUT) THEN
+        write(*,*)'x_bj(M=m=0), x_bj(Q2,y,s,M,m), XBJOUT',x_bj,' ',
+     &        Q2R/DBLE(YY)/(SSS-VINT(4)*VINT(4)-VINT(303)),' ',XBJOUT
+        write(*,*)'y,Q2: ',x_bj,' ',y,' ',Q2
+        write(*,*)'xgam,x_pom,t,p_t: ',xgam,' ',x_pom,' ',t,' ',p_t
+         
 C   Writeout Event in RAPGAP format.
         IF (FIRST) THEN
           open(txtLun, file=outname,STATUS='UNKNOWN')
@@ -536,9 +544,6 @@ C     Lets generate a nice outputfile
         write(txtLun,*)'=============== Event finished ==============='
 
         lastgenevent=NIN
-      ELSE
-C     Writeout RAPGAP in BeAGLE format
-         CALL DT_PYOUTEP(MODE)     
       ENDIF
       RETURN
 
@@ -605,10 +610,9 @@ C Fill info. into Pythia common blocks?
          PARI(33)=DBLE(XEL)
          PARI(34)=DBLE(XPR)
          PARI(18)=DBLE(PT2H)
-         PARI(14)=DBLE(SHH)
-C TEMPTEMP for VINT(4) and VINT(303)
-         VINT(4)=0.93827d0
-         VINT(303)=(0.511d-3)**2
+         PARI(14)=DBLE(SHAT)
+         VINT(4)=PBEAM(2,5)
+         VINT(303)=PBEAM(1,5)
          W2OUT = Q2evt*(1.0d0/XBJOUT-1.0d0)+VINT(4)*VINT(4)
          NUOUT = Q2evt/(2.0d0*VINT(4)*XBJOUT)
          VINT(2) = W2OUT
@@ -616,6 +620,8 @@ C TEMPTEMP for VINT(4) and VINT(303)
          CALL PTIME(' event  ',2,0)
          IREJ=0
       ELSEIF (MODE.EQ.2) THEN
+C  Swap particles 3 & 4 to match Pythia order: e p e' Z
+         CALL RGTOPY
          CALL DT_PYEVNTEP(Q2evt,Yevt,MODE,IREJ)
       ELSE
          STOP ("DT_RGEVNTEP: FATAL ERROR. Called with invalid MODE")
