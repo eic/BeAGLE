@@ -2451,6 +2451,11 @@ C         WRITE(*,*) '          USER3 = # of "partons"'
          WRITE(*,*) '           USER1 = pxmiss'
          WRITE(*,*) '           USER2 = pxspec'
          WRITE(*,*) '           USER3 = P00'
+      ELSEIF (USERSET.EQ.16) THEN
+         WRITE(*,*) 'USERSET 16 selected. Deut LF Wavefunction debug.'
+         WRITE(*,*) '           USER1 = gaussian'
+         WRITE(*,*) '           USER2 = gaussian'
+         WRITE(*,*) '           USER3 = gaussian'
       ENDIF
       GOTO 10
 
@@ -5064,6 +5069,90 @@ C            ENDIF
      &                    PHKK(2,2)**2+PHKK(3,2)**2)
          PHKK(4,3) = SQRT(PHKK(5,3)**2+PHKK(1,3)**2+
      &                    PHKK(2,3)**2+PHKK(3,3)**2)
+      ENDIF
+
+      RETURN
+      END
+
+*$ CREATE DT_SPECTRALFUNC.FOR
+*COPY DT_SPECTRALFUNC
+*
+*==spectralfunc==============================================================*
+*
+
+      SUBROUTINE DT_SPECTRALFUNC(PHKK,NMASS,IIMAIN)
+
+      IMPLICIT NONE
+
+      INTEGER J,K,NMASS,IIMAIN
+      DOUBLE PRECISION Md, PI, B
+      DOUBLE PRECISION EEN, MNUC
+      DOUBLE PRECISION ANMT2, SNMT2 
+      ! Active Nucleon OR Spectator Nucleon Transverse mass squared 
+
+      DOUBLE PRECISION ALPHA_AN, ALPHA_SN 
+      !Active Nucleon Alpha, LF momentum fraction. 0<ALPHA_AN<2 
+      !Spectator Nucleon Alpha - ALPHA_SN = 2-ALPHA_AN
+      DOUBLE PRECISION PHKK(5,NMASS)
+
+      DOUBLE PRECISION PFERMP,PFERMN,FERMOD,
+     &                EBINDP,EBINDN,EPOT,
+     &                ETACOU
+
+      LOGICAL LFERMI
+      INTEGER ICOUL
+      COMMON /DTNPOT/ PFERMP(2),PFERMN(2),FERMOD,
+     &                EBINDP(2),EBINDN(2),EPOT(2,210),
+     &                ETACOU(2),ICOUL,LFERMI 
+
+      PARAMETER (PI=3.14159265359D+00)
+      PARAMETER (Md=1.87561D+00) !Hard code mass for deuteron
+
+      INCLUDE 'beagle.inc'
+
+      !find index for spectator nucleon
+      DO J=2,NMASS+1
+        IF( J .EQ. IIMAIN ) THEN
+          CONTINUE
+        ELSE 
+          K = J
+        ENDIF
+      ENDDO
+
+      !to save the spectator pz before in order to be compared with
+      !after LF kinematics fix used in USERSET = 16
+      B = PHKK(3,K)
+      
+      !Set the alpha for spectator nucleon
+      !Attention - Strikman & Weiss uses average nucleon mass as 
+      !approximation instead of proton & neutron mass. 
+      MNUC = (PHKK(5,K) + PHKK(5,IIMAIN))/2.0D0
+      EEN = SQRT(PHKK(1,K)*PHKK(1,K)+PHKK(2,K)*PHKK(2,K)+
+     & PHKK(3,K)*PHKK(3,K) + MNUC*MNUC)
+      ALPHA_SN = 1.0D0 - PHKK(3,K)/EEN
+      ALPHA_AN = 2.0D0 - ALPHA_SN
+
+      !active nucleon
+      ANMT2 = PHKK(5,IIMAIN)*PHKK(5,IIMAIN) +
+     & + PHKK(1,IIMAIN)*PHKK(1,IIMAIN) + PHKK(2,IIMAIN)*PHKK(2,IIMAIN)
+
+      !Only modify the E and pz. Note that pz has a opposite sign
+      !comparing to the paper because of the opposite convensions. 
+      !virtual photon +z and d is -z direction
+      PHKK(4,IIMAIN) = (ALPHA_AN*Md)/4.0D0 + ANMT2/(ALPHA_AN*Md)
+      PHKK(3,IIMAIN) = -(ALPHA_AN*Md)/4.0D0 + ANMT2/(ALPHA_AN*Md)
+
+      !spectator nucleon
+      SNMT2 = PHKK(5,K)*PHKK(5,K) +
+     & + PHKK(1,K)*PHKK(1,K) + PHKK(2,K)*PHKK(2,K)
+
+      PHKK(4,K) = (ALPHA_SN*Md)/4.0D0 + SNMT2/(ALPHA_SN*Md)
+      PHKK(3,K) = -(ALPHA_SN*Md)/4.0D0 + SNMT2/(ALPHA_SN*Md)
+
+      IF (USERSET.EQ.16) THEN
+         USER1 = B
+         USER2 = PHKK(3,K)
+         USER3 = ALPHA_SN
       ENDIF
 
       RETURN
@@ -19684,6 +19773,79 @@ C     ROTATION INTO THE ORIGINAL DIRECTION
 
       RETURN
       END
+
+*$ CREATE DT_GAUSSIAN.FOR
+*COPY DT_GAUSSIAN
+*
+*===gaussian===========================================================*
+*
+      DOUBLE PRECISION FUNCTION DT_GAUSSIAN(A,B)
+
+************************************************************************
+* Sampling from Gaussian distribution with mean and sigma.             *
+* Written by Kong Tu                                                   *
+************************************************************************
+  
+      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
+      SAVE
+      PARAMETER (TINY10=1.0D-10)
+
+      
+      DOUBLE PRECISION A0,E,Z0,Z1,Z2,X0,CDFN,
+     &   STEPSIZE,CDF,CDFPLUS,CDFMINUS
+      DOUBLE PRECISION CDFT(1:10000)
+
+      E = DT_RNDM(GAUSNUM)
+
+      A0 = 1.0D0
+      X0 = -4.0D0
+      CDF = 0.0D0
+      STEPSIZE = 1.0D-3
+
+      DO I = 1,10000
+        Z0 = (X0-A)*(X0-A)
+        Z1 = A0 * EXP(-Z0/(2*B*B))
+        CDF = CDF + Z1*STEPSIZE
+        X0 = X0 + STEPSIZE
+      ENDDO
+
+      CDFN = CDF
+      X0 = -4.0D0
+      CDF = 0.000D0
+
+      DO 20 I = 1,10000
+        Z0 = (X0-A)*(X0-A)
+        Z1 = A0 * EXP(-Z0/(2*B*B))
+        CDF = CDF + (STEPSIZE/CDFN)*Z1
+        X0 = X0 + STEPSIZE
+
+        CDFT(I) = CDF
+        !T for tolorence, this needs to be set dynamically
+        IF( I .EQ. 1 ) THEN
+          T = 0.005D0
+        ELSE
+          T = CDFT(I)-CDFT(I-1)
+        ENDIF
+        
+        CDFPLUS = CDF + T
+        CDFMINUS = CDF + 10D-20
+
+        IF( (E .GE. CDFMINUS) .AND. (E .LT. CDFPLUS) ) THEN
+          DT_GAUSSIAN = X0
+          RETURN
+        ELSE
+          GOTO 20
+        ENDIF
+     
+   20 CONTINUE
+
+
+
+      RETURN
+      END
+
+
+
 
 *$ CREATE DT_RANNOR.FOR
 *COPY DT_RANNOR
