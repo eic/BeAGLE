@@ -1077,13 +1077,15 @@ c...added by Mark to include rapgap 6/12/2018
          ECMIN = 0.5
       ELSEIF (SDUM.EQ.CMODEL(7)) THEN
          MCGENE = 7
-         MODEGA = 0               ! Try this.
+C         MODEGA = 0               ! Try this.
          ECMIN = 0.5
+         ITMODE = -1     
          IFSEED = NINT(WHAT(1))
          INRLEV = NINT(WHAT(2))
          IGDOBST = NINT(WHAT(3))
+         IF (IGDOBST.NE.0) STOP "DT_INIT: GCF boost mode not available."
          OLDOUT = (NINT(WHAT(4)).EQ.-1)
-         IF (INRLEV.EQ.0) INRLEV=1
+         IF (INRLEV.EQ.0) INRLEV=3
       ELSE
          STOP ' Unknown model !'
       ENDIF
@@ -2689,6 +2691,7 @@ C            CALL DT_PYINITPP(BEAM1,BEAM2,IT,ITZ)
 
 * normalize fractions of emulsion components
       IF (NCOMPO.GT.0) THEN
+         IF (MCGENE.EQ.7) STOP "Emulsion not available w/ GCF"
          SUMFRA = ZERO
          DO 491 I=1,NCOMPO
             SUMFRA = SUMFRA+EMUFRA(I)
@@ -2917,7 +2920,7 @@ C     &                LEMCCK,LHADRO(0:9),LSEADI,LEVAPO,IFRAME,ITRSPT
 
             !pythia model produces the event out this subroutine
             !if failed jump out directly, added by liang
-            IF ((MCGENE.EQ.5 .OR. MCGENE.EQ.6).AND.(IREJ1.GE.1)) THEN
+            IF (IREJ1.GE.1) THEN
                WRITE(*,*) 'KKINC: Event',NEVHKK,'rejected in DT_FICONF.'
                GOTO 9999         
             ENDIF 
@@ -2948,7 +2951,7 @@ C         GOTO 100
 C      ENDIF
 
 
-* transform finale state into Lab.
+* transform final state into Lab.
 C...pythia output has a seperate routine to do frame transformation,
 C   modified by liang
 C      IF(MCGENE.NE.5) THEN
@@ -3488,13 +3491,14 @@ C      EXTERNAL NRAN
       EXTERNAL NRBINOM
 C
 
-C     Temporary Oversimplified GCF-FT loop
-      IF (MCGENE.EQ.7) THEN
+C     Simplified GCF-FT loop if full DPMJET treatment not needed. 
+      IF (MCGENE.EQ.7 .AND. INRLEV.LE.2) THEN
          WRITE(*,*)'Starting oversimplified GCF-FT loop, NEVTS=',NEVTS
          DO IEVT=1,NEVTS
             IF(IEVT.LE.5) WRITE(*,*)'IEVT=',IEVT
             NEVENT=IEVT
-            CALL DT_GCFEVNTQE(Q2,YY)
+            CALL DT_GCFEVNTQE(Q2,YY,0,IREJ)
+            IF (IREJ.NE.0) STOP 'DT_LAEVT: DT_GCFEVNTQE FATAL ERROR'
             IF(IEVT.LE.5) WRITE(*,*)'RAN DT_GCFEVNTQE(',Q2,',',YY,')'
             IF (INRLEV.EQ.2) THEN
                CALL DT_FLUKAIT(IT,ITZ,IREJ)
@@ -3669,7 +3673,7 @@ C...modified by liang to include pythia mode
       NC0  = 0
       NC1  = 0
 
-      IF (IT.GT.1) THEN
+      IF (IT.GT.1 .AND. MCGENE.LT.7) THEN
          WRITE(*,*) " "
          WRITE(*,*) "DT_LAEVT: Initializing event loop"
          WRITE(*,*) "Determining Pythia/Rapgap subevent type (ep vs en)"
@@ -3703,6 +3707,8 @@ C MDB 2017-05-26 ITMODE=0 runs all en collisions first and then all ep.
             WRITE(*,*) "Warning: PYINIT will be called frequently."
             WRITE(*,*) "PYINIT output will be suppressed after ",
      &           "the first few calls."
+         ELSE
+            STOP "FATAL Error: Illegal value for ITMODE"
          ENDIF
       ENDIF
 
@@ -3728,10 +3734,7 @@ C  Now do the ep "half"
             CALL REINIT(2212)
          ENDIF
          IF (MOD(IEVT,NMSG).EQ.0) THEN
-C           OPEN(LDAT,FILE='/scrtch3/hr/sroesler/statusd5.out',
-C    &                                         STATUS='UNKNOWN')
             WRITE(LOUT,'(1X,I8,A)') IEVT-1,' events sampled'
-C           CLOSE(LDAT)
          ENDIF
          NEVENT = IEVT
          NGEN0 = MYNGEN
@@ -3758,6 +3761,8 @@ C... For now bypass BeAGLE. Just a RAPGAP wrapper.
                CALL DT_RGOUTEP(2)
                GOTO 2
             ENDIF
+         ELSEIF (MCGENE.EQ.7) THEN
+            CALL DT_GCFEVNTQE(Q2,YY,1,IDUM) ! need to set idNucBAM
          ENDIF
 C MDB 2017-02-23 If struck nucleon changed, re-initialize
          IF (IDT.NE.idNucBAM) THEN
@@ -3844,7 +3849,6 @@ C        THETA = ACOS( (E1Y-Q2E)/(E1Y+Q2E) )
 
 c...store the event variable for output added by liang 1/20/12
          XBJOUT=XBJ
-C         WRITE(*,*) 'Hardcoded M=0.938 XBJOUT = ',XBJOUT
          YYOUT=YY
          Q2OUT=Q2
          W2OUT=ECMGN*ECMGN
@@ -3940,7 +3944,7 @@ C....added by liang to suppress output of bad events++
 C....added by liang to suppress output of bad events--
 
 *  modified by liang to output pythia event list 2/20/12
-            IF(MCGENE.EQ.5 .OR. MCGENE.EQ.6) THEN
+C            IF(MCGENE.EQ.5 .OR. MCGENE.EQ.6) THEN
 C-TEMP-TEMP-TEMP
 C               WRITE(*,*)'Event as output to file'
 C               CALL DT_PYOUTEP(4)
@@ -3953,20 +3957,20 @@ C               CALL DT_PYOUTEP(4)
 
                IF(MOD(IEVT,INT(NEVTS/10)).EQ.0) print*,IEVT,
      &         ' events output done'
-            ELSE
-*  rotate momenta of final state particles back in photon-nucleon syst.
-*  Note: This code should never be reached!
-               DO 4 I=NPOINT(4),NHKK
-                  IF ((ABS(ISTHKK(I)).EQ.1).OR.(ISTHKK(I).EQ.1000).OR.
-     &                 (ISTHKK(I).EQ.1001)) THEN
-                     PX = PHKK(1,I)
-                     PY = PHKK(2,I)
-                     PZ = PHKK(3,I)
-                     CALL DT_MYTRAN(1,PX,PY,PZ,COD,SID,COF,SIF,
-     &                    PHKK(1,I),PHKK(2,I),PHKK(3,I))
-                  ENDIF
- 4             CONTINUE
-            ENDIF
+C            ELSE
+C*  rotate momenta of final state particles back in photon-nucleon syst.
+C*  Note: This code should never be reached!
+C               DO 4 I=NPOINT(4),NHKK
+C                  IF ((ABS(ISTHKK(I)).EQ.1).OR.(ISTHKK(I).EQ.1000).OR.
+C     &                 (ISTHKK(I).EQ.1001)) THEN
+C                     PX = PHKK(1,I)
+C                     PY = PHKK(2,I)
+C                     PZ = PHKK(3,I)
+C                     CALL DT_MYTRAN(1,PX,PY,PZ,COD,SID,COF,SIF,
+C     &                    PHKK(1,I),PHKK(2,I),PHKK(3,I))
+C                  ENDIF
+C 4             CONTINUE
+C            ENDIF
          ENDIF
 
          CALL DT_FILHGR(    Q2,ONE,IHFLQ2,NC1)
@@ -3978,13 +3982,13 @@ C               CALL DT_PYOUTEP(4)
 *  dump this event to histograms
 
 * modified by liang to link to pythia 1/16/12
-         IF(MCGENE.EQ.5 .OR. MCGENE.EQ.6) THEN
+C         IF(MCGENE.EQ.5 .OR. MCGENE.EQ.6) THEN
             CALL DT_HISTOG(2)
-         ELSE
-            CALL PHO_PHIST(2000,DUM)
-         ENDIF
+C         ELSE
+C            CALL PHO_PHIST(2000,DUM)
+C         ENDIF
 
-    2 CONTINUE
+    2 CONTINUE               ! end of event loop
 
       WGY    = ALPHEM/TWOPI*WGHMAX*DBLE(ITRY)/DBLE(ITRW)
       WGY    = WGY*LOG(YMAX/YMIN)
@@ -4004,8 +4008,8 @@ c      CALL PHO_PHIST(3000,DUM)
          CALL DT_HISTOG(3)
       ELSEIF (MCGENE.EQ.7) THEN
          CALL DT_GCFOUTQE(3)
-      ELSE
-         CALL PHO_PHIST(3000,DUM)
+C      ELSE
+C         CALL PHO_PHIST(3000,DUM)
       ENDIF
 
 c...mute when running pythia model
@@ -4669,17 +4673,7 @@ C     &                LEMCCK,LHADRO(0:9),LSEADI,LEVAPO,IFRAME,ITRSPT
 * initialize DTEVT1/DTEVT2
       CALL DT_EVTINI
 
-C MDB 2016-11-14 Comment out non-Pythia code.
-C
-* We need the following only in order to sample nucleon coordinates.
-* However we don't have parameters (cross sections, slope etc.)
-* for neutrinos available. Therefore switch projectile to proton
-* in this case.
-C      IF (MCGENE.EQ.4) THEN
-C         JJPROJ = 1
-C      ELSE
       JJPROJ = IJPROJ
-C      ENDIF
 
    10 CONTINUE
       IF ( (NEVHKK.NE.NEVOLD).OR.(ICENTR.GT.0).OR.
@@ -4740,6 +4734,8 @@ C      CALL DT_PYOUTEP(4)
             CALL DT_PYEVNTEP(DUMMY,DUMMY,2,IREJ1)      
          ELSEIF (MCGENE.EQ.6) THEN
             CALL DT_RGEVNTEP(DUMMY,DUMMY,2,IREJ1)      
+         ELSEIF (MCGENE.EQ.7) THEN
+            CALL DT_GCFEVNTQE(DUMMY,DUMMY,2,IREJ1)      
          ELSE
             WRITE(LOUT,1002) MCGENE
  1002       FORMAT(1X,'KKEVNT: FATAL ERROR. Event-generator',I4,
@@ -7763,7 +7759,7 @@ c      DCOH   = 1.0D10
          AMV2   = DT_SAM2(SQ2,ECMNOW)
          AMV    = SQRT(AMV2)
 C...added by liang to intialize mass of V-meson cut when no phojet used
-         IF(MCGENE.EQ.5 .OR. MCGENE.EQ.6) PTCUT(1)=2.5
+         PTCUT(1)=2.5
 
          IF (AMV.GT.2.0D0*PTCUT(1)) GOTO 15
 *  check for pointlike interaction
@@ -7773,13 +7769,8 @@ C   since we cannot seperate point process, we just use the total
 C   cross section with considering the direct process as a temp
 C   solution now 2/19/12
 C   RPNT is the ratio of direct xsection out of total
-C         IF(MCGENE.EQ.5) THEN
          IPNT=0
          RPNT=ZERO
-C         ELSE   
-C            Remove MCGENE.NE.5
-C            CALL DT_POILIK(NB,NTARG,ECMNOW,SQ2,IPNT,RPNT,1)
-C         ENDIF
 
 **sr 27.10.
 C        SIGSH  = DT_SIGVP(X,SQ2)/(AMV2+SQ2+RL2)/10.0D0
@@ -7793,13 +7784,13 @@ C        SIGSH  = DT_SIGVP(X,SQ2)/(AMV2+SQ2+RL2)/10.0D0
 C  Added by Mark for eA Pythia nuclear shadowing 08/07/2016
          IF (GenShd.GE.2) DCOH   = 1.0D10
       ELSEIF ((IJPROJ.LE.12).AND.(IJPROJ.NE.7)) THEN
-         IF (MCGENE.EQ.2) THEN
-            ZERO1 = ZERO
-            CALL DT_PHOXS(IJPROJ,1,ECMNOW,ZERO1,SDUM1,SDUM2,SDUM3,
-     &                                                BSLOPE,0)
-         ELSE
-            BSLOPE = 8.5D0*(1.0D0+0.065D0*LOG(S))
-         ENDIF
+C         IF (MCGENE.EQ.2) THEN
+C            ZERO1 = ZERO
+C            CALL DT_PHOXS(IJPROJ,1,ECMNOW,ZERO1,SDUM1,SDUM2,SDUM3,
+C     &                                                BSLOPE,0)
+C         ELSE
+         BSLOPE = 8.5D0*(1.0D0+0.065D0*LOG(S))
+C         ENDIF
          IF (ECMNOW.LE.3.0D0) THEN
             ROSH = -0.43D0
          ELSEIF ((ECMNOW.GT.3.0D0).AND.(ECMNOW.LE.50.D0)) THEN
@@ -7809,17 +7800,17 @@ C  Added by Mark for eA Pythia nuclear shadowing 08/07/2016
          ENDIF
          ELAB = (S-AAM(IJPROJ)**2-AMP2)/(TWO*AMP)
          PLAB = SQRT( (ELAB-AAM(IJPROJ))*(ELAB+AAM(IJPROJ)) )
-         IF (MCGENE.EQ.2) THEN
-            ZERO1 = ZERO
-            CALL DT_PHOXS(IJPROJ,1,ECMNOW,ZERO1,SIGSH,SDUM2,SDUM3,
-     &                                                  BDUM,0)
-            SIGSH = SIGSH/10.0D0
-         ELSE
+C         IF (MCGENE.EQ.2) THEN
+C            ZERO1 = ZERO
+C            CALL DT_PHOXS(IJPROJ,1,ECMNOW,ZERO1,SIGSH,SDUM2,SDUM3,
+C     &                                                  BDUM,0)
+C            SIGSH = SIGSH/10.0D0
+C         ELSE
 C           SIGSH = DT_SHNTOT(IJPROJ,1,ZERO,PLAB)/10.0D0
-            DUMZER = ZERO
-            CALL DT_XSHN(IJPROJ,1,PLAB,DUMZER,SIGSH,SIGEL)
-            SIGSH = SIGSH/10.0D0
-         ENDIF
+         DUMZER = ZERO
+         CALL DT_XSHN(IJPROJ,1,PLAB,DUMZER,SIGSH,SIGEL)
+         SIGSH = SIGSH/10.0D0
+C         ENDIF
       ELSE
          BSLOPE = 6.0D0*(1.0D0+0.065D0*LOG(S))
          ROSH   = 0.01D0
@@ -10607,23 +10598,9 @@ C     &                LEMCCK,LHADRO(0:9),LSEADI,LEVAPO,IFRAME,ITRSPT
       ENDIF
 * Lorentz-trsf. into target rest system
       IF (IT.GT.1) THEN
-* LEPTO: final state particles are already in target rest frame
-C        IF (MCGENE.EQ.3) THEN
-C           PCAS(2,1) = PHKK(1,IDXCAS)
-C           PCAS(2,2) = PHKK(2,IDXCAS)
-C           PCAS(2,3) = PHKK(3,IDXCAS)
-C           PCAS(2,4) = PHKK(4,IDXCAS)
-C        ELSE
-            CALL DT_LTRANS(PHKK(1,IDXCAS),PHKK(2,IDXCAS),PHKK(3,IDXCAS),
+         CALL DT_LTRANS(PHKK(1,IDXCAS),PHKK(2,IDXCAS),PHKK(3,IDXCAS),
      &                  PHKK(4,IDXCAS),PCAS(2,1),PCAS(2,2),PCAS(2,3),
      &                  PCAS(2,4),IDCAS,-3)
-C        ENDIF
-C-TEMP-TEMP-TEMP
-C         WRITE(*,*)'DT_INUCAS: Particle # ',IDXCAS
-C         WRITE(*,*)'HCMS - z along gamma*, P4: ',PHKK(1,IDXCAS),' ',
-C     &        PHKK(2,IDXCAS),' ',PHKK(3,IDXCAS),' ',PHKK(4,IDXCAS)
-C         WRITE(*,*)'TRF  - z along gamma*, P4: ',PCAS(2,1),' ',
-C     &        PCAS(2,2),' ',PCAS(2,3),' ',PCAS(2,4)
          PTOCAS(2) = SQRT(PCAS(2,1)**2+PCAS(2,2)**2+PCAS(2,3)**2)
          PCAS(2,5) = (PCAS(2,4)-PTOCAS(2))*(PCAS(2,4)+PTOCAS(2))
          IF (PCAS(2,5).GT.ZERO) THEN
@@ -11114,17 +11091,9 @@ c                  IST    = 14+IDX
          PE = PFSP(4,I)
          IF (ABS(IST).EQ.1) THEN
 * transform particles back into n-n cms
-* LEPTO: leave final state particles in target rest frame
-C           IF (MCGENE.EQ.3) THEN
-C              PFSP(1,I) = PX
-C              PFSP(2,I) = PY
-C              PFSP(3,I) = PZ
-C              PFSP(4,I) = PE
-C           ELSE
-               IMODE = ICAS+1
-               CALL DT_LTRANS(PX,PY,PZ,PE,PFSP(1,I),PFSP(2,I),PFSP(3,I),
+            IMODE = ICAS+1
+            CALL DT_LTRANS(PX,PY,PZ,PE,PFSP(1,I),PFSP(2,I),PFSP(3,I),
      &                     PFSP(4,I),IDFSP(I),IMODE)
-C           ENDIF
          ELSEIF ((ICAS.EQ.2).AND.(IST.EQ.15)) THEN
 * target cascade but fsp got stuck in proj. --> transform it into
 * proj. rest system

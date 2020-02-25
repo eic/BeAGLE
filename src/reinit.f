@@ -10,9 +10,9 @@ C
 
       INTEGER NEWID
 
-      INTEGER NCALLS
-      DATA NCALLS /0/
-      SAVE NCALLS
+C      INTEGER NCALLS
+C      DATA NCALLS /0/
+C      SAVE NCALLS
 
       idNucPY=NEWID
       Mnucl=PYMASS(idNucPY)
@@ -38,7 +38,8 @@ C
          pbeam    = real(pbeamN)
          call pyinit('3MOM', lName, 'n0', WIN)
       ELSE
-         WRITE(*,*) "ERROR: Can't initialize with ID: ",NEWID
+         WRITE(*,*) "FATAL ERROR: Can't initialize with ID: ",NEWID
+         STOP 'FATAL ERROR IN REINIT'
       ENDIF
  
 C Note: Radgen not tested in BeAGLE
@@ -48,7 +49,7 @@ C Does it need reinitializing?
          call radgen_init(.true.,.false.)
       endif
 
-      NCALLS = NCALLS + 1
-      IF (NCALLS.EQ.4) MSTP(122)=0
+C      NCALLS = NCALLS + 1
+C      IF (NCALLS.EQ.4) MSTP(122)=0
       RETURN
       END

@@ -597,7 +597,7 @@ C      COMMON /NPARINT/ PosNuc(4)
       DOUBLE PRECISION PosAlt(MXINTS,4)
       INTEGER MomAlt(MXINTS)
       INTEGER IDAlt(MXINTS)
-      REAL ZMIN, ZTRY
+      DOUBLE PRECISION ZMIN, ZTRY
       DOUBLE PRECISION EEFIX,PZEFIX,BETAFX,GAMMFX
 
 Cc...added by liang & Mark to include pythia energy loss datas
