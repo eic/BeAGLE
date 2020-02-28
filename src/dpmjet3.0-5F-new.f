@@ -3806,13 +3806,15 @@ C        THETA = ACOS( (E1Y-Q2E)/(E1Y+Q2E) )
          PGAMM(3) = PLEPT0(3)-PLEPT1(3)
          PGAMM(4) = PLEPT0(4)-PLEPT1(4)
 *   E_cm cut
-         PTOTGN = SQRT( (PGAMM(1)+PNUCL(1))**2+(PGAMM(2)+PNUCL(2))**2
+         IF (MCGENE.NE.7) THEN
+            PTOTGN = SQRT( (PGAMM(1)+PNUCL(1))**2+(PGAMM(2)+PNUCL(2))**2
      &                                        +(PGAMM(3)+PNUCL(3))**2 )
-         ETOTGN = PGAMM(4)+PNUCL(4)
-         ECMGN  = (ETOTGN-PTOTGN)*(ETOTGN+PTOTGN)
-         IF (ECMGN.LT.0.1D0) GOTO 101
-         ECMGN  = SQRT(ECMGN)
-         IF ((ECMGN.LT.ECMIN).OR.(ECMGN.GT.ECMAX)) GOTO 101
+            ETOTGN = PGAMM(4)+PNUCL(4)
+            ECMGN  = (ETOTGN-PTOTGN)*(ETOTGN+PTOTGN)
+            IF (ECMGN.LT.0.1D0) GOTO 101
+            ECMGN  = SQRT(ECMGN)
+            IF ((ECMGN.LT.ECMIN).OR.(ECMGN.GT.ECMAX)) GOTO 101
+         ENDIF
 
 *  Lorentz-transformation into nucleon-rest system
          CALL DT_DALTRA(BGTA(4),-BGTA(1),-BGTA(2),-BGTA(3),
@@ -3826,10 +3828,14 @@ C        THETA = ACOS( (E1Y-Q2E)/(E1Y+Q2E) )
          IF (ABS(Q2-Q2TMP).GT.0.01D0) WRITE(LOUT,1001) Q2,Q2TMP
  1001    FORMAT(1X,'LAEVT:    inconsistent kinematics (Q2,Q2TMP) ',
      &          2F10.4)
-         ECMTMP = SQRT((PPG(4)+AAM(IDT)-PGTOT)*(PPG(4)+AAM(IDT)+PGTOT))
-         IF (ABS(ECMGN-ECMTMP).GT.TINY10) WRITE(LOUT,1002) ECMGN,ECMTMP
+         IF (MCGENE.NE.7) THEN
+            ECMTMP = SQRT((PPG(4)+AAM(IDT)-PGTOT)*
+     &           (PPG(4)+AAM(IDT)+PGTOT))
+            IF (ABS(ECMGN-ECMTMP).GT.TINY10) WRITE(LOUT,1002) 
+     &           ECMGN,ECMTMP
+         ENDIF
  1002    FORMAT(1X,'LAEVT:    inconsistent kinematics (ECMGN,ECMTMP) ',
-     &          2F10.2)
+     &        2F10.2)
          YYTMP = PPG(4)/PPL0(4)
          IF (ABS(YY-YYTMP).GT.0.01D0) WRITE(LOUT,1005) YY,YYTMP
  1005    FORMAT(1X,'LAEVT:    inconsistent kinematics (YY,YYTMP) ',
@@ -3851,7 +3857,7 @@ c...store the event variable for output added by liang 1/20/12
          XBJOUT=XBJ
          YYOUT=YY
          Q2OUT=Q2
-         W2OUT=ECMGN*ECMGN
+         IF (MCGENE.NE.7) W2OUT=ECMGN*ECMGN
          NUOUT=PPG(4)
 
          NC0 = NC0+1
@@ -3859,7 +3865,7 @@ c...store the event variable for output added by liang 1/20/12
          CALL DT_FILHGR(    YY,ONE,IHFLY0,NC0)
          CALL DT_FILHGR(   XBJ,ONE,IHFLX0,NC0)
          CALL DT_FILHGR(PPG(4),ONE,IHFLU0,NC0)
-         CALL DT_FILHGR( ECMGN,ONE,IHFLE0,NC0)
+         IF (MCGENE.NE.7) CALL DT_FILHGR( ECMGN,ONE,IHFLE0,NC0)
 
 *  rotation angles against z-axis
          COD = PPG(3)/PGTOT

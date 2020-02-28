@@ -35,7 +35,7 @@ C...Local variables and data statement.
       SAVE PMS,XMIN,XMAX,Q2MIN,Q2MAX,PMC,X,Q2,THETA,PHI,PT,W2MIN,
      & YMIN,YMAX
       DATA EPS/1D-4/
- 
+
 C...Initialize generation of photons inside leptons.
       IF(IGAGA.EQ.1) THEN
  
@@ -187,8 +187,16 @@ C...Cuts on internal consistency in x and Q2.
 C...Cuts on y and theta.
             Y(I)=(PMC(I)*X(I)+Q2(I))/PMC(3)
             IF(Y(I).LT.CKIN(71+2*I).OR.Y(I).GT.CKIN(72+2*I)) GOTO 120
-            RAT=((1D0-X(I))*Q2(I)-X(I)**2*PMS(I))/
-     &      ((1D0-X(I))**2*(VINT(302)-2D0*PMS(3-I)-2D0*PMS(I)))
+C liang-02/2020 fix low E out e- info ++++++++
+C            RAT=((1D0-X(I))*Q2(I)-X(I)**2*PMS(I))/
+C     &      ((1D0-X(I))**2*(VINT(302)-2D0*PMS(3-I)-2D0*PMS(I)))
+            eLcms=sqrt(VINT(5)**2+PMS(I)) !incoming lepton energy 
+            eLpcms=eLcms*(1-X(I)) !out lepton energy
+            pLcms=VINT(5) !incoming lepton momentum
+            pLpcms=sqrt(eLpcms**2-PMS(I)) !out lepton momentum
+            RAT=(2*pLcms*pLpcms-2*eLcms*eLpcms+Q2(I)+
+     &        2*PMS(I))/(4*pLcms*pLpcms)
+C !liang-02/2020 END fix low E out e- info --------
             THETA(I)=2D0*ASIN(SQRT(MAX(0D0,MIN(1D0,RAT))))
             IF(THETA(I).LT.CKIN(67+2*I)) GOTO 120
             IF(CKIN(68+2*I).GT.0D0.AND.THETA(I).GT.CKIN(68+2*I))
@@ -442,8 +450,16 @@ C...Cuts on y and theta.
             IF(Y(I).LT.CKIN(71+2*I).OR.Y(I).GT.CKIN(72+2*I)) THEN
                GOTO 121
             ENDIF
-            RAT=((1D0-X(I))*Q2(I)-X(I)**2*PMS(I))/
-     &      ((1D0-X(I))**2*(VINT(302)-2D0*PMS(3-I)-2D0*PMS(I)))
+C liang-02/2020 fix low E out e- info ++++++++
+C            RAT=((1D0-X(I))*Q2(I)-X(I)**2*PMS(I))/
+C     &      ((1D0-X(I))**2*(VINT(302)-2D0*PMS(3-I)-2D0*PMS(I)))
+            eLcms=sqrt(VINT(5)**2+PMS(I)) !incoming lepton energy 
+            eLpcms=eLcms*(1-X(I)) !out lepton energy
+            pLcms=VINT(5) !incoming lepton momentum
+            pLpcms=sqrt(eLpcms**2-PMS(I)) !out lepton momentum
+            RAT=(2*pLcms*pLpcms-2*eLcms*eLpcms+Q2(I)+
+     &        2*PMS(I))/(4*pLcms*pLpcms)
+C !liang-02/2020 END fix low E out e- info --------
             THETA(I)=2D0*ASIN(SQRT(MAX(0D0,MIN(1D0,RAT))))
             IF(THETA(I).LT.CKIN(67+2*I)) THEN
               GOTO 121
@@ -452,10 +468,10 @@ C...Cuts on y and theta.
      &      GOTO 121
 
 C...Phi angle isotropic. Reconstruct pT.
-C            PT(I)=SQRT(((1D0-X(I))*PMC(I))**2/(4D0*VINT(302))-
-C     &      PMS(I))*SIN(THETA(I))
-            temp=((1D0-X(I))*PMC(I))**2/(4D0*VINT(302))-PMS(I)
-            PT(I)=(SQRT(temp))*SIN(THETA(I))
+            PT(I)=SQRT(((1D0-X(I))*PMC(I))**2/(4D0*VINT(302))-
+     &      PMS(I))*SIN(THETA(I))
+C            temp=((1D0-X(I))*PMC(I))**2/(4D0*VINT(302))-PMS(I)
+C            PT(I)=(SQRT(temp))*SIN(THETA(I))
 C ... try 'new' phi
             IF ((qedrad.ne.0).and.(mcRadCor_EBrems.gt.0)) then
              emom=sqrt(geneprim**2-masse**2)
