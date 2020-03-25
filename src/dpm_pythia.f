@@ -416,8 +416,9 @@ C     GenNucDens is used even without quenching.
          print*,'      Energy Thres: ',PYQ_IET
 
 c...when quenching is used switch off internal parton shower
-         MSTP(61)=0
-         MSTP(71)=0
+C... 2020-03-24 MDB - No don't!
+C         MSTP(61)=0
+C         MSTP(71)=0
       ENDIF
 
       !changed by liang to fit with INC particle status
