@@ -250,7 +250,8 @@ C...When extra remnant parton or hadron: store extra remnant.
 C...Relative transverse momentum when two remnants.
         LOOP=0
   200   LOOP=LOOP+1
-        CALL PYPTDI(1,P(I-1,1),P(I-1,2))
+C...Elke: beam remnant kT now according to PARJ(170)
+        CALL PYPTDIRC(1,P(I-1,1),P(I-1,2))
         P(I-1,1)=P(I-1,1)-0.5D0*P(IPU3,1)
         P(I-1,2)=P(I-1,2)-0.5D0*P(IPU3,2)
         PMS(3)=P(I-1,5)**2+P(I-1,1)**2+P(I-1,2)**2

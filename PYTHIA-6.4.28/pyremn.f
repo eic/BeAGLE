@@ -418,7 +418,8 @@ C...Find parton colour connections of extra remnant.
 C...Relative transverse momentum when two remnants.
           LOOP=0
   370     LOOP=LOOP+1
-          CALL PYPTDI(1,P(I-1,1),P(I-1,2))
+C...Elke: changed kT for remnant now according to PARJ(170)
+          CALL PYPTDIRC(1,P(I-1,1),P(I-1,2))
           IF(IABS(MINT(10+JT)).LT.20) THEN
             P(I-1,1)=0D0
             P(I-1,2)=0D0
