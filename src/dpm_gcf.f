@@ -1,6 +1,7 @@
 *These are the interfaces to GCF input file needed by dpmjet
 *
 * Written by  Mark Baker  2019-04-27
+* Updated                 2020-03-04
 *
 C...intialize GCF-reading code when using dpmjet
 *======================================================================
@@ -25,6 +26,9 @@ C      include "bea_pyqm.inc"
 
       CHARACTER*60 INPUT,OUTPUT
       INTEGER IFSEED,NEVTS
+
+      DOUBLE PRECISION DT_RNCLUS
+      EXTERNAL DT_RNCLUS
 
 * properties of interacting particles
 
@@ -99,6 +103,16 @@ c ---------------------------------------------------------------------
       CHARACTER*255 ENVDIR
       COMMON /ENVCOM/ ENVDIR
       CHARACTER*255 FILNAM
+
+* Glauber formalism: parameters
+      INTEGER NCOMPX,NEB,NQB,KSITEB
+      PARAMETER (NCOMPX=20,NEB=8,NQB= 5,KSITEB=50)
+      COMMON /DTGLAM/ RASH(NCOMPX),RBSH(NCOMPX),
+     &                BMAX(NCOMPX),BSTEP(NCOMPX),
+     &                SIGSH,ROSH,GSH,BSITE(0:NEB,NQB,NCOMPX,KSITEB),
+     &                NSITEB,NSTATB
+      DOUBLE PRECISION RASH, RBSH, BMAX, BSTEP, SIGSH,ROSH,GSH,BSITE
+      INTEGER NSITEB,NSTATB
 
 * Locals
       CHARACTER*255 CDUMMY
@@ -182,9 +196,13 @@ C      ebeamE=sqrt(EPN**2+Mlept**2)
 C      ebeamEnucl=pgamma*ebeamE-pgamma*pbeta*(-EPN)
 C      mcSet_EneBeam=sngl(ebeamEnucl)
 
-C     GenNucDens is used even without quenching.
-C      call GenNucDens(ITZ, IT)
+C     GenNucDens initializes nuclear spatial density distribution
+      if (INRLEV.GT.2) call GenNucDens(ITZ, IT)
 
+C     Initialize RBSH & BMAX parameters
+      RASH(1) = 0.0D0
+      RBSH(1) = DT_RNCLUS(IT)
+      BMAX(1) = 2.0D0*(RASH(1)+RBSH(1))
 C      !changed by liang to fit with INC particle status
 C      CALL DT_PYDECY(1)
 
@@ -193,8 +211,8 @@ C      CALL DT_PYDECY(1)
 *=====dt_gcfevntqe========================================================
 * read in the input file from GCF and dump this event to DTEVT1
 * GCF is in the target/ion rest frame, while dpmjet makes many of it's 
-* calculations in the photon-proton c.m.s frame. So when we are copying 
-* the data common to dpmjet, we must make the right Lorentz transformation. 
+* calculations in the naive photon-proton c.m.s frame. 
+* Unfortunately, this frame often doesn't exist (e.g. when xB>1).
 * Plus, the virtual photon has to be directed to the z+ direction. A 
 * rotation for the reference is also necessary.
 *
@@ -350,7 +368,7 @@ C  Local
       
       DOUBLE PRECISION PFERR, PPSUM(NDIM), DISTSRC, DTRY, DTEMP
       DOUBLE PRECISION DPNUCL(3), ANORF, PPT
-      LOGICAL FNDNEW
+      LOGICAL FNDNEW, KOSHER
       INTEGER NUMNUC,INUC,NUCHIT,ISWAP,ISWTRY,ITEMP
 
       IREJ = 0
@@ -482,6 +500,10 @@ C     In any case, initialize to zero.
 
  1    CONTINUE
 
+C     Return Q2 and YY
+      Q2 = Q2OUT
+      YY = YYOUT
+
       IF (nrTracks.GT.MAXGCF) STOP 
      &     'FATAL ERROR in GCFEVNTQE: Too many tracks in GCF'
       DO ITRK = 1, nrTracks
@@ -502,32 +524,12 @@ C     In any case, initialize to zero.
             DO IDIM = 1,NDIM
                PPSUM(IDIM) = PPSUM(IDIM)+PGCF(IDIM,ITRK)
             ENDDO
-            QCHG=QCHG+IDXRES(ITRK)
+            QCHG=QCHG+ZRESGCF(ITRK)
          ENDIF
 c...set BAM ID for the particles         
          IDBAMGCF(ITRK)=IDT_ICIHAD(IDGCF(ITRK))
       ENDDO
       NGCF = nrTracks
-
-      IF (IDGCF(5).NE.22) STOP 'DT_GCFEVNTQE: Bad event format'
-
-C... Flag the identity of the struck nucleon
-      idNucPY=LEADTYPE
-      idNucBAM=IDT_ICIHAD(idNucPY)
-
-      GOTO 9999
-
- 2    CONTINUE
-
-C     MDB 2017-02-22
-C     DT_FOZOCA, DT_SCN4BA need NPOINT(1) pointing to the last nucleon
-C     DT_FOZOCA, DT_RESNCL, DT_SCN4BA: NPOINT(4) points to the 1st produced particle
-C     DT_CHASTA: NPOINT(3) points to the 1st produced particle.
-C
-      NPOINT(1)=NHKK
-      NPOINT(2)=NPOINT(1)
-      NPOINT(3)=NPOINT(1)+5
-      NPOINT(4)=NPOINT(1)+5
 
 C     Find gamma* angle in IRF-B=LAB frame.
 C     Note: this is different than dpm_pythia where COF,SIF,COD,SID
@@ -551,6 +553,21 @@ C           refer to the gamma* angle in the HCMS-B frame.
          SIF = SIF/ANORF
       ENDIF
 
+      if(IOULEV(4).GE.1 .AND. NEVENT.LE.IOULEV(5) .AND. MODE.LT.2) then
+         print*
+         print*,'DT_GCFEVNTQE mode=',MODE
+         print*,'4-momentum & charge totals for Status=1 & 1000:'
+         print*,'PP1=',PPSUM(1),' PP2=',PPSUM(2),' PP3=',PPSUM(3),
+     &          ' PP4=',PPSUM(4),' QCHG=',QCHG
+         print*
+         print*,'Rotate to IRF w/ z along gamma* and recalculate:'
+         print*
+      endif
+
+      DO IDIM = 1,NDIM
+         PPSUM(IDIM) = 0.0D0
+      ENDDO
+
 C     Rotate the GCF event so that it is in IRF-G
       DO ITRK=1,NGCF
          P1 = PGCF(1,ITRK)
@@ -559,7 +576,38 @@ C     Rotate the GCF event so that it is in IRF-G
          PGCF(1,ITRK)=COD*(P1*COF+P2*SIF)-P3*SID
          PGCF(2,ITRK)=-P1*SIF+P2*COF
          PGCF(3,ITRK)=SID*(P1*COF+P2*SIF)+P3*COD
+         IF (ISTGCF(ITRK).EQ.1 .OR. ISTGCF(ITRK).EQ.1000) THEN
+            DO IDIM = 1,NDIM
+               PPSUM(IDIM) = PPSUM(IDIM)+PGCF(IDIM,ITRK)
+            ENDDO
+         ENDIF
       ENDDO
+
+C     Now replace the original incoming nucleon pair w/ that from GCF
+C     Change the GCF pair status to history 3 rather than 12
+C     GCF versions of (A-2)* are event history, but not final
+      ISTGCF(1)=3
+      ISTGCF(2)=3
+      ISTGCF(3)=3
+      ISTGCF(9)=3
+
+C... Flag the identity of the struck nucleon
+      idNucPY=LEADTYPE
+      idNucBAM=IDT_ICIHAD(idNucPY)
+
+      GOTO 9999
+
+ 2    CONTINUE
+
+C     MDB 2017-02-22
+C     DT_FOZOCA, DT_SCN4BA need NPOINT(1) pointing to the last nucleon
+C     DT_FOZOCA, DT_RESNCL, DT_SCN4BA: NPOINT(4) points to the 1st produced particle
+C     DT_CHASTA: NPOINT(3) points to the 1st produced particle.
+C
+      NPOINT(1)=NHKK
+      NPOINT(2)=NPOINT(1)
+      NPOINT(3)=NPOINT(1)+5
+      NPOINT(4)=NPOINT(1)+5
 
 C     If the struck nucleon is the wrong flavor, repick
 C     Note: interacting nucleons have ISTHKK=12, others 14.
@@ -676,11 +724,8 @@ C     A incoming nucleons will no longer have pz=0. This is expected.
      &        PGCF(IDIM,3))/DBLE(IT-2)
       ENDDO
       
-C     Now replace the original incoming nucleon pair w/ that from GCF
-C     Change the GCF pair status to history 3 rather than 12
-      ISTHKK(IIMAIN) = ISTGCF(1)
-      ISTGCF(1)=3
-      IDHKK(IIMAIN) = IDGCF(1)
+      IF (IDHKK(IIMAIN).NE.IDGCF(1))
+     &     STOP ("FATAL ERROR IN DT_GCFEVNTQE: IIMAIN/GCF(1) mismatch")
       JMOGCF(1,1) = IIMAIN - NPOINT(1)
       JDAHKK(1,IIMAIN)=NPOINT(1)+1
       JDAHKK(2,IIMAIN)=0
@@ -691,10 +736,9 @@ C     Change the GCF pair status to history 3 rather than 12
       IDRES(IIMAIN)=ZRESGCF(1)
       NOBAM(IIMAIN)=NOBAMGCF(1)
 C
-      ISTHKK(IIMAINN) = ISTGCF(2)
-      ISTGCF(2)=3
-      IDHKK(IIMAINN) = IDGCF(2)
-      JMOGCF(1,1) = IIMAINN - NPOINT(1)
+      IF (IDHKK(IIMAINN).NE.IDGCF(2))
+     &     STOP ("FATAL ERROR IN DT_GCFEVNTQE: IIMAINN/GCF(2) mismatch")
+      JMOGCF(1,2) = IIMAINN - NPOINT(1)
       JDAHKK(1,IIMAINN)=NPOINT(1)+2
       JDAHKK(2,IIMAINN)=0
       DO IDIM=1,5
@@ -714,9 +758,6 @@ C     Make sure that (A-2)* will have the right 3-momentum
      &           PHKK(3,ITRK)**2+PHKK(5,ITRK)**2)
          ENDIF
       ENDDO
-C     GCF versions of (A-2)* are event history, but not final
-      ISTGCF(3)=3
-      ISTGCF(9)=3
 
 C      Alternate definitions of pF...
 C      PXF = -PHKK(1,IIMAINN)
@@ -737,54 +778,25 @@ C      PosAlt(J,KK)=0.0D0
       PosNuc(3)=VHKK(3,IIMAIN)
       PosNuc(4)=VHKK(4,IIMAIN)
 
-      IOFF=NPOINT(1)
-      DO ITRK=1,NGCF
-         ISTHKK(ITRK+IOFF)=ISTGCF(ITRK)
-         IDHKK(ITRK+IOFF)=IDGCF(ITRK)
-         JMOHKK(1,ITRK+IOFF)=JMOGCF(1,ITRK)+IOFF
-         JMOHKK(2,ITRK+IOFF)=JMOGCF(2,ITRK)+IOFF
-         JDAHKK(1,ITRK+IOFF)=JDAGCF(1,ITRK)+IOFF
-         JDAHKK(2,ITRK+IOFF)=JDAGCF(2,ITRK)+IOFF
-         IDRES(ITRK+IOFF)=ARESGCF(ITRK)
-         IDXRES(ITRK+IOFF)=ZRESGCF(ITRK)
-         NOBAM(ITRK+IOFF)=NOBAMGCF(ITRK)
-C         DO IDIM=1,5
-C            PHKK(IDIM,ITRK+IOFF)=PGCF(IDIM,ITRK)
-C         ENDDO
-         PHKK(1,ITRK+IOFF)=PGCF(1,ITRK)
-         PHKK(2,ITRK+IOFF)=PGCF(2,ITRK)
-         PHKK(5,ITRK+IOFF)=PGCF(5,ITRK)
-C        The GCF entries are in IRF-G. We want PHKK in HCMS
-         CALL DT_LTNUC(PGCF(3,ITRK),PGCF(4,ITRK),PHKK(3,ITRK+IOFF),
-     &        PHKK(4,ITRK+IOFF),3)
-      ENDDO
-
-      THKB = 0.0D0
-      THKSCL = 0.0D0
-      DAVG = 0.0D0
-      DFIRST = 0.0D0
-
 C Thickness is twice the integral from 0 to infinity
       THKB = 2.0D0*DCALC(0.0D0)
       IDUM = 0
       THKSCL = THKB*SCLFAC(IDUM)
-
 C     Calculate distance travelled in the nucleus
-      ZMIN = 10000.0
-      DAVG = 0.0D0
-      DO III=1,NINTS       
-         ZTRY=VHKK(3,IINTER(III))
-         IF (ZTRY.LT.ZMIN) THEN
-            ZMIN=ZTRY
-         ENDIF
-         DAVG = DAVG + DCALC(VHKK(3,IIMAIN)/FM2MM)
-      ENDDO
-      DFIRST = DCALC(ZMIN/FM2MM)
-      DAVG = DAVG/DBLE(NINTS)
-
-c     WRITE(*,*) 'Calculated D1st, Davg: ',DFIRST,' ',DAVG
-
-c      write(*,*) 'DPMJET position',PosNuc(1),PosNuc(2),PosNuc(3)
+      IF (NINTS.EQ.2) THEN
+         ZMIN = 10000.0
+         DO III=1,NINTS       
+            ZTRY=VHKK(3,IINTER(III))
+            IF (ZTRY.LT.ZMIN) THEN
+               ZMIN=ZTRY
+            ENDIF
+         ENDDO
+         DFIRST = DCALC(ZMIN/FM2MM)
+         DAVG = 0.5D0*( DCALC(VHKK(3,IIMAIN)/FM2MM)+ 
+     &                  DCALC(VHKK(3,IIMAINN)/FM2MM) )
+      ELSE
+         STOP "DT_GCFEVNTQE FATAL ERROR: NINTS.NE.2"
+      ENDIF
       PYQREC(1)=0.0D0
       PYQREC(2)=0.0D0
       PYQREC(3)=0.0D0
@@ -799,13 +811,54 @@ C     In any case, initialize to zero.
       USER2=0.0D0
       USER3=0.0D0
 
+      IOFF=NPOINT(1)
+      NHKK=NHKK+NGCF
+      DO ITRK=1,NGCF
+         ISTHKK(ITRK+IOFF)=ISTGCF(ITRK)
+         IDHKK(ITRK+IOFF)=IDGCF(ITRK)
+         JMOHKK(1,ITRK+IOFF)=JMOGCF(1,ITRK)+IOFF
+         JMOHKK(2,ITRK+IOFF)=JMOGCF(2,ITRK)+IOFF
+         JDAHKK(1,ITRK+IOFF)=JDAGCF(1,ITRK)+IOFF
+         JDAHKK(2,ITRK+IOFF)=JDAGCF(2,ITRK)+IOFF
+         IF (JMOHKK(1,ITRK+IOFF).EQ.IOFF) JMOHKK(1,ITRK+IOFF)=0
+         IF (JMOHKK(2,ITRK+IOFF).EQ.IOFF) JMOHKK(2,ITRK+IOFF)=0
+         IF (JDAHKK(1,ITRK+IOFF).EQ.IOFF) JDAHKK(1,ITRK+IOFF)=0
+         IF (JDAHKK(2,ITRK+IOFF).EQ.IOFF) JDAHKK(2,ITRK+IOFF)=0
+         IDRES(ITRK+IOFF)=ARESGCF(ITRK)
+         IDXRES(ITRK+IOFF)=ZRESGCF(ITRK)
+C     Requirements for INC routine (DT_FOZOCA): e' should be ISTHKK=99
+C     Real particles must be NOBAM=0. Expect incoming e @ 4, e' @6
+         IF (ITRK.EQ.6) THEN
+            KOSHER = (
+     &           (ABS(IDGCF(ITRK)).EQ.11 .OR. ABS(IDGCF(ITRK)).EQ.13)
+     &           .AND. JMOGCF(1,ITRK).EQ.4 .AND. IDGCF(6).EQ.IDGCF(4)
+     &           .AND. JMOGCF(1,4).EQ.0)
+            IF (.NOT. KOSHER) STOP(
+     &        "DT_GCFEVNTQE FATAL ERROR: Scattered lepton out of place")
+            NOBAM(ITRK+IOFF)=0
+            ISTHKK(ITRK+IOFF)=99
+         ELSEIF (ISTGCF(ITRK).EQ.1) THEN
+            NOBAM(ITRK+IOFF)=0
+         ELSE
+            NOBAM(ITRK+IOFF)=NOBAMGCF(ITRK)
+         ENDIF
+         IDBAM(ITRK+IOFF)=IDBAMGCF(ITRK)
+         DO IDIM=1,5
+            PHKK(IDIM,ITRK+IOFF)=PGCF(IDIM,ITRK)
+         ENDDO
+      ENDDO
+
+c     WRITE(*,*) 'Calculated D1st, Davg: ',DFIRST,' ',DAVG
+
 C    The lines below only come into play when we want to use the HCMS
 C... Note: DPF(mu) = P(mu)_true - P(mu)_naive is a 4-momentum too.   
 C    DPF is the name in the HCMS
 C    PXF,PYF,PZF,EKF in the TRF
       DPF(1) = PXF
       DPF(2) = PYF
-      CALL DT_LTNUC(PZF,EKF,DPF(3),DPF(4),3)
+      DPF(3) = PZF
+      DPF(4) = EKF
+C      CALL DT_LTNUC(PZF,EKF,DPF(3),DPF(4),3)
 
 C  The GCF event is already in IRF/TRF-G and .
 C  For GCF, we will use the convention that -z is along the incoming electron
@@ -1021,7 +1074,7 @@ C     Local
       DOUBLE PRECISION ESUM1,ESUM2,ESUM3,PZSUM1,PZSUM2,PZSUM3 
       DOUBLE PRECISION AMASS1,AMASS2,AMASS3,EINA1,EINA2,EINA3
       DOUBLE PRECISION EINE,EIN1,EIN2,EIN3,PZIN
-      INTEGER IZSUM,IASUM,ILEPT,IBOSON,J,IDIM,NDIM
+      INTEGER IZSUM,IASUM,ILEPT,IBOSON,J,IDIM,NDIM,ILEPIN,INUCIN
       parameter ( NDIM=4 )
       LOGICAL FIRST
       SAVE FIRST
@@ -1069,7 +1122,9 @@ C We did things in a different order...
 C     Boost from HCMS-G to IRF-G
                P1=PHKK(1,J)
                P2=PHKK(2,J)
-               CALL DT_LTNUC(PHKK(3,J),PHKK(4,J),P3,P4,-3)
+               P3=PHKK(3,J)
+               P4=PHKK(4,J)
+C               CALL DT_LTNUC(PHKK(3,J),PHKK(4,J),P3,P4,-3)
 C     Rotate from gamma* +z back to IRF-B=LAB
 C********rotate back from the gamma* +z direction***********
                PP1=COF*(COD*P1+SID*P3)-SIF*P2
@@ -1088,20 +1143,24 @@ CC     &          JMOHKK(2,J),JDAHKK(1,J),JDAHKK(2,J),
 CC     &          PP1,PP2,-PP3,PP4, !remember to change the sign of z back
 CC     &              PHKK(5,J)
 CC  996      FORMAT(I5,I5,I8,4I5,5F17.5)
-C               PHKK(1,J)=PP1
-C               PHKK(2,J)=PP2      
-C               PHKK(3,J)=-PP3
-C               PHKK(4,J)=PP4
+C MDB Since the above matrix has det +1, make this a rotation too.
+               PHKK(1,J)=-PP1
+               PHKK(2,J)=PP2      
+               PHKK(3,J)=-PP3
+               PHKK(4,J)=PP4
 CC     PHKK(3,J)=pgamma*(P3+pbeta*P4)
 CC     PHKK(4,J)=pgamma*(P4+pbeta*P3)
             ENDIF
 c...find the exchanged boson and out e- to make it fit root tree making rules
 c...in the following steps
             IF ((ISTHKK(J).EQ.3).AND.(IDHKK(J).EQ.22.OR.IDHKK(J).EQ.23)
-     &           .AND. (JMOHKK(1,J).EQ.(NPOINT(1)+1))) THEN
+     &           .AND. ((JMOHKK(1,J).EQ.(NPOINT(1)+1)).OR.INRLEV.GT.2) 
+     &           ) THEN
                IBOSON=J
-            ELSEIF (ISTHKK(J).EQ.1.AND.JMOHKK(1,J).EQ.4.AND.
+            ELSEIF (((JMOHKK(1,J).EQ.4).OR.
+     &              (ISTHKK(J).EQ.99.AND.INRLEV.GT.2)).AND.
      &              (ABS(IDHKK(J)).EQ.11.OR.ABS(IDHKK(J)).EQ.13)) THEN
+               ISTHKK(J)=1
                ILEPT=J
 c...2017-01-02 MDB Fill some new event variables
             ELSE
@@ -1228,17 +1287,29 @@ C
       NWDCH  = 0
 C      IF (tracknr.LT.IT+2) STOP "DT_GCFOUTQE FATAL: Too few tracks."
 C      DO I=2,IT+1
-      DO I=1,3
-         IF(IDHKK(I).NE.2112 .AND. IDHKK(I).NE.2212 .AND. 
-     &        IDHKK(I).NE.80000) THEN
-            WRITE(*,*) 'DT_GCFOUTQE ERROR: IN-NUCLEON IDHKK=',IDHKK(I)
-         ELSEIF (ISTHKK(I).EQ.18 .OR. ISTHKK(I).EQ.12) THEN
-            NWND = NWND + 1
-            IF (IDHKK(I).EQ.2212) NWDCH = NWDCH + 1
-         ELSEIF (ISTHKK(I).NE.14) THEN
-            WRITE(*,*) 'DT_GCEOUTQE ERROR: IN-NUCLEON ISTHKK=',ISTHKK(I)
-         ENDIF
-      ENDDO
+      
+      IF (INRLEV.LE.2) THEN
+         DO I=1,3
+            IF(IDHKK(I).NE.2112 .AND. IDHKK(I).NE.2212 .AND. 
+     &           IDHKK(I).NE.80000) THEN
+               WRITE(*,*) 'DT_GCFOUTQE ERROR: IN-NUCLEON IDHKK=',
+     &              IDHKK(I)
+            ELSEIF (ISTHKK(I).EQ.18 .OR. ISTHKK(I).EQ.12) THEN
+               NWND = NWND + 1
+               IF (IDHKK(I).EQ.2212) NWDCH = NWDCH + 1
+            ELSEIF (ISTHKK(I).NE.14) THEN
+               WRITE(*,*) 'DT_GCEOUTQE ERROR: IN-NUCLEON ISTHKK=',
+     &              ISTHKK(I)
+            ENDIF
+         ENDDO
+      ELSE
+         DO I=2,IT+1
+            IF (ISTHKK(I).EQ.18 .OR. ISTHKK(I).EQ.12) THEN
+               NWND = NWND + 1
+               IF (IDHKK(I).EQ.2212) NWDCH = NWDCH + 1
+            ENDIF
+         ENDDO
+      ENDIF
       IF (USERSET.GE.8) THEN         
          VERBOSE = (IOULEV(4).GE.1 .AND. NEVENT.LE.IOULEV(5))
          AMASS1 = AZMASS(IT,ITZ,1)
@@ -1361,15 +1432,23 @@ C Note: Use E rather than F format for GCF RAEVT (weight)
 ***************standard output for particle info************************
 c...add 2 beam information at first to fit into root tree making rule      
 c... MDB Change these lines to use the correct pid for lepton+nucleon!
-      I=NPOINT(1)+1   
+C      I=NPOINT(1)+1   
+      IF (INRLEV.GT.2) THEN
+         ILEPIN = NPOINT(1)+4
+         INUCIN = NPOINT(1)+1
+      ELSE
+         ILEPIN = NPOINT(1)+1
+         INUCIN = 1
+      ENDIF
 C     Incoming lepton
-      write(29,34) 1,21,IDHKK(I),0,0,0,0,
-     &     PHKK(1,I),PHKK(2,I),PHKK(3,I),PHKK(4,I),PHKK(5,I),
-     &     VHKK(1,I),VHKK(2,I),VHKK(3,I)
+      write(29,34) 1,21,IDHKK(ILEPIN),0,0,0,0,
+     &     PHKK(1,ILEPIN),PHKK(2,ILEPIN),PHKK(3,ILEPIN),PHKK(4,ILEPIN),
+     &     PHKK(5,ILEPIN),VHKK(1,ILEPIN),VHKK(2,ILEPIN),VHKK(3,ILEPIN)
      &     ,0,0,0
 c...  Incoming nucleon for eicsmear. Use MNGCF for consistent kinematics.
-      write(29,34) 2,21,IDHKK(1),0,0,0,0,0.0D0,0.0D0,0.0D0,MNGCF,MNGCF,
-     &        VHKK(1,1),VHKK(2,1),VHKK(3,1),1,IDXRES(1),0
+      write(29,34) 2,21,IDHKK(INUCIN),0,0,0,0,0.0D0,0.0D0,0.0D0,
+     &     MNGCF,MNGCF,
+     &     VHKK(1,INUCIN),VHKK(2,INUCIN),VHKK(3,INUCIN),1,IDXRES(1),0
 c...add the scattered lepton 
       write(29,34) 3,21,IDHKK(ILEPT),0,1,ILEPT+4,0,
      &     PHKK(1,ILEPT),PHKK(2,ILEPT),PHKK(3,ILEPT),
@@ -1977,6 +2056,366 @@ C      LRCLTA = .TRUE.
 C      IREJ   = IREJ+1
 C      RETURN
       END
+*=====dt_gcfkinemqe========================================================
+* Get e' and gamma* from GCF. Note: We have rotated the GCF event so that
+* e is along -z while dpmjet wants it along +z (ironically how it was in
+* the GCF root file to start with.
+*
+      SUBROUTINE DT_GCFKINEMQE(PPL1,PLTOT,PPG,PGTOT)
+*
+*     MDB 2020-03-04 Latest Version
+* 
+*     output: 
+*           PPL1 = scattered lepton 4-momentum
+*           PLTOT = 3-momentum magnitude for PPL1
+*           PPG = gamma* 4-momentum
+*           PGTOT = 3-momentum magnitude for PPL1
+
+      IMPLICIT NONE
+C      include "beagle.inc"
+
+C     Calling sequence:
+      DOUBLE PRECISION PPL1(4),PPG(4)
+      DOUBLE PRECISION PLTOT,PGTOT
 
 
+C     Temporary storage for GCF event until DTEVT1 is ready for it.
+      INTEGER MAXGCF,NGCF,IOFF
+      PARAMETER (MAXGCF=100)
+      INTEGER ISTGCF, IDGCF, JMOGCF, JDAGCF, ARESGCF, ZRESGCF, NOBAMGCF
+      INTEGER IDBAMGCF
+      DOUBLE PRECISION PGCF
+      COMMON /GCFDAT/ ISTGCF(MAXGCF),IDGCF(MAXGCF),JMOGCF(2,MAXGCF),
+     &     JDAGCF(2,MAXGCF), PGCF(5,MAXGCF),ARESGCF(MAXGCF),
+     &     ZRESGCF(MAXGCF),NOBAMGCF(MAXGCF),IDBAMGCF(MAXGCF)
 
+      INTEGER ISCAT, IGAMM
+      PARAMETER (ISCAT=6)
+      PARAMETER (IGAMM=5)
+C  Local
+
+      INTEGER IDIM
+      DOUBLE PRECISION PSIGN
+
+C     Rotate event by 180 degrees about the y-axis
+      DO IDIM=1,4
+         PPL1(IDIM) = PGCF(IDIM,ISCAT)
+         PPG(IDIM) = PGCF(IDIM,IGAMM)
+      ENDDO
+      PLTOT = SQRT(PPL1(1)*PPL1(1)+PPL1(2)*PPL1(2)+PPL1(3)*PPL1(3))
+      PGTOT = SQRT(PPG(1)*PPG(1)+PPG(2)*PPG(2)+PPG(3)*PPG(3))
+
+      RETURN
+      END
+* Stripped down version of DT_GLAUBE for GCF.
+*
+*===glaube=============================================================*
+*
+      SUBROUTINE DT_GCFGLAUBE(NA,NB,IJPROJ,B,INTT,INTA,INTB,JS,JT,NIDX)
+
+************************************************************************
+* Calculation of configuartion of interacting nucleons for one event.  *
+*    NB / NB    mass numbers of proj./target nuclei           (input)  *
+*    B          impact parameter                              (output) *
+*    INTT       total number of wounded nucleons                 "     *
+*    INTA / INTB number of wounded nucleons in proj. / target    "     *
+*    JS / JT(i) number of collisions proj. / target nucleon i is       *
+*                                                   involved  (output) *
+*    NIDX       index of projectile/target material            (input) *
+*               = -2 call within FLUKA transport calculation           *
+* This is an update of the original routine SHMAKO by J.Ranft/HJM      *
+* This version dated 22.03.96 is revised by S. Roesler                 *
+*                                                                      *
+* Last change 27.12.2006 by S. Roesler.                                *
+************************************************************************
+
+      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
+      SAVE
+
+      PARAMETER ( LINP = 5 ,
+     &            LOUT = 6 ,
+     &            LDAT = 9 )
+
+      PARAMETER (TINY10=1.0D-10,TINY14=1.0D-14,
+     &           ZERO=0.0D0,ONE=1.0D0,TWO=2.0D0)
+
+      PARAMETER (NCOMPX=20,NEB=8,NQB= 5,KSITEB=50)
+
+      PARAMETER ( MAXNCL = 260,
+
+     &            MAXVQU = MAXNCL,
+     &            MAXSQU = 20*MAXVQU,
+     &            MAXINT = MAXVQU+MAXSQU)
+
+* Glauber formalism: parameters
+      COMMON /DTGLAM/ RASH(NCOMPX),RBSH(NCOMPX),
+     &                BMAX(NCOMPX),BSTEP(NCOMPX),
+     &                SIGSH,ROSH,GSH,BSITE(0:NEB,NQB,NCOMPX,KSITEB),
+     &                NSITEB,NSTATB
+
+* Glauber formalism: cross sections
+C      COMMON /DTGLXS/ ECMNN(NEB),Q2G(NQB),ECMNOW,Q2,
+C     &                XSTOT(NEB,NQB,NCOMPX),XSELA(NEB,NQB,NCOMPX),
+C     &                XSQEP(NEB,NQB,NCOMPX),XSQET(NEB,NQB,NCOMPX),
+C     &                XSQE2(NEB,NQB,NCOMPX),XSPRO(NEB,NQB,NCOMPX),
+C     &                XSDEL(NEB,NQB,NCOMPX),XSDQE(NEB,NQB,NCOMPX),
+C     &                XETOT(NEB,NQB,NCOMPX),XEELA(NEB,NQB,NCOMPX),
+C     &                XEQEP(NEB,NQB,NCOMPX),XEQET(NEB,NQB,NCOMPX),
+C     &                XEQE2(NEB,NQB,NCOMPX),XEPRO(NEB,NQB,NCOMPX),
+C     &                XEDEL(NEB,NQB,NCOMPX),XEDQE(NEB,NQB,NCOMPX),
+C     &                BSLOPE,NEBINI,NQBINI
+
+* Lorentz-parameters of the current interaction
+      COMMON /DTLTRA/ GACMS(2),BGCMS(2),GALAB,BGLAB,BLAB,
+     &                UMO,PPCM,EPROJ,PPROJ
+
+* properties of photon/lepton projectiles
+      COMMON /DTGPRO/ VIRT,PGAMM(4),PLEPT0(4),PLEPT1(4),PNUCL(4),IDIREC
+
+* Glauber formalism: collision properties
+      COMMON /DTGLCP/ RPROJ,RTARG,BIMPAC,
+     &                NWTSAM,NWASAM,NWBSAM,NWTACC,NWAACC,NWBACC
+
+* Glauber formalism: flags and parameters for statistics
+C      LOGICAL LPROD
+C      CHARACTER*8 CGLB
+C      COMMON /DTGLGP/ JSTATB,JBINSB,CGLB,IOGLB,LPROD
+
+      DIMENSION JS(MAXNCL),JT(MAXNCL)
+
+      NTARG = ABS(NIDX)
+
+      CALL DT_GCFDIAGR(NA,NB,IJPROJ,B,JS,JT,INTT,INTA,INTB,IDIREC,NIDX)
+      IF (NIDX.LE.-1) THEN
+         RPROJ = RASH(1)
+         RTARG = RBSH(NTARG)
+      ELSE
+         RPROJ = RASH(NTARG)
+         RTARG = RBSH(1)
+      ENDIF
+
+      RETURN
+      END
+
+* Stripped down version of DT_DIAGR for GCF
+*
+      SUBROUTINE DT_GCFDIAGR(NA,NB,IJPROJ,B,JS,JT,JNT,INTA,INTB,IDIREC,
+     &                                                         NIDX)
+
+************************************************************************
+* Based on the original version by Shmakov et al.                      *
+* This version dated 21.04.95 is revised by S. Roesler                 *
+************************************************************************
+
+      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
+      SAVE
+
+      INCLUDE 'beagle.inc'
+
+      PARAMETER ( LINP = 5 ,
+     &            LOUT = 6 ,
+     &            LDAT = 9 )
+
+      PARAMETER (ZERO=0.0D0,TINY10=1.0D-10,ONE=1.0D0,TWO=2.0D0)
+      PARAMETER (TWOPI  = 6.283185307179586454D+00,
+     &           PI     = TWOPI/TWO)
+
+      PARAMETER ( MAXNCL = 260,
+     &            MAXVQU = MAXNCL,
+     &            MAXSQU = 20*MAXVQU,
+     &            MAXINT = MAXVQU+MAXSQU)
+
+* particle properties (BAMJET index convention)
+      CHARACTER*8  ANAME
+      COMMON /DTPART/ ANAME(210),AAM(210),GA(210),TAU(210),
+     &                IICH(210),IIBAR(210),K1(210),K2(210)
+
+      PARAMETER (NCOMPX=20,NEB=8,NQB= 5,KSITEB=50)
+
+* Glauber formalism: parameters
+      COMMON /DTGLAM/ RASH(NCOMPX),RBSH(NCOMPX),
+     &                BMAX(NCOMPX),BSTEP(NCOMPX),
+     &                SIGSH,ROSH,GSH,BSITE(0:NEB,NQB,NCOMPX,KSITEB),
+     &                NSITEB,NSTATB
+
+* position of interacted nucleon
+      DOUBLE PRECISION PosNuc,BX,BY
+      COMMON /NPARINT/ PosNuc(4)
+
+* VDM parameter for photon-nucleus interactions
+      COMMON /DTVDMP/ RL2,EPSPOL,INTRGE(2),IDPDF,MODEGA,ISHAD(3)
+
+C  obsolete cut-off information
+      DOUBLE PRECISION PTCUT,PTANO,FPS,FPH,PSOMIN,XSOMIN
+      COMMON /POCUT1/ PTCUT(4),PTANO(4),FPS(4),FPH(4),PSOMIN,XSOMIN
+**
+
+* coordinates of nucleons
+      COMMON /DTNUCO/ PKOO(3,MAXNCL),TKOO(3,MAXNCL)
+
+* event history
+      PARAMETER (NMXHKK=200000)
+      COMMON /DTEVT1/ NHKK,NEVHKK,ISTHKK(NMXHKK),IDHKK(NMXHKK),
+     &                JMOHKK(2,NMXHKK),JDAHKK(2,NMXHKK),
+     &                PHKK(5,NMXHKK),VHKK(4,NMXHKK),WHKK(4,NMXHKK)
+
+* interface between Glauber formalism and DPM
+      COMMON /DTGLIF/ JSSH(MAXNCL),JTSH(MAXNCL),
+     &                INTER1(MAXINT),INTER2(MAXINT)
+
+* statistics: Glauber-formalism
+      COMMON /DTSTA3/ ICWP,ICWT,NCSY,ICWPG,ICWTG,ICIG,IPGLB,ITGLB,NGLB
+
+* n-n cross section fluctuations
+      PARAMETER (NBINS = 1000)
+      COMMON /DTXSFL/ FLUIXX(NBINS),IFLUCT
+
+      DIMENSION JS(MAXNCL),JT(MAXNCL),
+     &          JS0(MAXNCL),JT0(MAXNCL,MAXNCL),
+     &          JI1(MAXNCL,MAXNCL),JI2(MAXNCL,MAXNCL),JNT0(MAXNCL)
+      DIMENSION NWA(0:210),NWB(0:210)
+
+C...Added by liang 1/6/12
+C...Switches for nuclear correction
+      COMMON /PYNUCL/ INUMOD,CHANUM,ORDER,genShd
+      DOUBLE PRECISION INUMOD,CHANUM
+      INTEGER ORDER,genShd
+
+C...Pythia eA shadowing common block from Mark 2017-06-30
+      COMMON /PYSHAD/ NKNOTS,RDUMMY,RAVAL,XKNOT(100),YKNOT(100),
+     &BKNOT(100),CKNOT(100),DKNOT(100),EKNOT(100),FKNOT(100),SHDFAC
+      SAVE /PYSHAD/
+      DOUBLE PRECISION XKNOT,YKNOT,BKNOT,CKNOT,DKNOT,EKNOT,FKNOT,RAVAL,
+     &SHDFAC
+      INTEGER NKNOTS,RDUMMY
+
+C...External function Mark 2016-08-18
+      DOUBLE PRECISION SHDMAP
+
+      LOGICAL LFIRST
+      DATA LFIRST /.TRUE./
+
+      DATA NTARGO,ICNT /0,0/
+
+C...Mark (08/13/2016) Pythia nuclear shadowing reroll b more often
+      NTRMAX=500
+      IF (GenShd.GE.2) NTRMAX=5
+      NTARG = ABS(NIDX)
+
+      IF (LFIRST) THEN
+         LFIRST = .FALSE.
+         IF (NCOMPO.EQ.0) THEN
+            NCALL  = 0
+            NWAMAX = NA
+            NWBMAX = NB
+            DO 17 I=0,210
+               NWA(I) = 0
+               NWB(I) = 0
+   17       CONTINUE
+         ENDIF
+      ENDIF
+      IF (NTARG.EQ.-1) THEN
+         IF (NCOMPO.EQ.0) THEN
+            WRITE(LOUT,*) ' DIAGR: distribution of wounded nucleons'
+            WRITE(LOUT,'(8X,A,3I7)') 'NCALL,NWAMAX,NWBMAX = ',
+     &                                NCALL,NWAMAX,NWBMAX
+            DO 18 I=1,MAX(NWAMAX,NWBMAX)
+               WRITE(LOUT,'(8X,2I7,E12.4,I7,E12.4)')
+     &                          I,NWA(I),DBLE(NWA(I))/DBLE(NCALL),
+     &                            NWB(I),DBLE(NWB(I))/DBLE(NCALL)
+   18       CONTINUE
+         ENDIF
+         RETURN
+      ENDIF
+
+   16 CONTINUE
+      PHIB=0.0D0
+
+      NTRY = 0
+    3 CONTINUE
+      NTRY = NTRY+1
+* initializations
+      JNT  = 0
+      DO 1 I=1,NA
+         JS(I) = 0
+    1 CONTINUE
+      DO 2 I=1,NB
+         JT(I) = 0
+    2 CONTINUE
+      IF (IJPROJ.EQ.7) THEN
+         DO 8 I=1,MAXNCL
+            JS0(I) = 0
+            JNT0(I)= 0
+            DO 9 J=1,NB
+               JT0(I,J) = 0
+    9       CONTINUE
+    8    CONTINUE
+      ENDIF
+
+* nucleon configuration
+C     IF ((NTARG.NE.NTARGO).OR.(MOD(ICNT,5).EQ.0)) THEN
+      IF ((NTARG.NE.NTARGO).OR.(MOD(ICNT,1).EQ.0)) THEN
+C        CALL DT_CONUCL(PKOO,NA,RASH,2)
+C        CALL DT_CONUCL(TKOO,NB,RBSH(NTARG),1)
+         IF (NIDX.LE.-1) THEN
+            CALL DT_CONUCL(PKOO,NA,RASH(1),0)
+            CALL DT_CONUCL(TKOO,NB,RBSH(NTARG),0)
+         ELSE
+            CALL DT_CONUCL(PKOO,NA,RASH(NTARG),0)
+            CALL DT_CONUCL(TKOO,NB,RBSH(1),0)
+         ENDIF
+         NTARGO = NTARG
+      ENDIF
+      ICNT = ICNT+1
+
+* LEPTO: pick out one struck nucleon
+C...modified by liang to incorporate the PYTHIA model
+C...and Mark (08/13/2016) Use ball Glauber for nuclear shadowing
+C...and Mark (09/26/2016) to set impact parameter of photon
+C...and Mark (06/30/2017) Reorganize and add partial shadowing
+C... NOTE: SIGEFF =effective cross-section in mb
+C      RAEVT = RAVAL
+C      SIGEFF = SHDFAC*SHDMAP(RAVAL)
+C      D2MAX = 0.1D0*SIGEFF/PI
+C      IF (GenShd.LT.2 .OR. SIGEFF.LT.0.05) THEN
+      JNT     = 1
+      JS(1)   = 1
+      IDX     = INT(DT_RNDM(X)*NB)+1
+      JT(IDX) = 1
+      BX      = TKOO(1,IDX)
+      BY      = TKOO(2,IDX)
+      BBEA    = DSQRT(BX*BX+BY*BY)
+      PHIB    = PYANGL(BX,BY)
+C     Count both nucleons as wounded.
+      NCOLLT  = 2
+      NCOLLI  = 2
+C      RAEVT = 1.0
+C      SIGEFF = 0.0
+C
+C      GOTO 19
+C      ENDIF
+C
+C   19 CONTINUE
+      INTA = 0
+      INTB = 0
+      DO 6 I=1,NA
+        IF (JS(I).NE.0) INTA=INTA+1
+    6 CONTINUE
+      DO 7 I=1,NB
+        IF (JT(I).NE.0) INTB=INTB+1
+    7 CONTINUE
+      ICWPG = INTA
+      ICWTG = INTB
+      ICIG  = JNT
+      IPGLB = IPGLB+INTA
+      ITGLB = ITGLB+INTB
+      NGLB = NGLB+1
+
+      IF (NCOMPO.EQ.0) THEN
+         NCALL = NCALL+1
+         NWA(INTA) = NWA(INTA)+1
+         NWB(INTB) = NWB(INTB)+1
+      ENDIF
+
+      RETURN
+      END
