@@ -2921,11 +2921,19 @@ C     &                LEMCCK,LHADRO(0:9),LSEADI,LEVAPO,IFRAME,ITRSPT
             !pythia model produces the event out this subroutine
             !if failed jump out directly, added by liang
             IF (IREJ1.GE.1) THEN
-               WRITE(*,*) 'KKINC: Event',NEVHKK,'rejected in DT_FICONF.'
-               GOTO 9999         
+               IF (MCGENE.EQ.5 .OR. MCGENE.EQ.6) THEN
+                  WRITE(*,*) 'KKINC: Event',NEVHKK,
+     &                 'rejected in DT_FICONF.'
+                  GOTO 9999
+               ELSE
+C Use old DPMJET logic for GCF-QE
+                  IF (IOULEV(1).GT.0 .AND. NEVHKK.LE.IOULEV(5))
+     &                 WRITE(*,*) 'KKINC: Event, NLOOP',NEVHKK,
+     &                 NLOOP,'rejected in DT_FICONF. Retry'
+                  IF (IREJ1.GT.1) GOTO 101
+                  IF (IREJ1.EQ.1) GOTO 100
+               ENDIF
             ENDIF 
-            IF (IREJ1.GT.1) GOTO 101
-            IF (IREJ1.EQ.1) GOTO 100
          ENDIF
 
          if(IOULEV(4).GE.2 .AND. NEVHKK.LE.IOULEV(5)) then
@@ -2936,30 +2944,6 @@ C     &                LEMCCK,LHADRO(0:9),LSEADI,LEVAPO,IFRAME,ITRSPT
 
       ENDIF
 
-C 2018-09-21 MDB Kill this! It disallows SRC & deuteron high k tails!
-C Note: If we wanted, we could put it on a switch,
-C DT_REJUCO(0,IREJ1) is a NOOP, but I don't see ANY need for this!
-C
-C* rejection of unphysical configurations
-C      CALL DT_REJUCO(1,IREJ1)
-C      IF (IREJ1.GT.0) THEN
-C         IF (IOULEV(1).GT.0)
-C     &      WRITE(LOUT,*) 'rejected 3 in KKINC: too large x'
-CC...added by liang to include pythia model
-C         IF(MCGENE.EQ.5) GOTO 9999
-C         GOTO 100
-C      ENDIF
-
-
-* transform final state into Lab.
-C...pythia output has a seperate routine to do frame transformation,
-C   modified by liang
-C      IF(MCGENE.NE.5) THEN
-C         IFLAG = 2
-C         CALL DT_BEAMPR(WHAT,DUM,IFLAG)
-C         IF ((IFRAME.EQ.1).AND.(IFLAG.EQ.-1)) CALL DT_LT2LAB
-C         IF (IPI0.EQ.1) CALL DT_DECPI0
-C      ENDIF
 
 C     IF (NEVHKK.EQ.5) CALL DT_EVTOUT(4)
 
@@ -3485,13 +3469,19 @@ C...Pythia event counter (since we keep PYINITing) Mark 2017-01-31
       COMMON /PYCNTR/ MYNGEN
       INTEGER MYNGEN
 
+* Lorentz-parameters of the current interaction
+      COMMON /DTLTRA/ GACMS(2),BGCMS(2),GALAB,BGLAB,BLAB,
+     &                UMO,PPCM,EPROJ,PPROJ
+
 C... RANLUX is also used in Pythia inside PYR. 
 C      EXTERNAL RANLUX
 C      EXTERNAL NRAN
       EXTERNAL NRBINOM
 C
+      DOUBLE PRECISION PDUMM
 
 C     Simplified GCF-FT loop if full DPMJET treatment not needed. 
+      IREJ = 0
       IF (MCGENE.EQ.7 .AND. INRLEV.LE.2) THEN
          WRITE(*,*)'Starting oversimplified GCF-FT loop, NEVTS=',NEVTS
          DO IEVT=1,NEVTS
@@ -3532,17 +3522,19 @@ C      YMAX   = MIN(MAX(YMAX,TINY10),0.999D0)
       PTOTLN = SQRT( (PLEPT0(1)+PNUCL(1))**2+(PLEPT0(2)+PNUCL(2))**2
      &                                      +(PLEPT0(3)+PNUCL(3))**2 )
       ETOTLN = PLEPT0(4)+PNUCL(4)
-      ECMLN  = SQRT((ETOTLN-PTOTLN)*(ETOTLN+PTOTLN))
-      ECMAX  = MIN(ECMAX,ECMLN)
-      WRITE(LOUT,1003) ECMIN,ECMAX,YMIN,YMAX,Q2MIN,Q2MAX,EGMIN,
-     &                 THMIN,THMAX,ELMIN
- 1003 FORMAT(1X,'LAEVT:',16X,'kinematical cuts',/,22X,
+      IF (MCGENE.NE.7) THEN
+         ECMLN  = SQRT((ETOTLN-PTOTLN)*(ETOTLN+PTOTLN))
+         ECMAX  = MIN(ECMAX,ECMLN)
+         WRITE(LOUT,1003) ECMIN,ECMAX,YMIN,YMAX,Q2MIN,Q2MAX,EGMIN,
+     &        THMIN,THMAX,ELMIN
+ 1003    FORMAT(1X,'LAEVT:',16X,'kinematical cuts',/,22X,
      &       '------------------',/,9X,'W (min)   =',
      &       F7.1,' GeV    (max) =',F7.1,' GeV',/,9X,'y (min)   =',
      &       F7.3,8X,'(max) =',F7.3,/,9X,'Q^2 (min) =',F7.1,
      &       ' GeV^2  (max) =',F7.1,' GeV^2',/,' (Lab)   E_g (min) ='
      &       ,F7.1,' GeV',/,' (Lab) theta (min) =',F7.4,8X,'(max) =',
      &       F7.4,'   for E_lpt >',F7.1,' GeV',/)
+      ENDIF
 
 * Lorentz-parameter for transf. into Lab
 C 2017-02-23 Use AAM(IDT) instead of AAM(1)
@@ -3561,112 +3553,116 @@ C      BGTA(4) = PNUCL(4)/AAM(1)
       CALL DT_DALTRA(BGTA(4),-BGTA(1),-BGTA(2),-BGTA(3),
      &            PNUCL(1),PNUCL(2),PNUCL(3),PNUCL(4),
      &            PLTOT,PPA(1),PPA(2),PPA(3),PPA(4))
+      IF (MCGENE.NE.7) THEN
 * maximum energy of photon nucleon system
-      PTOTGN = SQRT((YMAX*PPL0(1)+PPA(1))**2+(YMAX*PPL0(2)+PPA(2))**2
-     &                                      +(YMAX*PPL0(3)+PPA(3))**2)
-      ETOTGN = YMAX*PPL0(4)+PPA(4)
-      EGNMAX = SQRT((ETOTGN-PTOTGN)*(ETOTGN+PTOTGN))
-      EGNMAX = MIN(EGNMAX,ECMAX)
+         PTOTGN = SQRT((YMAX*PPL0(1)+PPA(1))**2+(YMAX*PPL0(2)+PPA(2))**2
+     &                +(YMAX*PPL0(3)+PPA(3))**2)
+         ETOTGN = YMAX*PPL0(4)+PPA(4)
+         EGNMAX = SQRT((ETOTGN-PTOTGN)*(ETOTGN+PTOTGN))
+         EGNMAX = MIN(EGNMAX,ECMAX)
 * minimum energy of photon nucleon system
-      PTOTGN = SQRT((YMIN*PPL0(1)+PPA(1))**2+(YMIN*PPL0(2)+PPA(2))**2
-     &                                      +(YMIN*PPL0(3)+PPA(3))**2)
-      ETOTGN = YMIN*PPL0(4)+PPA(4)
-      EGNMIN = SQRT((ETOTGN-PTOTGN)*(ETOTGN+PTOTGN))
-      EGNMIN = MAX(EGNMIN,ECMIN)
+         PTOTGN = SQRT((YMIN*PPL0(1)+PPA(1))**2+(YMIN*PPL0(2)+PPA(2))**2
+     &                +(YMIN*PPL0(3)+PPA(3))**2)
+         ETOTGN = YMIN*PPL0(4)+PPA(4)
+         EGNMIN = SQRT((ETOTGN-PTOTGN)*(ETOTGN+PTOTGN))
+         EGNMIN = MAX(EGNMIN,ECMIN)
 
 * limits for Glauber-initialization
-      Q2LI  = Q2MIN
-      Q2HI  = MAX(Q2LI,MIN(Q2HI,Q2MAX))
-      ECMLI = MAX(EGNMIN,THREE)
-      ECMHI = EGNMAX
-      WRITE(LOUT,1004) EGNMIN,EGNMAX,ECMLI,ECMHI,Q2LI,Q2HI
- 1004 FORMAT(1X,'resulting limits:',/,9X,'W (min)   =',F7.1,
+         Q2LI  = Q2MIN
+         Q2HI  = MAX(Q2LI,MIN(Q2HI,Q2MAX))
+         ECMLI = MAX(EGNMIN,THREE)
+         ECMHI = EGNMAX
+         WRITE(LOUT,1004) EGNMIN,EGNMAX,ECMLI,ECMHI,Q2LI,Q2HI
+ 1004    FORMAT(1X,'resulting limits:',/,9X,'W (min)   =',F7.1,
      &       ' GeV    (max) =',F7.1,' GeV',/,/,' limits for ',
      &       'Glauber-initialization:',/,9X,'W (min)   =',F7.1,
      &       ' GeV    (max) =',F7.1,' GeV',/,9X,'Q^2 (min) =',F7.1,
      &       ' GeV^2  (max) =',F7.1,' GeV^2',/)
 * initialization of Glauber-formalism
-      IF (NCOMPO.LE.0) THEN
-         CALL DT_SHMAKI(NPMASS,NPCHAR,NTMASS,NTCHAR,IDP,EPN,IGLAU)
-      ELSE
-         DO 9 I=1,NCOMPO
-            CALL DT_SHMAKI(NPMASS,NPCHAR,IEMUMA(I),IEMUCH(I),IDP,EPN,0)
-    9    CONTINUE
+         IF (NCOMPO.LE.0) THEN
+            CALL DT_SHMAKI(NPMASS,NPCHAR,NTMASS,NTCHAR,IDP,EPN,IGLAU)
+         ELSE
+            DO 9 I=1,NCOMPO
+               CALL DT_SHMAKI(NPMASS,NPCHAR,IEMUMA(I),IEMUCH(I),IDP,EPN,
+     &              0)
+ 9          CONTINUE
+         ENDIF
+         CALL DT_SIGEMU
       ENDIF
-      CALL DT_SIGEMU
 
 * initialization of run-statistics and histograms
       CALL DT_STATIS(1)
 
+      IF (MCGENE.NE.7) THEN
 C...modified by liang to include pythia mode
-      CALL PHO_PHIST(1000,DUM)
-
+         CALL PHO_PHIST(1000,DUM)
 * maximum photon-nucleus cross section
-      I1  = 1
-      I2  = 1
-      RAT = ONE
-      IF (EGNMAX.GE.ECMNN(NEBINI)) THEN
-         I1  = NEBINI
-         I2  = NEBINI
+         I1  = 1
+         I2  = 1
          RAT = ONE
-      ELSEIF (EGNMAX.GT.ECMNN(1)) THEN
-         DO 5 I=2,NEBINI
-            IF (EGNMAX.LT.ECMNN(I)) THEN
-               I1  = I-1
-               I2  = I
-               RAT = (EGNMAX-ECMNN(I1))/(ECMNN(I2)-ECMNN(I1))
-               GOTO 6
-            ENDIF
-    5    CONTINUE
-    6    CONTINUE
-      ENDIF
-      SIGMAX = XSTOT(I1,1,1)+RAT*(XSTOT(I2,1,1)-XSTOT(I1,1,1))
-      EGNXX  = EGNMAX
-      I1  = 1
-      I2  = 1
-      RAT = ONE
-      IF (EGNMIN.GE.ECMNN(NEBINI)) THEN
-         I1  = NEBINI
-         I2  = NEBINI
+         IF (EGNMAX.GE.ECMNN(NEBINI)) THEN
+            I1  = NEBINI
+            I2  = NEBINI
+            RAT = ONE
+         ELSEIF (EGNMAX.GT.ECMNN(1)) THEN
+            DO 5 I=2,NEBINI
+               IF (EGNMAX.LT.ECMNN(I)) THEN
+                  I1  = I-1
+                  I2  = I
+                  RAT = (EGNMAX-ECMNN(I1))/(ECMNN(I2)-ECMNN(I1))
+                  GOTO 6
+               ENDIF
+ 5          CONTINUE
+ 6          CONTINUE
+         ENDIF
+         SIGMAX = XSTOT(I1,1,1)+RAT*(XSTOT(I2,1,1)-XSTOT(I1,1,1))
+         EGNXX  = EGNMAX
+         I1  = 1
+         I2  = 1
          RAT = ONE
-      ELSEIF (EGNMIN.GT.ECMNN(1)) THEN
-         DO 7 I=2,NEBINI
-            IF (EGNMIN.LT.ECMNN(I)) THEN
-               I1  = I-1
-               I2  = I
-               RAT = (EGNMIN-ECMNN(I1))/(ECMNN(I2)-ECMNN(I1))
-               GOTO 8
-            ENDIF
-    7    CONTINUE
-    8    CONTINUE
-      ENDIF
-      SIGXX = XSTOT(I1,1,1)+RAT*(XSTOT(I2,1,1)-XSTOT(I1,1,1))
-      IF (SIGXX.GT.SIGMAX) EGNXX = EGNMIN
-      SIGMAX = MAX(SIGMAX,SIGXX)
-      WRITE(LOUT,'(9X,A,F8.3,A)') 'Sigma_tot (max) =',SIGMAX,' mb'
-
+         IF (EGNMIN.GE.ECMNN(NEBINI)) THEN
+            I1  = NEBINI
+            I2  = NEBINI
+            RAT = ONE
+         ELSEIF (EGNMIN.GT.ECMNN(1)) THEN
+            DO 7 I=2,NEBINI
+               IF (EGNMIN.LT.ECMNN(I)) THEN
+                  I1  = I-1
+                  I2  = I
+                  RAT = (EGNMIN-ECMNN(I1))/(ECMNN(I2)-ECMNN(I1))
+                  GOTO 8
+               ENDIF
+ 7          CONTINUE
+ 8          CONTINUE
+         ENDIF
+         SIGXX = XSTOT(I1,1,1)+RAT*(XSTOT(I2,1,1)-XSTOT(I1,1,1))
+         IF (SIGXX.GT.SIGMAX) EGNXX = EGNMIN
+         SIGMAX = MAX(SIGMAX,SIGXX)
+         WRITE(LOUT,'(9X,A,F8.3,A)') 'Sigma_tot (max) =',SIGMAX,' mb'
+         
 * maximum residual weight for flux sampling (dy/y)
-      YY     = YMIN
-      Q2LOW  = MAX(Q2MIN,AMLPT2*YY**2/(ONE-YY))
-      WGHMAX = (ONE+(ONE-YY)**2)*LOG(Q2MAX/Q2LOW)
-     &         -TWO*AMLPT2*YY*(ONE/Q2LOW-ONE/Q2MAX)*YY
+         YY     = YMIN
+         Q2LOW  = MAX(Q2MIN,AMLPT2*YY**2/(ONE-YY))
+         WGHMAX = (ONE+(ONE-YY)**2)*LOG(Q2MAX/Q2LOW)
+     &        -TWO*AMLPT2*YY*(ONE/Q2LOW-ONE/Q2MAX)*YY
 
-      CALL DT_NEWHGR(YMIN,YMAX,ZERO,XDUMB,49,IHFLY0)
-      CALL DT_NEWHGR(YMIN,YMAX,ZERO,XDUMB,49,IHFLY1)
-      CALL DT_NEWHGR(YMIN,YMAX,ZERO,XDUMB,49,IHFLY2)
-      CALL DT_NEWHGR(Q2LOW,Q2MAX,ZERO,XDUMB,20,IHFLQ0)
-      CALL DT_NEWHGR(Q2LOW,Q2MAX,ZERO,XDUMB,20,IHFLQ1)
-      CALL DT_NEWHGR(Q2LOW,Q2MAX,ZERO,XDUMB,20,IHFLQ2)
-      CALL DT_NEWHGR(EGNMIN,EGNMAX,ZERO,XDUMB,20,IHFLE0)
-      CALL DT_NEWHGR(EGNMIN,EGNMAX,ZERO,XDUMB,20,IHFLE1)
-      CALL DT_NEWHGR(EGNMIN,EGNMAX,ZERO,XDUMB,20,IHFLE2)
-      CALL DT_NEWHGR(ZERO,EGMAX,ZERO,XDUMB,20,IHFLU0)
-      CALL DT_NEWHGR(ZERO,EGMAX,ZERO,XDUMB,20,IHFLU1)
-      CALL DT_NEWHGR(ZERO,EGMAX,ZERO,XDUMB,20,IHFLU2)
-      XBLOW = 0.001D0
-      CALL DT_NEWHGR(XBLOW,ONE,ZERO,XDUMB,-40,IHFLX0)
-      CALL DT_NEWHGR(XBLOW,ONE,ZERO,XDUMB,-40,IHFLX1)
-      CALL DT_NEWHGR(XBLOW,ONE,ZERO,XDUMB,-40,IHFLX2)
+         CALL DT_NEWHGR(YMIN,YMAX,ZERO,XDUMB,49,IHFLY0)
+         CALL DT_NEWHGR(YMIN,YMAX,ZERO,XDUMB,49,IHFLY1)
+         CALL DT_NEWHGR(YMIN,YMAX,ZERO,XDUMB,49,IHFLY2)
+         CALL DT_NEWHGR(Q2LOW,Q2MAX,ZERO,XDUMB,20,IHFLQ0)
+         CALL DT_NEWHGR(Q2LOW,Q2MAX,ZERO,XDUMB,20,IHFLQ1)
+         CALL DT_NEWHGR(Q2LOW,Q2MAX,ZERO,XDUMB,20,IHFLQ2)
+         CALL DT_NEWHGR(EGNMIN,EGNMAX,ZERO,XDUMB,20,IHFLE0)
+         CALL DT_NEWHGR(EGNMIN,EGNMAX,ZERO,XDUMB,20,IHFLE1)
+         CALL DT_NEWHGR(EGNMIN,EGNMAX,ZERO,XDUMB,20,IHFLE2)
+         CALL DT_NEWHGR(ZERO,EGMAX,ZERO,XDUMB,20,IHFLU0)
+         CALL DT_NEWHGR(ZERO,EGMAX,ZERO,XDUMB,20,IHFLU1)
+         CALL DT_NEWHGR(ZERO,EGMAX,ZERO,XDUMB,20,IHFLU2)
+         XBLOW = 0.001D0
+         CALL DT_NEWHGR(XBLOW,ONE,ZERO,XDUMB,-40,IHFLX0)
+         CALL DT_NEWHGR(XBLOW,ONE,ZERO,XDUMB,-40,IHFLX1)
+         CALL DT_NEWHGR(XBLOW,ONE,ZERO,XDUMB,-40,IHFLX2)
+      ENDIF
 
       ITRY = 0
       ITRW = 0
@@ -3762,7 +3758,7 @@ C... For now bypass BeAGLE. Just a RAPGAP wrapper.
                GOTO 2
             ENDIF
          ELSEIF (MCGENE.EQ.7) THEN
-            CALL DT_GCFEVNTQE(Q2,YY,1,IDUM) ! need to set idNucBAM
+            CALL DT_GCFEVNTQE(Q2,YY,1,IREJ)
          ENDIF
 C MDB 2017-02-23 If struck nucleon changed, re-initialize
          IF (IDT.NE.idNucBAM) THEN
@@ -3788,25 +3784,35 @@ C* LT of incident lepton and nucleon into the TRF
 * MDB 2017-12-11 More precise kinematics to match Pythia better.
 *  kinematics at lepton-photon vertex
 *   scattered electron
-         Q2E = Q2/(4.0D0*PLEPT0(4))
+         IF (MCGENE.EQ.7) THEN
+C Get e' and gamma* from the event in TRF
+            CALL DT_GCFKINEMQE(PPL1,PLTOT,PPG,PGTOT)
+*  Lorentz-transformation to naive lepton hadron CMS
+            CALL DT_DALTRA(BGTA(4),BGTA(1),BGTA(2),BGTA(3),
+     &           PPG(1),PPG(2),PPG(3),PPG(4),PDUMM,
+     &           PGAMM(1),PGAMM(2),PGAMM(3),PGAMM(4))
+            CALL DT_DALTRA(BGTA(4),BGTA(1),BGTA(2),BGTA(3),
+     &           PPL1(1),PPL1(2),PPL1(3),PPL1(4),PDUMM,
+     &           PLEPT1(1),PLEPT1(2),PLEPT1(3),PLEPT1(4))
+         ELSE
+            Q2E = Q2/(4.0D0*PLEPT0(4))
 C         YQ2 = SQRT((ONE-YY)*Q2)    ! approximate
 C         E1Y = (ONE-YY)*PLEPT0(4)   ! approximate
-         Y1FAC = ONE - YY - Q2/(4.0D0*PPL0(4)*PPL0(4))
-         YQ2 = SQRT(Y1FAC*Q2)
-         E1Y = Y1FAC*PLEPT0(4)
-         CALL DT_DSFECF(SIF,COF)
-         PLEPT1(1) = YQ2*COF
-         PLEPT1(2) = YQ2*SIF
-         PLEPT1(3) = E1Y-Q2E
-         PLEPT1(4) = E1Y+Q2E
+            Y1FAC = ONE - YY - Q2/(4.0D0*PPL0(4)*PPL0(4))
+            YQ2 = SQRT(Y1FAC*Q2)
+            E1Y = Y1FAC*PLEPT0(4)
+            CALL DT_DSFECF(SIF,COF)
+            PLEPT1(1) = YQ2*COF
+            PLEPT1(2) = YQ2*SIF
+            PLEPT1(3) = E1Y-Q2E
+            PLEPT1(4) = E1Y+Q2E
 C        THETA = ACOS( (E1Y-Q2E)/(E1Y+Q2E) )
 *   radiated photon
-         PGAMM(1) = -PLEPT1(1)
-         PGAMM(2) = -PLEPT1(2)
-         PGAMM(3) = PLEPT0(3)-PLEPT1(3)
-         PGAMM(4) = PLEPT0(4)-PLEPT1(4)
+            PGAMM(1) = -PLEPT1(1)
+            PGAMM(2) = -PLEPT1(2)
+            PGAMM(3) = PLEPT0(3)-PLEPT1(3)
+            PGAMM(4) = PLEPT0(4)-PLEPT1(4)
 *   E_cm cut
-         IF (MCGENE.NE.7) THEN
             PTOTGN = SQRT( (PGAMM(1)+PNUCL(1))**2+(PGAMM(2)+PNUCL(2))**2
      &                                        +(PGAMM(3)+PNUCL(3))**2 )
             ETOTGN = PGAMM(4)+PNUCL(4)
@@ -3814,73 +3820,75 @@ C        THETA = ACOS( (E1Y-Q2E)/(E1Y+Q2E) )
             IF (ECMGN.LT.0.1D0) GOTO 101
             ECMGN  = SQRT(ECMGN)
             IF ((ECMGN.LT.ECMIN).OR.(ECMGN.GT.ECMAX)) GOTO 101
-         ENDIF
 
 *  Lorentz-transformation into nucleon-rest system
-         CALL DT_DALTRA(BGTA(4),-BGTA(1),-BGTA(2),-BGTA(3),
-     &               PGAMM(1),PGAMM(2),PGAMM(3),PGAMM(4),
-     &               PGTOT,PPG(1),PPG(2),PPG(3),PPG(4))
-         CALL DT_DALTRA(BGTA(4),-BGTA(1),-BGTA(2),-BGTA(3),
-     &               PLEPT1(1),PLEPT1(2),PLEPT1(3),PLEPT1(4),
-     &               PLTOT,PPL1(1),PPL1(2),PPL1(3),PPL1(4))
+            CALL DT_DALTRA(BGTA(4),-BGTA(1),-BGTA(2),-BGTA(3),
+     &           PGAMM(1),PGAMM(2),PGAMM(3),PGAMM(4),
+     &           PGTOT,PPG(1),PPG(2),PPG(3),PPG(4))
+            CALL DT_DALTRA(BGTA(4),-BGTA(1),-BGTA(2),-BGTA(3),
+     &           PLEPT1(1),PLEPT1(2),PLEPT1(3),PLEPT1(4),
+     &           PLTOT,PPL1(1),PPL1(2),PPL1(3),PPL1(4))
 *  temporary checks..
-         Q2TMP = ABS(PPG(4)**2-PGTOT**2)
-         IF (ABS(Q2-Q2TMP).GT.0.01D0) WRITE(LOUT,1001) Q2,Q2TMP
- 1001    FORMAT(1X,'LAEVT:    inconsistent kinematics (Q2,Q2TMP) ',
-     &          2F10.4)
-         IF (MCGENE.NE.7) THEN
-            ECMTMP = SQRT((PPG(4)+AAM(IDT)-PGTOT)*
-     &           (PPG(4)+AAM(IDT)+PGTOT))
-            IF (ABS(ECMGN-ECMTMP).GT.TINY10) WRITE(LOUT,1002) 
-     &           ECMGN,ECMTMP
-         ENDIF
- 1002    FORMAT(1X,'LAEVT:    inconsistent kinematics (ECMGN,ECMTMP) ',
-     &        2F10.2)
-         YYTMP = PPG(4)/PPL0(4)
-         IF (ABS(YY-YYTMP).GT.0.01D0) WRITE(LOUT,1005) YY,YYTMP
- 1005    FORMAT(1X,'LAEVT:    inconsistent kinematics (YY,YYTMP) ',
+            Q2TMP = ABS(PPG(4)**2-PGTOT**2)
+            IF (ABS(Q2-Q2TMP).GT.0.01D0) WRITE(LOUT,1001) Q2,Q2TMP
+ 1001       FORMAT(1X,'LAEVT: inconsistent kinematics (Q2,Q2TMP) ',
+     &           2F10.4)
+            IF (MCGENE.NE.7) THEN
+               ECMTMP = SQRT((PPG(4)+AAM(IDT)-PGTOT)*
+     &              (PPG(4)+AAM(IDT)+PGTOT))
+               IF (ABS(ECMGN-ECMTMP).GT.TINY10) WRITE(LOUT,1002) 
+     &              ECMGN,ECMTMP
+            ENDIF
+ 1002       FORMAT(1X,'LAEVT: inconsistent kinematics (ECMGN,ECMTMP) ',
+     &2F10.2)
+            YYTMP = PPG(4)/PPL0(4)
+            IF (ABS(YY-YYTMP).GT.0.01D0) WRITE(LOUT,1005) YY,YYTMP
+ 1005       FORMAT(1X,'LAEVT: inconsistent kinematics (YY,YYTMP) ',
      &          2F10.4)
 
+C For now don't use these for MCGENE=7. Could be put back in.
 *  lepton tagger (Lab)
-         THETA = ACOS( PPL1(3)/PLTOT )
-         IF (PPL1(4).GT.ELMIN) THEN
-            IF ((THETA.LT.THMIN).OR.(THETA.GT.THMAX)) GOTO 101
-         ENDIF
-*  photon energy-cut (Lab)
-         IF (PPG(4).LT.EGMIN) GOTO 101
-         IF (PPG(4).GT.EGMAX) GOTO 101
-*   x_Bj cut
-         XBJ = ABS(Q2/(2.0D0*AAM(IDT)*PPG(4)))
-         IF (XBJ.LT.XBJMIN) GOTO 101
-
+            THETA = ACOS( PPL1(3)/PLTOT )
+            IF (PPL1(4).GT.ELMIN) THEN
+               IF ((THETA.LT.THMIN).OR.(THETA.GT.THMAX)) GOTO 101
+            ENDIF
+*     photon energy-cut (Lab)
+            IF (PPG(4).LT.EGMIN) GOTO 101
+            IF (PPG(4).GT.EGMAX) GOTO 101
+*     x_Bj cut
+            XBJ = ABS(Q2/(2.0D0*AAM(IDT)*PPG(4)))
+            IF (XBJ.LT.XBJMIN) GOTO 101
+            
 c...store the event variable for output added by liang 1/20/12
-         XBJOUT=XBJ
-         YYOUT=YY
-         Q2OUT=Q2
-         IF (MCGENE.NE.7) W2OUT=ECMGN*ECMGN
-         NUOUT=PPG(4)
+            XBJOUT=XBJ
+            YYOUT=YY
+            Q2OUT=Q2
+            W2OUT=ECMGN*ECMGN
+            NUOUT=PPG(4)
 
-         NC0 = NC0+1
-         CALL DT_FILHGR(    Q2,ONE,IHFLQ0,NC0)
-         CALL DT_FILHGR(    YY,ONE,IHFLY0,NC0)
-         CALL DT_FILHGR(   XBJ,ONE,IHFLX0,NC0)
-         CALL DT_FILHGR(PPG(4),ONE,IHFLU0,NC0)
-         IF (MCGENE.NE.7) CALL DT_FILHGR( ECMGN,ONE,IHFLE0,NC0)
-
-*  rotation angles against z-axis
-         COD = PPG(3)/PGTOT
-C        SID = SQRT((ONE-COD)*(ONE+COD))
-         PPT = SQRT(PPG(1)**2+PPG(2)**2)
-         SID = PPT/PGTOT
-         COF = ONE
-         SIF = ZERO
-         IF (PGTOT*SID.GT.TINY10) THEN
-            COF   = PPG(1)/(SID*PGTOT)
-            SIF   = PPG(2)/(SID*PGTOT)
-            ANORF = SQRT(COF*COF+SIF*SIF)
-            COF   = COF/ANORF
-            SIF   = SIF/ANORF
+            NC0 = NC0+1
+            CALL DT_FILHGR(    Q2,ONE,IHFLQ0,NC0)
+            CALL DT_FILHGR(    YY,ONE,IHFLY0,NC0)
+            CALL DT_FILHGR(   XBJ,ONE,IHFLX0,NC0)
+            CALL DT_FILHGR(PPG(4),ONE,IHFLU0,NC0)
+            CALL DT_FILHGR( ECMGN,ONE,IHFLE0,NC0)
          ENDIF
+
+C*  Are these used anywhere?
+C*  rotation angles against z-axis
+C         COD = PPG(3)/PGTOT
+CC        SID = SQRT((ONE-COD)*(ONE+COD))
+C         PPT = SQRT(PPG(1)**2+PPG(2)**2)
+C         SID = PPT/PGTOT
+C         COF = ONE
+C         SIF = ZERO
+C         IF (PGTOT*SID.GT.TINY10) THEN
+C            COF   = PPG(1)/(SID*PGTOT)
+C            SIF   = PPG(2)/(SID*PGTOT)
+C            ANORF = SQRT(COF*COF+SIF*SIF)
+C            COF   = COF/ANORF
+C            SIF   = SIF/ANORF
+C         ENDIF
 
          IF (IXSTBL.EQ.0) THEN
 *  change to photon projectile
@@ -3891,17 +3899,25 @@ C        SID = SQRT((ONE-COD)*(ONE+COD))
 *  !!PGAMM ist set in cms (ECMGN) along z
             EPN = ZERO
             PPN = ZERO
-            CALL DT_LTINI(IJPROJ,IJTARG,EPN,PPN,ECMGN,0)
+C For QE (or DIS x>1), naive HCMS does not exist! 
+C Setup identity xform instead
+            IF (MCGENE.EQ.7) THEN
+               BGCMS(2)=0.0D0
+               GACMS(2)=1.0D0
+            ELSE
+               CALL DT_LTINI(IJPROJ,IJTARG,EPN,PPN,ECMGN,0)
+            ENDIF
 *  force Lab-system
             IFRAME = 1
+            IF (MCGENE.NE.7) THEN
 *  get emulsion component if requested
-            IF (IEMUL.GT.0) CALL DT_GETEMU(NTMASS,NTCHAR,KKMAT,0)
+               IF (IEMUL.GT.0) CALL DT_GETEMU(NTMASS,NTCHAR,KKMAT,0)
 *  convolute with cross section
-            CALL DT_SIGGAT(Q2LOW,EGNXX,STOTX,KKMAT)
-            CALL DT_SIGGAT(Q2,ECMGN,STOT,KKMAT)
-            IF (STOTX.LT.STOT) WRITE(LOUT,'(1X,A,/,6E12.3)')
-     &         'LAEVT: warning STOTX<STOT ! ',Q2LOW,EGNMAX,STOTX,
-     &                                        Q2,ECMGN,STOT
+               CALL DT_SIGGAT(Q2LOW,EGNXX,STOTX,KKMAT)
+               CALL DT_SIGGAT(Q2,ECMGN,STOT,KKMAT)
+               IF (STOTX.LT.STOT) WRITE(LOUT,'(1X,A,/,6E12.3)')
+     &              'LAEVT: warning STOTX<STOT ! ',Q2LOW,EGNMAX,STOTX,
+     &              Q2,ECMGN,STOT
 
 c...If using pythia,only reject once in pythia, so we do not
 c...use the dpmjet rejection for events when runing with pythia
@@ -3909,12 +3925,13 @@ c...So we set a requirement that the following requirement
 c...doestn't work on pythia mode, modified by liang
 C...Just remove it, since we don't support MCGENE<5 - Mark
 C            IF ((DT_RNDM(Q2)*STOTX.GT.STOT).AND.(MCGENE.NE.5)) GOTO 100
-            NC1 = NC1+1
-            CALL DT_FILHGR(    Q2,ONE,IHFLQ1,NC1)
-            CALL DT_FILHGR(    YY,ONE,IHFLY1,NC1)
-            CALL DT_FILHGR(   XBJ,ONE,IHFLX1,NC1)
-            CALL DT_FILHGR(PPG(4),ONE,IHFLU1,NC1)
-            CALL DT_FILHGR( ECMGN,ONE,IHFLE1,NC1)
+               NC1 = NC1+1
+               CALL DT_FILHGR(    Q2,ONE,IHFLQ1,NC1)
+               CALL DT_FILHGR(    YY,ONE,IHFLY1,NC1)
+               CALL DT_FILHGR(   XBJ,ONE,IHFLX1,NC1)
+               CALL DT_FILHGR(PPG(4),ONE,IHFLU1,NC1)
+               CALL DT_FILHGR( ECMGN,ONE,IHFLE1,NC1)
+            ENDIF
 *  composite targets only
             KKMAT = -KKMAT
 
@@ -3934,6 +3951,8 @@ C....added by liang to suppress output of bad events++
                   CALL DT_PYOUTEP(1)
                ELSEIF (MCGENE.EQ.6) THEN
                   CALL DT_RGOUTEP(1)
+               ELSEIF (MCGENE.EQ.7) THEN
+                  CALL DT_GCFOUTQE(1)
                ENDIF
                WRITE(*,*) 'KKEVNT: Old Q2,y:',Q2,YY,'Rerolling.'
                WRITE(*,*) ' ' 
@@ -3955,14 +3974,16 @@ C-TEMP-TEMP-TEMP
 C               WRITE(*,*)'Event as output to file'
 C               CALL DT_PYOUTEP(4)
 *  output of eventlist from pythia
-               IF (MCGENE.EQ.5) THEN
-                  CALL DT_PYOUTEP(2)
-               ELSEIF (MCGENE.EQ.6) THEN
-                  CALL DT_RGOUTEP(2)
-               ENDIF
-
-               IF(MOD(IEVT,INT(NEVTS/10)).EQ.0) print*,IEVT,
-     &         ' events output done'
+            IF (MCGENE.EQ.5) THEN
+               CALL DT_PYOUTEP(2)
+            ELSEIF (MCGENE.EQ.6) THEN
+               CALL DT_RGOUTEP(2)
+            ELSEIF (MCGENE.EQ.7) THEN
+               CALL DT_GCFOUTQE(2)
+            ENDIF
+            
+            IF(MOD(IEVT,INT(NEVTS/10)).EQ.0) print*,IEVT,
+     &           ' events output done'
 C            ELSE
 C*  rotate momenta of final state particles back in photon-nucleon syst.
 C*  Note: This code should never be reached!
@@ -3979,20 +4000,17 @@ C 4             CONTINUE
 C            ENDIF
          ENDIF
 
-         CALL DT_FILHGR(    Q2,ONE,IHFLQ2,NC1)
-         CALL DT_FILHGR(    YY,ONE,IHFLY2,NC1)
-         CALL DT_FILHGR(   XBJ,ONE,IHFLX2,NC1)
-         CALL DT_FILHGR(PPG(4),ONE,IHFLU2,NC1)
-         CALL DT_FILHGR( ECMGN,ONE,IHFLE2,NC1)
+         IF (MCGENE.NE.7) THEN
+            CALL DT_FILHGR(    Q2,ONE,IHFLQ2,NC1)
+            CALL DT_FILHGR(    YY,ONE,IHFLY2,NC1)
+            CALL DT_FILHGR(   XBJ,ONE,IHFLX2,NC1)
+            CALL DT_FILHGR(PPG(4),ONE,IHFLU2,NC1)
+            CALL DT_FILHGR( ECMGN,ONE,IHFLE2,NC1)
 
 *  dump this event to histograms
 
-* modified by liang to link to pythia 1/16/12
-C         IF(MCGENE.EQ.5 .OR. MCGENE.EQ.6) THEN
             CALL DT_HISTOG(2)
-C         ELSE
-C            CALL PHO_PHIST(2000,DUM)
-C         ENDIF
+         ENDIF
 
     2 CONTINUE               ! end of event loop
 
@@ -4024,63 +4042,63 @@ c      IF (IXSTB.LE.0.AND.MCGENE.NE.5) CALL DT_STATIS(2)
       RETURN
       END
 
-*$ CREATE DT_DTUINI.FOR
-*COPY DT_DTUINI
-*
-*===dtuini=============================================================*
-*
-      SUBROUTINE DT_DTUINI(NEVTS,EPN,NPMASS,NPCHAR,NTMASS,NTCHAR,
-     &                                               IDP,IEMU)
-
-      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
-      SAVE
-
-      PARAMETER (NCOMPX=20,NEB=8,NQB= 5,KSITEB=50)
-
-* emulsion treatment
-      COMMON /DTCOMP/ EMUFRA(NCOMPX),IEMUMA(NCOMPX),IEMUCH(NCOMPX),
-     &                NCOMPO,IEMUL
-
-* Glauber formalism: flags and parameters for statistics
-      LOGICAL LPROD
-      CHARACTER*8 CGLB
-      COMMON /DTGLGP/ JSTATB,JBINSB,CGLB,IOGLB,LPROD
-
-      CALL DT_INIT(NEVTS,EPN,NPMASS,NPCHAR,NTMASS,NTCHAR,IDP,IGLAU)
-      CALL DT_STATIS(1)
-
-      CALL PHO_PHIST(1000,DUM)
-
-      IF (NCOMPO.LE.0) THEN
-         CALL DT_SHMAKI(NPMASS,NPCHAR,NTMASS,NTCHAR,IDP,EPN,IGLAU)
-      ELSE
-         DO 1 I=1,NCOMPO
-            CALL DT_SHMAKI(NPMASS,NPCHAR,IEMUMA(I),IEMUCH(I),IDP,EPN,0)
-    1    CONTINUE
-      ENDIF
-      IF (IOGLB.NE.100) CALL DT_SIGEMU
-      IEMU = IEMUL
-
-      RETURN
-      END
-
-*$ CREATE DT_DTUOUT.FOR
-*COPY DT_DTUOUT
-*
-*===dtuout=============================================================*
-*
-      SUBROUTINE DT_DTUOUT
-
-      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
-      SAVE
-
-      CALL PHO_PHIST(3000,DUM)
-
-      CALL DT_STATIS(2)
-
-      RETURN
-      END
-
+C*$ CREATE DT_DTUINI.FOR
+C*COPY DT_DTUINI
+C*
+C*===dtuini=============================================================*
+C*
+C      SUBROUTINE DT_DTUINI(NEVTS,EPN,NPMASS,NPCHAR,NTMASS,NTCHAR,
+C     &                                               IDP,IEMU)
+C
+C      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
+C      SAVE
+C
+C      PARAMETER (NCOMPX=20,NEB=8,NQB= 5,KSITEB=50)
+C
+C* emulsion treatment
+C      COMMON /DTCOMP/ EMUFRA(NCOMPX),IEMUMA(NCOMPX),IEMUCH(NCOMPX),
+C     &                NCOMPO,IEMUL
+C
+C* Glauber formalism: flags and parameters for statistics
+C      LOGICAL LPROD
+C      CHARACTER*8 CGLB
+C      COMMON /DTGLGP/ JSTATB,JBINSB,CGLB,IOGLB,LPROD
+C
+C      CALL DT_INIT(NEVTS,EPN,NPMASS,NPCHAR,NTMASS,NTCHAR,IDP,IGLAU)
+C      CALL DT_STATIS(1)
+C
+C      CALL PHO_PHIST(1000,DUM)
+C
+C      IF (NCOMPO.LE.0) THEN
+C         CALL DT_SHMAKI(NPMASS,NPCHAR,NTMASS,NTCHAR,IDP,EPN,IGLAU)
+C      ELSE
+C         DO 1 I=1,NCOMPO
+C            CALL DT_SHMAKI(NPMASS,NPCHAR,IEMUMA(I),IEMUCH(I),IDP,EPN,0)
+C    1    CONTINUE
+C      ENDIF
+C      IF (IOGLB.NE.100) CALL DT_SIGEMU
+C      IEMU = IEMUL
+C
+C      RETURN
+C      END
+C
+C*$ CREATE DT_DTUOUT.FOR
+C*COPY DT_DTUOUT
+C*
+C*===dtuout=============================================================*
+C*
+C      SUBROUTINE DT_DTUOUT
+C
+C      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
+C      SAVE
+C
+C      CALL PHO_PHIST(3000,DUM)
+C
+C      CALL DT_STATIS(2)
+C
+C      RETURN
+C      END
+C
 *$ CREATE DT_BEAMPR.FOR
 *COPY DT_BEAMPR
 *
@@ -4453,6 +4471,8 @@ C     IPAMDL(3)= 0
       PPF = SCPF*PPF
       PTF = SCPF*PTF
       IF (IJP.EQ.7) THEN
+C     PPCM is ill-defined in this case, so disallow this whole procedure.
+         IF (MCGENE.EQ.7) STOP 'DT_PHOINI not allowed for GCF-QE'
          AMP2  = SIGN(PMASS(1)**2,PMASS(1))
          PP(3) = PPCM
          PP(4) = SQRT(AMP2+PP(3)**2)
@@ -4688,7 +4708,12 @@ C     &                LEMCCK,LHADRO(0:9),LSEADI,LEVAPO,IFRAME,ITRSPT
      &     (IP.NE.IPOLD).OR.(IT.NE.ITOLD).OR.(JJPROJ.NE.JJPOLD).OR.
      &     (ABS(EPROJ-EPROLD).GT.TINY10) ) THEN
 * sample number of nucleon-nucleon coll. according to Glauber-form.
-         CALL DT_GLAUBE(IP,IT,JJPROJ,BIMPAC,NN,NP,NT,JSSH,JTSH,KKMAT)
+         IF (MCGENE.NE.7) THEN
+            CALL DT_GLAUBE(IP,IT,JJPROJ,BIMPAC,NN,NP,NT,JSSH,JTSH,KKMAT)
+         ELSE
+            CALL DT_GCFGLAUBE(IP,IT,JJPROJ,BIMPAC,NN,NP,NT,JSSH,JTSH,
+     &           KKMAT)
+         ENDIF
          NWTSAM = NN
          NWASAM = NP
          NWBSAM = NT
@@ -7511,6 +7536,8 @@ C                    ENDIF
       ECMNOW = UMO
       Q2     = VIRT
 *
+* Not sure if this IF-THEN-ELSE-ENDIF block is useful
+*
 * new patch for pre-initialized variable projectile/target/energy runs,
 * bypassed for use within FLUKA (Nidx=-2)
       IF (IOGLB.EQ.100) THEN
@@ -10285,6 +10312,9 @@ C           QARJ(I) = PARJ(I)
 *                    = .false. cascade skipped                         *
 * This is a completely revised version of the original FOZOKL.         *
 * This version dated 18.11.95 is written by S. Roesler                 *
+*                                                                      *
+* Modifications by Liang Zheng and Mark Baker                          *
+*                                                                      *
 ************************************************************************
 
       IMPLICIT DOUBLE PRECISION (A-H,O-Z)
@@ -10368,8 +10398,10 @@ C     &                LEMCCK,LHADRO(0:9),LSEADI,LEVAPO,IFRAME,ITRSPT
 * in order to avoid wasting of cpu-time the DTEVT1-indices of nucleons
 * which may interact with final state particles are stored in a seperate
 * array - here all proj./target nucleon-indices (just for simplicity)
+* MDB 2020-03-11 NPOINT(1) points to the last nucleon, not past it...
       NOINC = 0
-      DO 9 I=1,NPOINT(1)-1
+C      DO 9 I=1,NPOINT(1)-1
+      DO 9 I=1,NPOINT(1)
          NOINC = NOINC+1
          IDXINC(NOINC) = I
     9 CONTINUE
@@ -10478,6 +10510,9 @@ C9990 CONTINUE
 *           NCAS =  1 intranuclear cascade in projectile               *
 *                = -1 intranuclear cascade in target                   *
 * This version dated 18.11.95 is written by S. Roesler                 *
+*                                                                      *
+* Modifications by Liang Zheng and Mark Baker                          *
+* Latest version 2020-03-16                                            *
 ************************************************************************
 
       IMPLICIT DOUBLE PRECISION (A-H,O-Z)
@@ -10691,7 +10726,9 @@ C     ENDIF
 * special treatment for negative particles unable to escape
 * nuclear potential (implemented for ap, pi-, K- only)
       LABSOR = .FALSE.
-      IF ((IICH(IDCAS).EQ.-1).AND.(IDCAS.LT.20)) THEN
+C      IF ((IICH(IDCAS).EQ.-1).AND.(IDCAS.LT.20)) THEN
+C     Exclude leptons - MDB
+      IF ((IICH(IDCAS).EQ.-1).AND.(IDCAS.LT.20).AND.(IDCAS.GT.11)) THEN
 *   threshold energy = nuclear potential + Coulomb potential
 *   (nuclear potential for hadron-nucleus interactions only)
          ETHR = AAM(IDCAS)+EPOT(ICAS,IDCAS)+ETACOU(ICAS)
@@ -11981,6 +12018,7 @@ C    &                                             -ENERGY(AIT,AITZ))
 * This version dated 16.11.95 is written by S. Roesler.                *
 *                                                                      *
 * Last change 05.01.2007 by S. Roesler.                                *
+* 2020-03-06 M.D. Baker - allow mode =-1 for x>1 events.               *
 ************************************************************************
 
       IMPLICIT DOUBLE PRECISION (A-H,O-Z)
@@ -12045,6 +12083,9 @@ C     &                LEMCCK,LHADRO(0:9),LSEADI,LEVAPO,IFRAME,ITRSPT
 
 * properties of photon/lepton projectiles
       COMMON /DTGPRO/ VIRT,PGAMM(4),PLEPT0(4),PLEPT1(4),PNUCL(4),IDIREC
+
+* kinematics at lepton-gamma vertex in TRF/IRF
+      COMMON /DTLGVX/ PPL0(4),PPL1(4),PPG(4),PPA(4)
 
 * Lorentz-parameters of the current interaction
       COMMON /DTLTRA/ GACMS(2),BGCMS(2),GALAB,BGLAB,BLAB,
@@ -12127,16 +12168,23 @@ C            IF(MCGENE.NE.5)CALL DT_LTINI(IJPROJ,IJTARG,EPNI,DUM1,DUM2,0)
 C* VDM assumption
 C         IF (IJPROJ.EQ.7) PMASS1 = AAM(33)
          IF (IJPROJ.EQ.7) PMASS1 = AAM(IJPROJ)-SQRT(VIRT)
-         PMASS2 = AAM(idNucBAM)
-         PM1 = SIGN(PMASS1**2,PMASS1)
-         PM2 = SIGN(PMASS2**2,PMASS2)
-         PINIPR(4) = (UMO**2-PM2+PM1)/(TWO*UMO)
-         PINIPR(5) = PMASS1
-         IF (PMASS1.GT.ZERO) THEN
-            PINIPR(3) = SQRT((PINIPR(4)-PINIPR(5))
-     &                      *(PINIPR(4)+PINIPR(5)))
+         IF (MCGENE.EQ.7) THEN
+C Use IRF-G frame. Naive HCMS does not exist for x>1 e.g.
+            PINIPR(3) = SQRT(PPG(1)**2+PPG(2)**2+PPG(3)**2)
+            PINIPR(4) = PPG(4)
+            PINIPR(5) = PMASS1
          ELSE
-            PINIPR(3) = SQRT(PINIPR(4)**2-PM1)
+            PMASS2 = AAM(idNucBAM)
+            PM1 = SIGN(PMASS1**2,PMASS1)
+            PM2 = SIGN(PMASS2**2,PMASS2)
+            PINIPR(4) = (UMO**2-PM2+PM1)/(TWO*UMO)
+            PINIPR(5) = PMASS1
+            IF (PMASS1.GT.ZERO) THEN
+               PINIPR(3) = SQRT((PINIPR(4)-PINIPR(5))
+     &              *(PINIPR(4)+PINIPR(5)))
+            ELSE
+               PINIPR(3) = SQRT(PINIPR(4)**2-PM1)
+            ENDIF
          ENDIF
 C         AIT  = DBLE(IT)
 C         AITZ = DBLE(ITZ)
@@ -12303,9 +12351,12 @@ C     WRITE(LOUT,*) 'event ',NEVHKK,NLOOP,SCPOT
 *   and avoids a somewhat unphysical dip in the cos(theta) distribution
 *   around zero caused by the cos(theta) shift in the n-n cms after
 *   energy reduction in the rest frame of the colliding nuclei
+*   Skip it for quasielastic where the HCMS PPCM is ill-defined
             XSCPOT = ONE
-            XSEC   = MAX(ABS(PHKK(3,I)/PPCM),TINY10)
-            IF (XSEC.LT.ONE) XSCPOT = MIN(ONE,ONE/LOG(XSEC)**2.0D0)
+            IF (MCGENE.NE.7) THEN
+               XSEC   = MAX(ABS(PHKK(3,I)/PPCM),TINY10)
+               IF (XSEC.LT.ONE) XSCPOT = MIN(ONE,ONE/LOG(XSEC)**2.0D0)
+            ENDIF
 
 *   Lorentz-transformation into the rest system of the selected nucleus
             IMODE = -IPOT-1
@@ -21791,6 +21842,9 @@ C     &                LEMCCK,LHADRO(0:9),LSEADI,LEVAPO,IFRAME,ITRSPT
       ISTRNL = 1000
       MULDEF = 1
       IF (LEVPRT) ISTRNL = 1001
+
+C     PPCM is ill-defined in this case, so disallow this whole procedure.
+      IF (MCGENE.EQ.7) STOP 'DT_SWPFSP not allowed for GCF-QE'
 
       IF (ABS(ISTHKK(IDX)).EQ.1) THEN
          IST    = ISTHKK(IDX)
