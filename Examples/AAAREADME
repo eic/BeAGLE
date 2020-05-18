@@ -1,0 +1,9 @@
+These are some example input files. 
+
+You need a BeAGLE/DPMJET input file such as:
+eD_18x135_Q2_1_10_y_0.01_0.95_test40k_Shd1_tau7_kt=ptfrag=0.32_shdfac=1.32.Jpsidiffnodecay.highpf.inp
+
+In the case of the standard MODEL PYTHIA, this will read in a Pythia control
+file such as:
+eAt1dfJn
+
