@@ -13586,6 +13586,9 @@ C9998 IREXCI(1) = IREXCI(1)+1
       IMPLICIT DOUBLE PRECISION (A-H,O-Z)
       SAVE
 
+      INTEGER PYCHGE
+      EXTERNAL PYCHGE, NBARY
+
       PARAMETER ( LINP = 5 ,
      &            LOUT = 6 ,
      &            LDAT = 9 )
@@ -13675,7 +13678,8 @@ C     &                LEMCCK,LHADRO(0:9),LSEADI,LEVAPO,IFRAME,ITRSPT
      &             'particle',I3,2E10.3)
          ENDIF
          PE = TKI(I)+AM
-         CALL DT_EVTPUT(-1,IDPDG,MO,0,PX,PY,PZ,PE,0,0,0)
+         CALL DT_EVTPUT(-1,IDPDG,MO,0,PX,PY,PZ,PE,
+     &        NBARY(IDPDG)/3,PYCHGE(IDPDG)/3,0)
          NOBAM(NHKK) = IRCL
          IF (LEMCCK) CALL DT_EVTEMC(-PX,-PY,-PZ,-PE,2,IDUM,IDUM)
          IBTOT = IBTOT-IIBAR(ID)
