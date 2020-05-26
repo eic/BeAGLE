@@ -949,10 +949,8 @@ C      include "radgen.inc"
 C      include "phiout.inc"
       include "beagle.inc"
 
-C      EXTERNAL PYCHGE, NBARY, PYMASS
-C      INTEGER  NBARY
-
-      EXTERNAL AZMASS, PYMASS
+      EXTERNAL PYCHGE, NBARY, AZMASS, PYMASS
+      INTEGER  PYCHGE, NBARY 
       DOUBLE PRECISION AZMASS, PYMASS
 
 * event history
@@ -1175,7 +1173,11 @@ c...2017-01-02 MDB Fill some new event variables
                   ENDIF
                ELSEIF (ISTHKK(J).EQ.1.AND.NOBAM(J).GT.10) THEN
                   NINC = NINC + 1
-                  IF (IDXRES(J).NE.0) NINCCH = NINCCH + 1
+                  IF (IDHKK(J).EQ.80000) THEN
+                     IF (IDXRES(J).NE.0) NINCCH = NINCCH + 1
+                  ELSE
+                     IF (PYCHGE(IDHKK(J)).NE.0) NINCCH = NINCCH + 1
+                  ENDIF
                ENDIF
             ENDIF
          ENDIF ! (J.GT.(NPOINT(1)+1))
@@ -1488,23 +1490,23 @@ C     Special treatment for scattered lepton
          ENDIF
          KSOUT = ISTHKK(I)
          BAMOUT = NOBAM(I)
-C         IF (IDHKK(I).EQ.80000) THEN
+         IF (IDHKK(I).EQ.80000) THEN
             ZOUT = IDXRES(I)
             AOUT = IDRES(I)
-C         ELSE
-C            AOUT = NBARY(IDHKK(I))
-C            IF (MOD(AOUT,3).EQ.0) THEN
-C               AOUT = AOUT/3
-C            ELSE
-C               AOUT = 0
-C            ENDIF
-C            ZOUT = PYCHGE(IDHKK(I))
-C            IF (MOD(ZOUT,3).EQ.0) THEN
-C               ZOUT = ZOUT/3
-C            ELSE
-C               ZOUT = 0
-C            ENDIF
-C         ENDIF
+         ELSE
+            AOUT = NBARY(IDHKK(I))
+            IF (MOD(AOUT,3).EQ.0) THEN
+               AOUT = AOUT/3
+            ELSE
+               AOUT = 0
+            ENDIF
+            ZOUT = PYCHGE(IDHKK(I))
+            IF (MOD(ZOUT,3).EQ.0) THEN
+               ZOUT = ZOUT/3
+            ELSE
+              ZOUT = 0
+            ENDIF
+         ENDIF
 !!!dump nuclear remnants into final state particles
          IF (ISTHKK(I).EQ.-1) THEN
             KSOUT = 1

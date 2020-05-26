@@ -1730,7 +1730,11 @@ c...2017-01-02 MDB Fill some new event variables
                   ENDIF
                ELSEIF (ISTHKK(J).EQ.1.AND.NOBAM(J).GT.10) THEN
                   NINC = NINC + 1
-                  IF (PYCHGE(IDHKK(J)).NE.0) NINCCH = NINCCH + 1
+                  IF (IDHKK(J).EQ.80000) THEN
+                     IF (IDXRES(J).NE.0) NINCCH = NINCCH + 1
+                  ELSE
+                     IF (PYCHGE(IDHKK(J)).NE.0) NINCCH = NINCCH + 1
+                  ENDIF
                ENDIF
             ENDIF
          ENDIF ! (J.GT.(NPOINT(1)+1))
