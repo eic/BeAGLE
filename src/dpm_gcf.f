@@ -1142,9 +1142,14 @@ CC     &          PP1,PP2,-PP3,PP4, !remember to change the sign of z back
 CC     &              PHKK(5,J)
 CC  996      FORMAT(I5,I5,I8,4I5,5F17.5)
 C MDB Since the above matrix has det +1, make this a rotation too.
-               PHKK(1,J)=-PP1
+C MDB Rotation not needed for INRLEV=3. Not sure about 1 or 2.
+C               PHKK(1,J)=-PP1
+C               PHKK(2,J)=PP2      
+C               PHKK(3,J)=-PP3
+C               PHKK(4,J)=PP4
+               PHKK(1,J)=PP1
                PHKK(2,J)=PP2      
-               PHKK(3,J)=-PP3
+               PHKK(3,J)=PP3
                PHKK(4,J)=PP4
 CC     PHKK(3,J)=pgamma*(P3+pbeta*P4)
 CC     PHKK(4,J)=pgamma*(P4+pbeta*P3)
