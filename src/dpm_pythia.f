@@ -1642,6 +1642,7 @@ C...output file name definition
       INTEGER MODE
 
 C     Local
+      INTEGER IDOUT
       DOUBLE PRECISION BETA2,P2TEMP,XCALC
       DOUBLE PRECISION P5SUM(5)
       LOGICAL VERBOSE
@@ -2094,9 +2095,13 @@ C     Special treatment for scattered lepton
          ENDIF
          KSOUT = ISTHKK(I)
          BAMOUT = NOBAM(I)
+         IDOUT = IDHKK(I)
          IF (IDHKK(I).EQ.80000) THEN
             ZOUT = IDXRES(I)
             AOUT = IDRES(I)
+            IF (IOUTFMT.EQ.2) THEN
+               IDOUT = 1000000000 + 10000*ZOUT + 10*AOUT
+            ENDIF
          ELSEIF (.NOT. OLDOUT) THEN
             AOUT = NBARY(IDHKK(I))
             IF (MOD(AOUT,3).EQ.0) THEN
@@ -2121,7 +2126,8 @@ C     Special treatment for scattered lepton
                BAMOUT = 4
             ENDIF
          ENDIF
-         write(29,34) I+4, KSOUT, IDHKK(I), JM2OUT, JM1OUT, 
+C         write(29,34) I+4, KSOUT, IDHKK(I), JM2OUT, JM1OUT, 
+         write(29,34) I+4, KSOUT, IDOUT, JM2OUT, JM1OUT, 
      &        JD1OUT, JD2OUT, PHKK(1,I), PHKK(2,I), PHKK(3,I),
      &        PHKK(4,I), PHKK(5,I), VHKK(1,I), VHKK(2,I), VHKK(3,I),
      &        AOUT, ZOUT, BAMOUT

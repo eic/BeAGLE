@@ -2308,14 +2308,18 @@ C        WRITE(LOUT,*) 'CMENER = ',CMENER
 *                                                                   *
 *                       output unit:                                *
 *       added by liang to make different out for multi input        *
-*              what (1) = output unit number                        *
-*              what (2) = output format -1=old        *
-*                                         default: 89               *
+*              what (1) = output unit number      default: 89       *
+*              what (2) = output format     -1 = old                *
+*                                           +1 = DPMJET for nuclei  *
+*                                           +2 = GEANT for nuclei   *
+*                                                                   *   
 *********************************************************************
 
   622 CONTINUE
       FOUT = WHAT(1)
-      OLDOUT= (NINT(WHAT(2)).EQ.-1)
+      IOUTFMT = NINT(WHAT(2))
+      IF (IOUTFMT.EQ.0) IOUTFMT=1
+      OLDOUT= (IOUTFMT.EQ.-1)
       GOTO 10
 
 *********************************************************************
