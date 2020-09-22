@@ -129,7 +129,7 @@ C     &                LEMCCK,LHADRO(0:9),LSEADI,LEVAPO,IFRAME,ITRSPT
       LOGICAL LFERMI
       COMMON /DTNPOT/ PFERMP(2),PFERMN(2),FERMOD,
      &                EBINDP(2),EBINDN(2),EPOT(2,210),
-     &                ETACOU(2),ICOUL,LFERMI
+     &                ETACOU(2),EUNBIND,ICOUL,LFERMI
 
 * n-n cross section fluctuations
       PARAMETER (NBINS = 1000)
@@ -553,6 +553,16 @@ C MDB - 2017-05-25 Add WHAT(3) functionality
          ENDIF
       ENDIF
       TARINP=.TRUE.
+      IF (IT.EQ.3 .AND. KTAUGE.GT.0) THEN
+         WRITE(LOUT,*) 
+         WRITE(LOUT,*) 'WARNING!'
+         WRITE(LOUT,*) 'WARNING!'
+         WRITE(LOUT,*) 'WARNING WILL ROBISON!'
+         WRITE(LOUT,*) 'Intranuclear cascade disallowed for A=3'
+         WRITE(LOUT,*) 'KTAUGE set to 0 to turn off INC'
+         WRITE(LOUT,*) 
+         KTAUGE = 0
+      ENDIF
       GOTO 10
 
 C...This card has been modified by liang to boost final frame to lab
@@ -728,9 +738,12 @@ C        CALL SHMAKF(IDUM,IDUM,IEMUMA(NCOMPO),IEMUCH(NCOMPO))
 *       what (4) = post-processing to correct 4-mom. errors for D.  *
 *                   0=No                                            *
 *                   1=Ad-hoc ion rest frame energy correction.      *
-*                  NOTE: Post-processing not needed for what(1)>2   *
+*                   2=Use light front kinematics for E,pz           *
+*         NOTE: Ad-hoc post-processing not needed for what(1)>2     *
 *                                                 default: 0        *
-*       what (5,6), sdum   no meaning                               *
+*       what (5) = add energy to residual nucleus in order to deal  *
+*                  with large mismatch in binding energy - unit=MeV *
+*       what (6), sdum   no meaning                                 *
 *                                                                   *
 *********************************************************************
 
@@ -745,6 +758,7 @@ C        CALL SHMAKF(IDUM,IDUM,IEMUMA(NCOMPO),IEMUCH(NCOMPO))
       IF (XMOD.GE.ZERO) FERMOD = XMOD
       IFMDIST = NINT(WHAT(3))
       IFMPOST = NINT(WHAT(4))
+      EUNBIND = WHAT(5)*1.0D-03
       IF (IFMPOST.EQ.1 .AND. IFERPY.GT.2) THEN
          IFMPOST=0
          WRITE(*,*)"WARNING: IFMPOST=1 incompatible with IFERPY>2."
@@ -786,6 +800,16 @@ C        CALL SHMAKF(IDUM,IDUM,IEMUMA(NCOMPO),IEMUCH(NCOMPO))
      &                                    ITAUVE = INT(WHAT(3))
       IF ((WHAT(4).GE.1.0D0).AND.(WHAT(4).LE.3.0D0))
      &                                    INCMOD = INT(WHAT(4))
+      IF (IT.EQ.3 .AND. KTAUGE.GT.0) THEN
+         WRITE(LOUT,*) 
+         WRITE(LOUT,*) 'WARNING!'
+         WRITE(LOUT,*) 'WARNING!'
+         WRITE(LOUT,*) 'WARNING WILL ROBISON!'
+         WRITE(LOUT,*) 'Intranuclear cascade disallowed for A=3'
+         WRITE(LOUT,*) 'KTAUGE set to 0 to turn off INC'
+         WRITE(LOUT,*) 
+         KTAUGE = 0
+      ENDIF
       GOTO 10
 
 *********************************************************************
@@ -2995,7 +3019,7 @@ c         CALL DT_PYOUTEP(4)
       LOGICAL LFERMI
       COMMON /DTNPOT/ PFERMP(2),PFERMN(2),FERMOD,
      &                EBINDP(2),EBINDN(2),EPOT(2,210),
-     &                ETACOU(2),ICOUL,LFERMI
+     &                ETACOU(2),EUNBIND,ICOUL,LFERMI
 
 * interface HADRIN-DPM
       COMMON /HNTHRE/ EHADTH,EHADLO,EHADHI,INTHAD,IDXTA
@@ -3133,6 +3157,7 @@ C     COMMON /PQCTRL/ PQRECF, PYQ_SUPF, PYQ_IPTF, PYQ_IEG
       FERMOD    = 0.55D0
       ETACOU(1) = ZERO
       ETACOU(2) = ZERO
+      EUNBIND   = ZERO
       ICOUL     = 1
       LFERMI    = .TRUE.
 
@@ -4344,7 +4369,7 @@ C      END
       LOGICAL LFERMI
       COMMON /DTNPOT/ PFERMP(2),PFERMN(2),FERMOD,
      &                EBINDP(2),EBINDN(2),EPOT(2,210),
-     &                ETACOU(2),ICOUL,LFERMI
+     &                ETACOU(2),EUNBIND,ICOUL,LFERMI
 
 * Glauber formalism: flags and parameters for statistics
       LOGICAL LPROD
@@ -4951,7 +4976,7 @@ C     &                LEMCCK,LHADRO(0:9),LSEADI,LEVAPO,IFRAME,ITRSPT
       LOGICAL LFERMI
       COMMON /DTNPOT/ PFERMP(2),PFERMN(2),FERMOD,
      &                EBINDP(2),EBINDN(2),EPOT(2,210),
-     &                ETACOU(2),ICOUL,LFERMI
+     &                ETACOU(2),EUNBIND,ICOUL,LFERMI
 
 * properties of photon/lepton projectiles
       COMMON /DTGPRO/ VIRT,PGAMM(4),PLEPT0(4),PLEPT1(4),PNUCL(4),IDIREC
@@ -5078,18 +5103,6 @@ C            ENDIF
          WHKK(4,NHKK) = 0.0D0
     2 CONTINUE
 
-* balance Fermi-momenta for A > 2
-      IF (NMASS.GE.2 .AND. IFMDIST .EQ. 0) THEN
-         DO 5 I=1,NMASS
-            NC = NC+1
-            DO 6 K=1,3
-               PHKK(K,NC) = PHKK(K,NC)-PFTOT(K)/DBLE(NMASS)
-    6       CONTINUE
-            PHKK(4,NC) = SQRT(PHKK(5,NC)**2+PHKK(1,NC)**2+
-     &                        PHKK(2,NC)**2+PHKK(3,NC)**2)
-    5    CONTINUE
-      ENDIF
-
 * Special treatment for Deuteron, where IFMDIST can be 1 or 2 at the moment.
 * Proton and neutron are back-to-back in the rest frame
       IF (NMASS.EQ.2 .AND. IFMDIST .GT. 0) THEN
@@ -5100,6 +5113,16 @@ C            ENDIF
      &                    PHKK(2,2)**2+PHKK(3,2)**2)
          PHKK(4,3) = SQRT(PHKK(5,3)**2+PHKK(1,3)**2+
      &                    PHKK(2,3)**2+PHKK(3,3)**2)
+      ELSEIF (NMASS.GE.2) THEN
+* balance Fermi-momenta 
+         DO 5 I=1,NMASS
+            NC = NC+1
+            DO 6 K=1,3
+               PHKK(K,NC) = PHKK(K,NC)-PFTOT(K)/DBLE(NMASS)
+    6       CONTINUE
+            PHKK(4,NC) = SQRT(PHKK(5,NC)**2+PHKK(1,NC)**2+
+     &                        PHKK(2,NC)**2+PHKK(3,NC)**2)
+    5    CONTINUE
       ENDIF
 
       RETURN
@@ -5128,13 +5151,13 @@ C            ENDIF
 
       DOUBLE PRECISION PFERMP,PFERMN,FERMOD,
      &                EBINDP,EBINDN,EPOT,
-     &                ETACOU
+     &                ETACOU,EUNBIND
 
       LOGICAL LFERMI
       INTEGER ICOUL
       COMMON /DTNPOT/ PFERMP(2),PFERMN(2),FERMOD,
      &                EBINDP(2),EBINDN(2),EPOT(2,210),
-     &                ETACOU(2),ICOUL,LFERMI 
+     &                ETACOU(2),EUNBIND,ICOUL,LFERMI
 
       PARAMETER (PI=3.14159265359D+00)
       PARAMETER (Md=1.87561D+00) !Hard code mass for deuteron
@@ -5216,7 +5239,7 @@ C            ENDIF
       LOGICAL LFERMI
       COMMON /DTNPOT/ PFERMP(2),PFERMN(2),FERMOD,
      &                EBINDP(2),EBINDN(2),EPOT(2,210),
-     &                ETACOU(2),ICOUL,LFERMI      
+     &                ETACOU(2),EUNBIND,ICOUL,LFERMI
       
 C     for now only A > 12 assign SRC pairs and bring them half way
 C     closer without changing the center of mass position.
@@ -5466,8 +5489,7 @@ C     already samples high momentum for deuteron.
       LOGICAL LFERMI
       COMMON /DTNPOT/ PFERMP(2),PFERMN(2),FERMOD,
      &                EBINDP(2),EBINDN(2),EPOT(2,210),
-     &                ETACOU(2),ICOUL,LFERMI
-
+     &                ETACOU(2),EUNBIND,ICOUL,LFERMI
 
       INCLUDE 'beagle.inc'
 
@@ -10571,7 +10593,7 @@ C     &                LEMCCK,LHADRO(0:9),LSEADI,LEVAPO,IFRAME,ITRSPT
       LOGICAL LFERMI
       COMMON /DTNPOT/ PFERMP(2),PFERMN(2),FERMOD,
      &                EBINDP(2),EBINDN(2),EPOT(2,210),
-     &                ETACOU(2),ICOUL,LFERMI
+     &                ETACOU(2),EUNBIND,ICOUL,LFERMI
 
 * parameter for intranuclear cascade
       LOGICAL LPAULI
@@ -11869,7 +11891,7 @@ C           GOTO 9999
       LOGICAL LFERMI
       COMMON /DTNPOT/ PFERMP(2),PFERMN(2),FERMOD,
      &                EBINDP(2),EBINDN(2),EPOT(2,210),
-     &                ETACOU(2),ICOUL,LFERMI
+     &                ETACOU(2),EUNBIND,ICOUL,LFERMI
 
       DIMENSION IDXPOT(14)
 *                   ap   an  lam  alam sig- sig+ sig0 tet0 tet- asig-
@@ -12079,7 +12101,7 @@ C     &                LEMCCK,LHADRO(0:9),LSEADI,LEVAPO,IFRAME,ITRSPT
       LOGICAL LFERMI
       COMMON /DTNPOT/ PFERMP(2),PFERMN(2),FERMOD,
      &                EBINDP(2),EBINDN(2),EPOT(2,210),
-     &                ETACOU(2),ICOUL,LFERMI
+     &                ETACOU(2),EUNBIND,ICOUL,LFERMI
 
 * properties of interacting particles
       COMMON /DTPRTA/ IT,ITZ,IP,IPZ,IJPROJ,IBPROJ,IJTARG,IBTARG,ITMODE,
@@ -12241,14 +12263,18 @@ C     WRITE(LOUT,*) 'event ',NEVHKK,NLOOP,SCPOT
                   IPOT   = 2
                   IF (IP.GT.1) IOTHER = 1
 *       there is no target nucleus --> skip
-                  IF ((IT.LE.1).OR.((IT-NTW).LE.1)) GOTO 900
+*       Include diproton or dineutron as "no target nucleus"
+                  IF ((IT.LE.1).OR.((IT-NTW).LE.1) .OR.
+     &                 (((IT-NTW).EQ.2).AND.((ITZ-NTCW).NE.1))) GOTO 900
                ENDIF
 * particle moving into backward direction
             ELSE
 *   most likely to be effected by target potential
                IPOT = 2
 *     there is no target nucleus, try projectile
-               IF ((IT.LE.1).OR.((IT-NTW).LE.1)) THEN
+*     Include diproton or dineutron as "no target nucleus"
+               IF ((IT.LE.1).OR.((IT-NTW).LE.1) .OR.
+     &              (((IT-NTW).EQ.2).AND.((ITZ-NTCW).NE.1))) THEN
                   IPOT   = 1
                   IF (IT.GT.1) IOTHER = 1
 *       there is no projectile nucleus --> skip
@@ -12709,7 +12735,7 @@ C    &      CALL DT_EVTOUT(4)
       LOGICAL LFERMI
       COMMON /DTNPOT/ PFERMP(2),PFERMN(2),FERMOD,
      &                EBINDP(2),EBINDN(2),EPOT(2,210),
-     &                ETACOU(2),ICOUL,LFERMI
+     &                ETACOU(2),EUNBIND,ICOUL,LFERMI
 
 * treatment of residual nuclei: wounded nucleons
       COMMON /DTWOUN/ NPW,NPW0,NPCW,NTW,NTW0,NTCW,IPW(210),ITW(210)
@@ -12842,6 +12868,33 @@ C           ENDIF
          DO 22 K=1,4
             TRCLTA(K) = TRCLTA(K)-PHKK(K,ISGLTA)
    22    CONTINUE
+*     Handle the dineutron or diproton remnant similarly
+      ELSEIF ( (IREST.EQ.2) .AND. (ITZ-NTCW.NE.1)) THEN
+         IREMNUC = 0
+         DO II=2,NPOINT(1)
+            IF (ISTHKK(II).EQ.14) THEN
+               IREMNUC = IREMNUC + 1
+               IF (IICH(IDBAM(II)).NE.0) NTCW = NTCW + 1
+               NTW = NTW + 1
+               CALL DT_LTRANS(PHKK(1,II),PHKK(2,II),PHKK(3,II),
+     &               PHKK(4,II),PCMS(1),PCMS(2),PCMS(3),PCMS(4),
+     &              IDBAM(II),3)
+               ISTHKK(II)=12
+               CALL DT_EVTPUT(1,IDHKK(II),II,0,
+     &               PCMS(1),PCMS(2),PCMS(3),PCMS(4),
+     &               IDRES(II),IDXRES(II),IDCH(II))
+               NOBAM(NHKK) = NOBAM(II)
+               ISTHKK(NHKK) = 1
+               JDAHKK(I,II) = NHKK
+*              Copied from above. Doesn't make sense to me (MDB).
+               DO K=1,4
+                  TRCLTA(K) = TRCLTA(K)-PHKK(K,II)
+               ENDDO
+            ENDIF
+         ENDDO
+         IREST = 0
+         IF (IREMNUC.NE.2) 
+     &        STOP("FATAL in DT_SCN4BA: Expected 2 spectator nucleons.")
       ENDIF
 
 * get nuclear potential corresp. to the residual nucleus
@@ -13014,6 +13067,12 @@ C     IF (AFERT.GT.0.85D0) AFERT = 0.85D0
      &                NRESPB(2),NRESCH(2),NRESEV(4),
      &                NEVA(2,6),NEVAGA(2),NEVAHT(2),NEVAHY(2,2,240),
      &                NEVAFI(2,2)
+
+* nuclear potential
+      LOGICAL LFERMI
+      COMMON /DTNPOT/ PFERMP(2),PFERMN(2),FERMOD,
+     &                EBINDP(2),EBINDN(2),EPOT(2,210),
+     &                ETACOU(2),EUNBIND,ICOUL,LFERMI
 
 C* flags for input different options
 C      LOGICAL LEMCCK,LHADRO,LSEADI,LEVAPO
@@ -13198,6 +13257,14 @@ c     &                  +EMVGEV*EXMSAZ(AIF(I),AIZF(I),.TRUE.,IZDUM)
             ENDIF
 
 * masses of residual nuclei
+* MDB Add optional "unbinding energy" to handle cases like A=3
+            IF (I.EQ.2 .AND. EUNBIND.GT.TINY10) THEN
+C              Boost to IRF
+               CALL DT_LTNUC(PRCL(I,3),PRCL(I,4),PZCMTMP,ECMTMP,-3)
+               ECMTMP = ECMTMP + EUNBIND
+C              Boost back to naive HCMS
+               CALL DT_LTNUC(PZCMTMP, ECMTMP,PRCL(I,3),PRCL(I,4),3)
+            ENDIF
             PTORCL   = SQRT(PRCL(I,1)**2+PRCL(I,2)**2+PRCL(I,3)**2)
             AMRCL(I) = (PRCL(I,4)-PTORCL)*(PRCL(I,4)+PTORCL)
             IF (AMRCL(I).GT.ZERO) AMRCL(I) = SQRT(AMRCL(I))
