@@ -5506,12 +5506,18 @@ C     already samples high momentum for deuteron.
             LSTART = .FALSE.
          ENDIF
     1    CONTINUE
-         ! Use IFMDIST, 3rd varaible in control card of FERMI, to switch between
-         ! different k momentum distributions
-
-         IF ((NMASS.GE.2) .AND. (NMASS.LE.4) .AND. (IFMDIST.GE.1) ) THEN
+         ! Use IFMDIST, 3rd varaible in control card of FERMI, 
+         ! 1.) -1 is the default DPMJet setting
+         ! 2.) 0 is most up-to-date AND suggested version with fermi momentum based on
+         !     Claudio Ciofi & S. Simula PRC paper
+         ! 3.) >=1, are reserved for other distributions for now.
+         !     See DT_KFERMI COMMENT for details.
+         
+         IF ((NMASS.GE.2) .AND. (NMASS.LE.4) .AND. (IFMDIST.GE.0) ) THEN
             CALL DT_KFERMI(PABS,NMASS,IFMDIST)
-         ELSE
+         ELSE IF ( (IFMDIST .EQ. -1) ) THEN
+            CALL DT_DFERMIO(PABS,NMASS)
+         ELSE IF ( (NMASS.GT.4) .AND. (IFMDIST.GE.0) ) THEN
             CALL DT_DFERMI(PABS,NMASS)
          ENDIF
          PABS = PFERM*PABS
@@ -17971,35 +17977,45 @@ C     SID = SQRT((ONE-COD)*(ONE+COD))
       RETURN
       END
 
+
+*$ CREATE DT_DFERMIO.FOR
+*COPY DT_DFERMIO
+*
+*===dfermi=============================================================*
+*
+      SUBROUTINE DT_DFERMIO(GPART)
+
+************************************************************************
+* Find largest of three random numbers.                                *
+************************************************************************
+
+      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
+      SAVE
+
+      DIMENSION G(3)
+
+      DO 10 I=1,3
+        G(I)=DT_RNDM(GPART)
+  
+   10 CONTINUE
+      IF (G(3).LT.G(2)) GOTO 40
+      IF (G(3).LT.G(1)) GOTO 30
+      GPART = G(3)
+   20 RETURN
+   30 GPART = G(1)
+      GOTO 20
+   40 IF (G(2).LT.G(1)) GOTO 30
+      GPART = G(2)
+      GOTO 20
+
+      END
+
 *$ CREATE DT_DFERMI.FOR
 *COPY DT_DFERMI
 *
 *===dfermi=============================================================*
 *
       SUBROUTINE DT_DFERMI(GPART,ANUCLEUS)
-
-************************************************************************
-* Find largest of three random numbers.                                *
-************************************************************************
-
-C       IMPLICIT DOUBLE PRECISION (A-H,O-Z)
-C       SAVE
-
-C       DIMENSION G(3)
-
-C       DO 10 I=1,3
-C         G(I)=DT_RNDM(GPART)
-   
-C    10 CONTINUE
-C       IF (G(3).LT.G(2)) GOTO 40
-C       IF (G(3).LT.G(1)) GOTO 30
-C       GPART = G(3)
-C    20 RETURN
-C    30 GPART = G(1)
-C       GOTO 20
-C    40 IF (G(2).LT.G(1)) GOTO 30
-C       GPART = G(2)
-C       GOTO 20
 
 ************************************************************************
 * Use n(k) in Claudio Ciofi & S. Simula, PRC VOLUME 53, NUMBER 4, 1996.                                *
@@ -18153,16 +18169,32 @@ C     Random number generation between 0 and 1
 C     Random number generation between 0.993 and 1, to select higher k 
 C     momentum tail as for k > 3 fm**-1
       D = 0.993D0 + (1.0D0-0.993D0)*C  
-C      D = 0.993D0 + (1.0D0-0.993D0)*DT_RNDM(GGPART)  
-C     Different n(k) distribution.  
-C     11, 12, 13, 14 are alt 1, 2, 3, 4, respectively.
-C     NN is normalization to unity.
-C     1 and 3 are the same, where 3 turns on "MOVING"
-C     2 is > 0.993 cross section
-C     4 and 5 are heavy tails, where 5 turns on "MOVING" for A>12
+
+
+C     Instructions on SETTING different KRANGE or IFMDIST
+
+C     - 0 is the most recommended settings for all A>=2, other numbers below are 
+C     reserved for other distributions or uses.
+
+C     - 1 and 3 are NOW the same with 0, where 3 turns on "MOVING". 
+C       "MOVING" study is NOT completed yet.
+
+C     - 2 is > 0.993 cross section of the n(k)
+
+C     - 4 and 5 are heavy tails, where 5 turns on "MOVING" for A>12
+
+C     - Different n(k) distribution.  
+C       11, 12, 13, 14 are alt distributions different from default n(k).
+C       11-14, from smaller tail to larger tail.
+C       NN is normalization to unity.
+
 
       E = C
-      IF( (KRANGE .EQ. 1) .OR. (KRANGE .EQ. 3)  ) THEN ! 
+      IF( KRANGE .EQ. 0 ) THEN
+        E = C
+        B2 = 0.220D0
+        NN = 1.0D0
+      ELSE IF( (KRANGE .EQ. 1) .OR. (KRANGE .EQ. 3)  ) THEN ! 
         E = C
         B2 = 0.220D0
         NN = 1.0D0
