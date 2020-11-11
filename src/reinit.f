@@ -10,6 +10,8 @@ C
 
       INTEGER NEWID
 
+      DOUBLE PRECISION Mnucl, pbeamE
+
 C      INTEGER NCALLS
 C      DATA NCALLS /0/
 C      SAVE NCALLS
@@ -41,6 +43,10 @@ C      SAVE NCALLS
          WRITE(*,*) "FATAL ERROR: Can't initialize with ID: ",NEWID
          STOP 'FATAL ERROR IN REINIT'
       ENDIF
+
+      pbeamE=sqrt(pbeamdbl**2+Mnucl**2)
+      pbeta=pbeamdbl/pbeamE
+      pgamma=pbeamE/Mnucl
  
 C Note: Radgen not tested in BeAGLE
 C Does it need reinitializing?

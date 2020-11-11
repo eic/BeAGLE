@@ -9,7 +9,9 @@ MAIN = user-eA3.0-5
 #64 bit
 CXX      = gfortran
 #
-CXXFLAGS = -c -g -Wall -m64 -fno-inline -fno-automatic
+CXXFLAGS = -c -g -Wall -m64 -fno-inline -fno-automatic -fno-align-commons
+CXXFLAGS +=  -Wno-unused-parameter -Wno-unused-dummy-argument
+CXXFLAGS +=  -Wno-unused
 LD = $(CXX) -g -m64 
 
 ##################directories###############################

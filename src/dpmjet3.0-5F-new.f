@@ -454,8 +454,8 @@ C1000 FORMAT(A10,6E10.0,A8)
 
   110 CONTINUE
       IF (SDUM.EQ.BLANK) THEN
-         IP     = INT(WHAT(1))
-         IPZ    = INT(WHAT(2))
+         IP     = NINT(WHAT(1))
+         IPZ    = NINT(WHAT(2))
          IJPROJ = 1
          IBPROJ = 1
       ELSE
@@ -691,8 +691,8 @@ C      GMA = E/AAM(1)
             WRITE(LOUT,1600)
             STOP
          ENDIF
-         IEMUMA(NCOMPO) = INT(WHAT(1))
-         IEMUCH(NCOMPO) = INT(WHAT(2))
+         IEMUMA(NCOMPO) = NINT(WHAT(1))
+         IEMUCH(NCOMPO) = NINT(WHAT(2))
          EMUFRA(NCOMPO) = WHAT(3)
          IEMUL = 1
 C        CALL SHMAKF(IDUM,IDUM,IEMUMA(NCOMPO),IEMUCH(NCOMPO))
@@ -704,8 +704,8 @@ C        CALL SHMAKF(IDUM,IDUM,IEMUMA(NCOMPO),IEMUCH(NCOMPO))
             WRITE(LOUT,1001)
             STOP
          ENDIF
-         IEMUMA(NCOMPO) = INT(WHAT(4))
-         IEMUCH(NCOMPO) = INT(WHAT(5))
+         IEMUMA(NCOMPO) = NINT(WHAT(4))
+         IEMUCH(NCOMPO) = NINT(WHAT(5))
          EMUFRA(NCOMPO) = WHAT(6)
 C        CALL SHMAKF(IDUM,IDUM,IEMUMA(NCOMPO),IEMUCH(NCOMPO))
       ENDIF
@@ -794,12 +794,12 @@ C        CALL SHMAKF(IDUM,IDUM,IEMUMA(NCOMPO),IEMUCH(NCOMPO))
 
   180 CONTINUE
       TAUFOR = WHAT(1)
-      KTAUGE = INT(WHAT(2))
+      KTAUGE = NINT(WHAT(2))
       INCMOD = 1
       IF ((WHAT(3).GE.1.0D0).AND.(WHAT(3).LE.2.0D0))
-     &                                    ITAUVE = INT(WHAT(3))
+     &                                    ITAUVE = NINT(WHAT(3))
       IF ((WHAT(4).GE.1.0D0).AND.(WHAT(4).LE.3.0D0))
-     &                                    INCMOD = INT(WHAT(4))
+     &                                    INCMOD = NINT(WHAT(4))
       IF (IT.EQ.3 .AND. KTAUGE.GT.0) THEN
          WRITE(LOUT,*) 
          WRITE(LOUT,*) 'WARNING!'
@@ -843,7 +843,7 @@ C        CALL SHMAKF(IDUM,IDUM,IEMUMA(NCOMPO),IEMUCH(NCOMPO))
 
   200 CONTINUE
       ICOUL = 1
-      IF (WHAT(1).EQ.-1.0D0) THEN
+      IF (NINT(WHAT(1)).EQ.-1) THEN
          ICOUL = 0
       ELSE
          ICOUL = 1
@@ -869,7 +869,7 @@ C        CALL SHMAKF(IDUM,IDUM,IEMUMA(NCOMPO),IEMUCH(NCOMPO))
 *********************************************************************
 
   210 CONTINUE
-      IWHAT = INT(WHAT(1))
+      IWHAT = NINT(WHAT(1))
       IF ((IWHAT.GE.0).AND.(IWHAT.LE.2)) INTHAD = IWHAT
       IF ((WHAT(2).GT.ZERO).AND.(WHAT(2).LT.15.0D0)) EHADTH = WHAT(2)
       GOTO 10
@@ -938,7 +938,7 @@ C        CALL SHMAKF(IDUM,IDUM,IEMUMA(NCOMPO),IEMUCH(NCOMPO))
 *********************************************************************
 
  220  CONTINUE
-      IF (WHAT(1).LE.-1.0D0) THEN
+      IF (NINT(WHAT(1)).LE.-1) THEN
          LEVPRT = .FALSE.
          LDEEXG = .FALSE.
          LHEAVY = .FALSE.
@@ -1010,7 +1010,7 @@ C        END IF
 *********************************************************************
 
   230 CONTINUE
-      IF (WHAT(1).EQ.-1) THEN
+      IF (NINT(WHAT(1)).EQ.-1) THEN
          LEMCCK = .FALSE.
       ELSE
          LEMCCK = .TRUE.
@@ -1264,7 +1264,7 @@ C    &              IP,IT,PPN,SIGAV/DBLE(NEVFIT),XPARA
 
  270  CONTINUE
       IFLUCT = 0
-      IF (WHAT(1).EQ.ONE) THEN
+      IF (NINT(WHAT(1)).EQ.1) THEN
          IFLUCT = 1
          CALL DT_FLUINI
       ENDIF
@@ -1288,7 +1288,7 @@ C    &              IP,IT,PPN,SIGAV/DBLE(NEVFIT),XPARA
 *********************************************************************
 
   280 CONTINUE
-      ICENTR = INT(WHAT(1))
+      ICENTR = NINT(WHAT(1))
       IF (ICENTR.LT.0) THEN
          IF (ICENTR.GT.-100) THEN
             BIMIN = WHAT(2)
@@ -1313,7 +1313,7 @@ C    &              IP,IT,PPN,SIGAV/DBLE(NEVFIT),XPARA
 
   290 CONTINUE
       IRECOM = 1
-      IF (WHAT(1).EQ.-1.0D0) IRECOM = 0
+      IF (NINT(WHAT(1)).EQ.-1) IRECOM = 0
       GOTO 10
 
 *********************************************************************
@@ -1333,7 +1333,7 @@ C    &              IP,IT,PPN,SIGAV/DBLE(NEVFIT),XPARA
 
   300 CONTINUE
       LCO2CR = .FALSE.
-      IF (INT(WHAT(1)).EQ.1) LCO2CR = .TRUE.
+      IF (NINT(WHAT(1)).EQ.1) LCO2CR = .TRUE.
       IF (WHAT(2).GE.ZERO) CUTOF = WHAT(2)
       GOTO 10
 
@@ -1381,7 +1381,7 @@ C    &              IP,IT,PPN,SIGAV/DBLE(NEVFIT),XPARA
 *********************************************************************
 
   320 CONTINUE
-      IF (WHAT(1).EQ.-1.0D0) THEN
+      IF (NINT(WHAT(1)).EQ.-1) THEN
          LINTPT = .FALSE.
       ELSE
          LINTPT = .TRUE.
@@ -1401,7 +1401,7 @@ C    &              IP,IT,PPN,SIGAV/DBLE(NEVFIT),XPARA
 *********************************************************************
 
   330 CONTINUE
-      IF (WHAT(1).EQ.-1.0D0) THEN
+      IF (NINT(WHAT(1)).EQ.-1) THEN
          MKCRON = 0
       ELSE
          MKCRON = 1
@@ -1461,7 +1461,7 @@ C    &              IP,IT,PPN,SIGAV/DBLE(NEVFIT),XPARA
 *********************************************************************
 
  360  CONTINUE
-      IF (WHAT(1).EQ.-1.0D0) THEN
+      IF (NINT(WHAT(1)).EQ.-1) THEN
          LSEADI = .FALSE.
       ELSE
          LSEADI = .TRUE.
@@ -1490,9 +1490,9 @@ C    &              IP,IT,PPN,SIGAV/DBLE(NEVFIT),XPARA
       IRESCO = 1
       IMSHL  = 1
       IRESRJ = 0
-      IF (WHAT(1).EQ.-ONE) IRESCO = 0
-      IF (WHAT(2).EQ.-ONE) IMSHL  = 0
-      IF (WHAT(3).EQ.-ONE) IRESRJ = 1
+      IF (NINT(WHAT(1)).EQ.-1) IRESCO = 0
+      IF (NINT(WHAT(2)).EQ.-1) IMSHL  = 0
+      IF (NINT(WHAT(3)).EQ.-1) IRESRJ = 1
       GOTO 10
 
 *********************************************************************
@@ -1523,8 +1523,8 @@ C    &              IP,IT,PPN,SIGAV/DBLE(NEVFIT),XPARA
 *********************************************************************
 
   380 CONTINUE
-      IF (ABS(WHAT(1)).GT.ZERO) ISINGD = INT(WHAT(1))
-      IF (ABS(WHAT(2)).GT.ZERO) IDOUBD = INT(WHAT(2))
+      IF (ABS(WHAT(1)).GT.ZERO) ISINGD = NINT(WHAT(1))
+      IF (ABS(WHAT(2)).GT.ZERO) IDOUBD = NINT(WHAT(2))
       IF ((ISINGD.GT.1).AND.(IDOUBD.GT.1)) THEN
          WRITE(LOUT,1380)
  1380    FORMAT(1X,'INIT:   inconsistent DIFFRACT - input !',/,
@@ -1547,7 +1547,7 @@ C    &              IP,IT,PPN,SIGAV/DBLE(NEVFIT),XPARA
 
  390  CONTINUE
       ISICHA = 0
-      IF (WHAT(1).EQ.ONE) ISICHA = 1
+      IF (NINT(WHAT(1)).EQ.1) ISICHA = 1
       GOTO 10
 
 *********************************************************************
@@ -1572,7 +1572,7 @@ C    &              IP,IT,PPN,SIGAV/DBLE(NEVFIT),XPARA
 
   400 CONTINUE
       DO 401 I=1,6
-         ICHAIN = INT(WHAT(I))
+         ICHAIN = NINT(WHAT(I))
          IF ((ICHAIN.LE.-1).AND.(ICHAIN.GE.-9))
      &      LHADRO(ABS(ICHAIN)) = .FALSE.
   401 CONTINUE
@@ -1597,8 +1597,8 @@ C    &              IP,IT,PPN,SIGAV/DBLE(NEVFIT),XPARA
 *********************************************************************
 
   410 CONTINUE
-      IWHAT1 = INT(WHAT(1))
-      IWHAT2 = INT(WHAT(2))
+      IWHAT1 = NINT(WHAT(1))
+      IWHAT2 = NINT(WHAT(2))
       IF ((IWHAT1.EQ.1).OR.(IWHAT1.EQ.2)) IFRAG(1) = IWHAT1
       IF ((IWHAT1.EQ.2).AND.(IWHAT2.GE.1).AND.(IWHAT2.LE.3))
      &                                    IFRAG(2) = IWHAT2
@@ -1649,8 +1649,8 @@ C    &              IP,IT,PPN,SIGAV/DBLE(NEVFIT),XPARA
 *********************************************************************
 
  430  CONTINUE
-      IF (WHAT(1).EQ.ONE)  ISIG0 = 1
-      IF (WHAT(1).EQ.2.0D0) IPI0 = 1
+      IF (NINT(WHAT(1)).EQ.1)  ISIG0 = 1
+      IF (NINT(WHAT(1)).EQ.2) IPI0 = 1
       GOTO 10
 
 *********************************************************************
@@ -1700,18 +1700,18 @@ C    &              IP,IT,PPN,SIGAV/DBLE(NEVFIT),XPARA
   450 CONTINUE
       IF (WHAT(1).GT.ZERO) THEN
          NMSTU = NMSTU+1
-         IMSTU(NMSTU) = INT(WHAT(1))
-         MSTUX(NMSTU) = INT(WHAT(2))
+         IMSTU(NMSTU) = NINT(WHAT(1))
+         MSTUX(NMSTU) = NINT(WHAT(2))
       ENDIF
       IF (WHAT(3).GT.ZERO) THEN
          NMSTU = NMSTU+1
-         IMSTU(NMSTU) = INT(WHAT(3))
-         MSTUX(NMSTU) = INT(WHAT(4))
+         IMSTU(NMSTU) = NINT(WHAT(3))
+         MSTUX(NMSTU) = NINT(WHAT(4))
       ENDIF
       IF (WHAT(5).GT.ZERO) THEN
          NMSTU = NMSTU+1
-         IMSTU(NMSTU) = INT(WHAT(5))
-         MSTUX(NMSTU) = INT(WHAT(6))
+         IMSTU(NMSTU) = NINT(WHAT(5))
+         MSTUX(NMSTU) = NINT(WHAT(6))
       ENDIF
       GOTO 10
 
@@ -1734,18 +1734,18 @@ C    &              IP,IT,PPN,SIGAV/DBLE(NEVFIT),XPARA
   451 CONTINUE
       IF (WHAT(1).GT.ZERO) THEN
          NMSTJ = NMSTJ+1
-         IMSTJ(NMSTJ) = INT(WHAT(1))
-         MSTJX(NMSTJ) = INT(WHAT(2))
+         IMSTJ(NMSTJ) = NINT(WHAT(1))
+         MSTJX(NMSTJ) = NINT(WHAT(2))
       ENDIF
       IF (WHAT(3).GT.ZERO) THEN
          NMSTJ = NMSTJ+1
-         IMSTJ(NMSTJ) = INT(WHAT(3))
-         MSTJX(NMSTJ) = INT(WHAT(4))
+         IMSTJ(NMSTJ) = NINT(WHAT(3))
+         MSTJX(NMSTJ) = NINT(WHAT(4))
       ENDIF
       IF (WHAT(5).GT.ZERO) THEN
          NMSTJ = NMSTJ+1
-         IMSTJ(NMSTJ) = INT(WHAT(5))
-         MSTJX(NMSTJ) = INT(WHAT(6))
+         IMSTJ(NMSTJ) = NINT(WHAT(5))
+         MSTJX(NMSTJ) = NINT(WHAT(6))
       ENDIF
       GOTO 10
 
@@ -1767,7 +1767,7 @@ C    &              IP,IT,PPN,SIGAV/DBLE(NEVFIT),XPARA
       DO 4521 I=1,6
          IF (WHAT(I).NE.ZERO) THEN
 
-            KC = PYCOMP(INT(WHAT(I)))
+            KC = PYCOMP(NINT(WHAT(I)))
 
             MDCY(KC,1) = 0
          ENDIF
@@ -1791,19 +1791,19 @@ C    &              IP,IT,PPN,SIGAV/DBLE(NEVFIT),XPARA
 *********************************************************************
 
   460 CONTINUE
-      IF (WHAT(1).NE.ZERO) THEN
+      IF (NINT(WHAT(1)).NE.0) THEN
          NPARJ = NPARJ+1
-         IPARJ(NPARJ) = INT(WHAT(1))
+         IPARJ(NPARJ) = NINT(WHAT(1))
          PARJX(NPARJ) = WHAT(2)
       ENDIF
-      IF (WHAT(3).NE.ZERO) THEN
+      IF (NINT(WHAT(3)).NE.0) THEN
          NPARJ = NPARJ+1
-         IPARJ(NPARJ) = INT(WHAT(3))
+         IPARJ(NPARJ) = NINT(WHAT(3))
          PARJX(NPARJ) = WHAT(4)
       ENDIF
-      IF (WHAT(5).NE.ZERO) THEN
+      IF (NINT(WHAT(5)).NE.0) THEN
          NPARJ = NPARJ+1
-         IPARJ(NPARJ) = INT(WHAT(5))
+         IPARJ(NPARJ) = NINT(WHAT(5))
          PARJX(NPARJ) = WHAT(6)
       ENDIF
       GOTO 10
@@ -1825,19 +1825,19 @@ C    &              IP,IT,PPN,SIGAV/DBLE(NEVFIT),XPARA
 *********************************************************************
 
   470 CONTINUE
-      IF (WHAT(1).GT.ZERO) THEN
+      IF (NINT(WHAT(1)).GT.0) THEN
          NPARU = NPARU+1
-         IPARU(NPARU) = INT(WHAT(1))
+         IPARU(NPARU) = NINT(WHAT(1))
          PARUX(NPARU) = WHAT(2)
       ENDIF
-      IF (WHAT(3).GT.ZERO) THEN
+      IF (NINT(WHAT(3)).GT.0) THEN
          NPARU = NPARU+1
-         IPARU(NPARU) = INT(WHAT(3))
+         IPARU(NPARU) = NINT(WHAT(3))
          PARUX(NPARU) = WHAT(4)
       ENDIF
-      IF (WHAT(5).GT.ZERO) THEN
+      IF (NINT(WHAT(5)).GT.0) THEN
          NPARU = NPARU+1
-         IPARU(NPARU) = INT(WHAT(5))
+         IPARU(NPARU) = NINT(WHAT(5))
          PARUX(NPARU) = WHAT(6)
       ENDIF
       GOTO 10
@@ -1860,7 +1860,7 @@ C    &              IP,IT,PPN,SIGAV/DBLE(NEVFIT),XPARA
 
   480 CONTINUE
       DO 481 K=1,6
-         IOULEV(K) = INT(WHAT(K))
+         IOULEV(K) = NINT(WHAT(K))
   481 CONTINUE
       PYQ_VERB = IOULEV(6)
       GOTO 10
@@ -1878,7 +1878,7 @@ C    &              IP,IT,PPN,SIGAV/DBLE(NEVFIT),XPARA
 *********************************************************************
 
   490 CONTINUE
-      KFRAME = INT(WHAT(1))
+      KFRAME = NINT(WHAT(1))
       IF ((KFRAME.GE.1).AND.(KFRAME.LE.2)) IFRAME = KFRAME
       GOTO 10
 
@@ -1983,10 +1983,14 @@ C    &              IP,IT,PPN,SIGAV/DBLE(NEVFIT),XPARA
 
   530 CONTINUE
       IF (WHAT(1).GE.ZERO) RL2 = WHAT(1)
-      IF ((WHAT(2).GE.1).AND.(WHAT(2).LE.3)) INTRGE(1) = INT(WHAT(2))
-      IF ((WHAT(3).GE.1).AND.(WHAT(3).LE.3)) INTRGE(2) = INT(WHAT(3))
-      IF ((WHAT(4).EQ.2212).OR.(WHAT(4).EQ.100)) IDPDF = INT(WHAT(4))
-      IF ((WHAT(5).GE.1).AND.(WHAT(5).LE.4)) MODEGA = INT(WHAT(5))
+      IW2 = NINT(WHAT(2))
+      IW3 = NINT(WHAT(3))
+      IW4 = NINT(WHAT(4))
+      IW5 = NINT(WHAT(5))
+      IF ((IW2.GE.1).AND.(IW2.LE.3)) INTRGE(1) = IW2
+      IF ((IW3.GE.1).AND.(IW3.LE.3)) INTRGE(2) = IW3
+      IF ((IW4.EQ.2212).OR.(IW4.EQ.100)) IDPDF = IW4
+      IF ((IW5.GE.1).AND.(IW5.LE.4)) MODEGA = IW5
       GOTO 10
 
 *********************************************************************
@@ -2001,11 +2005,12 @@ C    &              IP,IT,PPN,SIGAV/DBLE(NEVFIT),XPARA
 
   540 CONTINUE
       DO 541 J=1,6
-         IF ((WHAT(J).GE.100).AND.(WHAT(J).LE.150)) THEN
-            IHISPP(INT(WHAT(J))-100) = 1
-         ELSEIF ((ABS(WHAT(J)).GE.200).AND.(ABS(WHAT(J)).LE.250)) THEN
-            IHISXS(INT(ABS(WHAT(J)))-200) = 1
-            IF (WHAT(J).LT.ZERO) IXSTBL = 1
+         IF ((NINT(WHAT(J)).GE.100).AND.(NINT(WHAT(J)).LE.150)) THEN
+            IHISPP(NINT(WHAT(J))-100) = 1
+         ELSEIF ((NINT(ABS(WHAT(J))).GE.200).AND.
+     &           (NINT(ABS(WHAT(J))).LE.250)) THEN
+            IHISXS(NINT(ABS(WHAT(J)))-200) = 1
+            IF (NINT(WHAT(J)).LT.ZERO) IXSTBL = 1
          ENDIF
   541 CONTINUE
       GOTO 10
@@ -2034,7 +2039,7 @@ C    &              IP,IT,PPN,SIGAV/DBLE(NEVFIT),XPARA
 
   550 CONTINUE
       IF (WHAT(1).EQ.99999.0D0) THEN
-         IRATIO = INT(WHAT(2))
+         IRATIO = NINT(WHAT(2))
          GOTO 10
       ENDIF
       CMENER = ABS(WHAT(2))
@@ -2085,11 +2090,11 @@ C        WRITE(LOUT,*) 'CMENER = ',CMENER
 *********************************************************************
 
   560 CONTINUE
-      IF (WHAT(1).GT.ZERO) JSTATB = INT(WHAT(1))
-      IF (WHAT(2).GT.ZERO) JBINSB = INT(WHAT(2))
+      IF (WHAT(1).GT.ZERO) JSTATB = NINT(WHAT(1))
+      IF (WHAT(2).GT.ZERO) JBINSB = NINT(WHAT(2))
       IF (WHAT(3).EQ.ONE) LPROD = .FALSE.
-      IF ((ABS(WHAT(4)).EQ.ONE).OR.(WHAT(4).EQ.100)) THEN
-         IOGLB = INT(WHAT(4))
+      IF ((NINT(ABS(WHAT(4))).EQ.1).OR.(NINT(WHAT(4)).EQ.100)) THEN
+         IOGLB = NINT(WHAT(4))
          CGLB  = SDUM
       ENDIF
       GOTO 10
@@ -2196,9 +2201,12 @@ C        WRITE(LOUT,*) 'CMENER = ',CMENER
 *********************************************************************
 
   570 CONTINUE
-      IF ((WHAT(1).EQ.ZERO).OR.(WHAT(1).EQ.ONE)) ISHAD(1) = INT(WHAT(1))
-      IF ((WHAT(2).EQ.ZERO).OR.(WHAT(2).EQ.ONE)) ISHAD(2) = INT(WHAT(2))
-      IF ((WHAT(3).EQ.ZERO).OR.(WHAT(3).EQ.ONE)) ISHAD(3) = INT(WHAT(3))
+      IW1 = NINT(WHAT(1))
+      IW2 = NINT(WHAT(2))
+      IW3 = NINT(WHAT(3))
+      IF ((IW1.EQ.0).OR.(IW1.EQ.1)) ISHAD(1) = IW1
+      IF ((IW2.EQ.0).OR.(IW2.EQ.1)) ISHAD(2) = IW2
+      IF ((IW3.EQ.0).OR.(IW3.EQ.1)) ISHAD(3) = IW3
       EPSPOL  = WHAT(4)
       GOTO 10
 
@@ -2211,7 +2219,7 @@ C        WRITE(LOUT,*) 'CMENER = ',CMENER
 *********************************************************************
 
   580 CONTINUE
-      IXSQEL = ABS(WHAT(1))
+      IXSQEL = NINT(ABS(WHAT(1)))
       GOTO 10
 
 *********************************************************************
@@ -2265,9 +2273,9 @@ C        WRITE(LOUT,*) 'CMENER = ',CMENER
 *********************************************************************
 
   600 CONTINUE
-      IF (WHAT(1).GT.ZERO) CUT(INT(WHAT(1))) = WHAT(2)
-      IF (WHAT(3).GT.ZERO) CUT(INT(WHAT(3))) = WHAT(4)
-      IF (WHAT(5).GT.ZERO) CUT(INT(WHAT(5))) = WHAT(6)
+      IF (NINT(WHAT(1)).GT.ZERO) CUT(NINT(WHAT(1))) = WHAT(2)
+      IF (NINT(WHAT(3)).GT.ZERO) CUT(NINT(WHAT(3))) = WHAT(4)
+      IF (NINT(WHAT(5)).GT.ZERO) CUT(NINT(WHAT(5))) = WHAT(6)
       GOTO 10
 
 *********************************************************************
@@ -2286,9 +2294,12 @@ C        WRITE(LOUT,*) 'CMENER = ',CMENER
 *********************************************************************
 
   610 CONTINUE
-      IF (WHAT(1).GT.ZERO) LST(INT(WHAT(1))) = INT(WHAT(2))
-      IF (WHAT(3).GT.ZERO) LST(INT(WHAT(3))) = INT(WHAT(4))
-      IF (WHAT(5).GT.ZERO) LST(INT(WHAT(5))) = INT(WHAT(6))
+      IW1 = NINT(WHAT(1))
+      IW3 = NINT(WHAT(3))
+      IW5 = NINT(WHAT(5))
+      IF (IW1.GT.0) LST(IW1) = NINT(WHAT(2))
+      IF (IW3.GT.0) LST(IW3) = NINT(WHAT(4))
+      IF (IW5.GT.0) LST(IW5) = NINT(WHAT(6))
       GOTO 10
 
 *********************************************************************
@@ -2307,9 +2318,12 @@ C        WRITE(LOUT,*) 'CMENER = ',CMENER
 *********************************************************************
 
   620 CONTINUE
-      IF (WHAT(1).GT.ZERO) PARL(INT(WHAT(1))) = WHAT(2)
-      IF (WHAT(3).GT.ZERO) PARL(INT(WHAT(3))) = WHAT(4)
-      IF (WHAT(5).GT.ZERO) PARL(INT(WHAT(5))) = WHAT(6)
+      IW1 = NINT(WHAT(1))
+      IW3 = NINT(WHAT(3))
+      IW5 = NINT(WHAT(5))
+      IF (IW1.GT.0) PARL(IW1) = WHAT(2)
+      IF (IW3.GT.0) PARL(IW3) = WHAT(4)
+      IF (IW5.GT.0) PARL(IW5) = WHAT(6)
       GOTO 10
 
 *********************************************************************
@@ -2320,10 +2334,10 @@ C        WRITE(LOUT,*) 'CMENER = ',CMENER
 *********************************************************************
   
   621 CONTINUE
-      INSEED = WHAT(1)
-      IJKLIN = WHAT(2)
-      ISEED1 = WHAT(3)
-      ISEED2 = WHAT(4)
+      INSEED = NINT(WHAT(1))
+      IJKLIN = NINT(WHAT(2))
+      ISEED1 = NINT(WHAT(3))
+      ISEED2 = NINT(WHAT(4))
       GOTO 10
 
 *********************************************************************
@@ -2417,7 +2431,6 @@ C        WRITE(LOUT,*) 'CMENER = ',CMENER
          WRITE(*,*) 'USERSET 3 selected. Variable definition:'
          WRITE(*,*) '          USER1 = Fermi-corrected W2'
          WRITE(*,*) '          USER2 = W2try/W2corr - 1  after scaling'
-C         WRITE(*,*) '          USER3 = # of "partons"'
          WRITE(*,*) '          USER3 = # of iterations'
       ELSEIF (USERSET.EQ.4) THEN
          WRITE(*,*) 'USERSET 4 selected. Nuclear longitudinal axis',
@@ -2434,7 +2447,6 @@ C         WRITE(*,*) '          USER3 = # of "partons"'
          WRITE(*,*) 'USERSET 6 selected. Variable definition:'
          WRITE(*,*) '          USER1 = D2-corrected W2full'
          WRITE(*,*) '          USER2 = W2try/W2corr - 1  after scaling'
-C         WRITE(*,*) '          USER3 = # of "partons"'
          WRITE(*,*) '          USER3 = # of iterations'
       ELSEIF (USERSET.EQ.7) THEN
          WRITE(*,*) 'USERSET 7 selected. fermi debug'
@@ -2624,9 +2636,9 @@ C....added by liang--
 * check for cross-section table output only
       IF (LXSTAB) STOP
 
-      NCASES = INT(WHAT(1))
+      NCASES = NINT(WHAT(1))
       IF (NCASES.LE.0 .AND. MCGENE.LT.7) NCASES = 100
-      IGLAU = INT(WHAT(2))
+      IGLAU = NINT(WHAT(2))
       IF ((IGLAU.NE.1).AND.(IGLAU.NE.2).AND.(IGLAU.NE.3))
      &                                            IGLAU = 0
 
@@ -5188,7 +5200,7 @@ C            ENDIF
 
       !active nucleon
       ANMT2 = PHKK(5,IIMAIN)*PHKK(5,IIMAIN) +
-     & + PHKK(1,IIMAIN)*PHKK(1,IIMAIN) + PHKK(2,IIMAIN)*PHKK(2,IIMAIN)
+     & PHKK(1,IIMAIN)*PHKK(1,IIMAIN) + PHKK(2,IIMAIN)*PHKK(2,IIMAIN)
 
       !Only modify the E and pz. Note that pz has a opposite sign
       !comparing to the paper because of the opposite convensions. 
@@ -5198,7 +5210,7 @@ C            ENDIF
 
       !spectator nucleon
       SNMT2 = PHKK(5,K)*PHKK(5,K) +
-     & + PHKK(1,K)*PHKK(1,K) + PHKK(2,K)*PHKK(2,K)
+     & PHKK(1,K)*PHKK(1,K) + PHKK(2,K)*PHKK(2,K)
 
       PHKK(4,K) = (ALPHA_SN*Md)/4.0D0 + SNMT2/(ALPHA_SN*Md)
       PHKK(3,K) = -(ALPHA_SN*Md)/4.0D0 + SNMT2/(ALPHA_SN*Md)
@@ -5516,7 +5528,7 @@ C     already samples high momentum for deuteron.
          IF ((NMASS.GE.2) .AND. (NMASS.LE.4) .AND. (IFMDIST.GE.0) ) THEN
             CALL DT_KFERMI(PABS,NMASS,IFMDIST)
          ELSE IF ( (IFMDIST .EQ. -1) ) THEN
-            CALL DT_DFERMIO(PABS,NMASS)
+            CALL DT_DFERMIO(PABS)
          ELSE IF ( (NMASS.GT.4) .AND. (IFMDIST.GE.0) ) THEN
             CALL DT_DFERMI(PABS,NMASS)
          ENDIF
@@ -11448,7 +11460,7 @@ C     &                LEMCCK,LHADRO(0:9),LSEADI,LEVAPO,IFRAME,ITRSPT
             IDFSP(2) = IDSPE(2)
          ELSEIF (IDCAS.EQ.16) THEN
 *   K- absorption
-            R = DT_RNDM(PCAS)
+            R = DT_RNDM(PCAS(1))
             IF ((IDSPE(1).EQ.1).AND.(IDSPE(2).EQ.1)) THEN
                IF (R.LT.ONETHI) THEN
                   IDFSP(1) = 21
@@ -18026,6 +18038,7 @@ C Anything between Fe and Pb will be Pb n(k), similar for other nucleus.
       IMPLICIT DOUBLE PRECISION (A-H,O-Z)
       SAVE
       
+      INTEGER ANUCLEUS
       DOUBLE PRECISION X0,Z0,Z1,Z2,A0,B0,C0,D0,E0,F0,CDFN,
      &     CDF,CDFPLUS,CDFMINUS
       DOUBLE PRECISION CDFT(1:10000)
@@ -18141,6 +18154,8 @@ C     Random number generation between 0 and 1
 
       IMPLICIT DOUBLE PRECISION (A-H,O-Z)
       SAVE
+
+      INTEGER ANUCLEUS
 
       DOUBLE PRECISION X0,Z0,Z1,Z2,A0,B0,C0,A1,B1,C1,A2,B2,C2,NN,CDFN,
      &     CDF,CDFPLUS,CDFMINUS
@@ -18590,7 +18605,7 @@ C    &    0,  0,  0,   2,  2,  3,   1,  1,  3,
          ID = ITAB(K,IDBAMJ)
       ELSE
          IF(IDOLD.NE.IDBAMJ) THEN
-            IT = AINT((ITAB(2,IDBAMJ)-ITAB(1,IDBAMJ)+0.999999D0)*
+            IT = NINT((ITAB(2,IDBAMJ)-ITAB(1,IDBAMJ)+0.999999D0)*
      &           DT_RNDM(ONE)+ITAB(1,IDBAMJ))
         ELSE
            IDOLD = 0
