@@ -4,7 +4,7 @@ C...All real arithmetic in double precision.
 C      IMPLICIT DOUBLE PRECISION(A-H, O-Z)
 C      IMPLICIT INTEGER(I-N)
 
-      INTEGER NMXHKK  	
+      INTEGER NMXHKK
       PARAMETER (NMXHKK=200000)
 
 * event history   

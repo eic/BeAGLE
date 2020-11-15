@@ -626,7 +626,7 @@ C...Switches for nuclear correction
 
       EXTERNAL ANEAR
       DOUBLE PRECISION ATEMP
-      CHARACTER*20 chpset
+      CHARACTER*8 chpset
       CHARACTER*20 Nprm
 
 C...Pythia event counter (since we keep PYINITing) Mark 2017-01-31

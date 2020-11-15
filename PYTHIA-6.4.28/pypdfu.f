@@ -47,7 +47,7 @@ C...Switches for nuclear PDF correction
       SAVE /PYNUCL/
       DOUBLE PRECISION INUMOD,CHANUM
       INTEGER ORDER
-      CHARACTER*20 chpset
+      CHARACTER*8 chpset
       CHARACTER*20 Nprm
 
 C...MDB 2016-11-16 Add to pypdfu.f

@@ -1,7 +1,7 @@
 C****************************************************************************
-C	            Quenching Weights for Heavy Quarks 
-C	         (Multiple Soft Scattering Approximation)
-C		             January 26, 2005
+C                Quenching Weights for Heavy Quarks 
+C                (Multiple Soft Scattering Approximation)
+C        	             January 26, 2005
 C
 C       Refs:
 C    N.Armesto, A.Dainese, C.A.Salgado and U.A.Wiedemann, hep-ph/0501225
@@ -18,7 +18,7 @@ C   The input values are rrrr=0.5*q*L^3 and xxxx=DeltaE/wc, where
 C   wc=0.5*q*L^2 and DeltaE is the energy radiated. The output values are
 C   the continuous and discrete (prefactor of the delta function) parts
 C   of the quenching weights.
-C	
+C
 C   In order to use this routine, the files cont_mass_mult.all and 
 C   disc_mass_mult.all need to be in the working directory. 
 C
@@ -29,8 +29,8 @@ C   Please, send us any comment:
 C
 C       nestor.armesto@cern.ch
 C       andrea.dainese@pd.infn.it
-C	carlos.salgado@cern.ch 
-C	urs.wiedemann@cern.ch 
+C       carlos.salgado@cern.ch 
+C       urs.wiedemann@cern.ch 
 C 
 C-----------------------------------------------------------------------------
 

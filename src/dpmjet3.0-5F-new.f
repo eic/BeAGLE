@@ -2010,7 +2010,7 @@ C    &              IP,IT,PPN,SIGAV/DBLE(NEVFIT),XPARA
          ELSEIF ((NINT(ABS(WHAT(J))).GE.200).AND.
      &           (NINT(ABS(WHAT(J))).LE.250)) THEN
             IHISXS(NINT(ABS(WHAT(J)))-200) = 1
-            IF (NINT(WHAT(J)).LT.ZERO) IXSTBL = 1
+            IF (NINT(WHAT(J)).LT.0) IXSTBL = 1
          ENDIF
   541 CONTINUE
       GOTO 10
@@ -2234,25 +2234,29 @@ C        WRITE(LOUT,*) 'CMENER = ',CMENER
 *********************************************************************
 
   590 CONTINUE
-      IF ((WHAT(1).LT.1.0D0).OR.(WHAT(1).GT.168.0D0)) THEN
+      IW1 = NINT(WHAT(1))
+      IW2 = NINT(WHAT(2))
+      IW3 = NINT(WHAT(3))
+      IW4 = NINT(WHAT(4))
+      IF ((IW1.LT.1).OR.(IW1.GT.168)) THEN
          NA1 = 22
       ELSE
-         NA1 = WHAT(1)
+         NA1 = IW1
       ENDIF
-      IF ((WHAT(2).LT.1.0D0).OR.(WHAT(2).GT.168.0D0)) THEN
+      IF ((IW2.LT.1).OR.(IW2.GT.168)) THEN
          NA2 = 54
       ELSE
-         NA2 = WHAT(2)
+         NA2 = IW2
       ENDIF
-      IF ((WHAT(3).LT.1.0D0).OR.(WHAT(3).GT.168.0D0)) THEN
+      IF ((IW3.LT.1).OR.(IW3.GT.168)) THEN
          NA3 = 76
       ELSE
-         NA3 = WHAT(3)
+         NA3 = IW3
       ENDIF
-      IF ((WHAT(4).LT.1.0D0).OR.(WHAT(4).GT.168.0D0)) THEN
+      IF ((IW4.LT.1).OR.(IW4.GT.168)) THEN
          NA4 = 92
       ELSE
-         NA4 = WHAT(4)
+         NA4 = IW4
       ENDIF
       CALL DT_RNDMST(NA1,NA2,NA3,NA4)
       GOTO 10
@@ -2273,9 +2277,9 @@ C        WRITE(LOUT,*) 'CMENER = ',CMENER
 *********************************************************************
 
   600 CONTINUE
-      IF (NINT(WHAT(1)).GT.ZERO) CUT(NINT(WHAT(1))) = WHAT(2)
-      IF (NINT(WHAT(3)).GT.ZERO) CUT(NINT(WHAT(3))) = WHAT(4)
-      IF (NINT(WHAT(5)).GT.ZERO) CUT(NINT(WHAT(5))) = WHAT(6)
+      IF (NINT(WHAT(1)).GT.0) CUT(NINT(WHAT(1))) = WHAT(2)
+      IF (NINT(WHAT(3)).GT.0) CUT(NINT(WHAT(3))) = WHAT(4)
+      IF (NINT(WHAT(5)).GT.0) CUT(NINT(WHAT(5))) = WHAT(6)
       GOTO 10
 
 *********************************************************************
@@ -2354,7 +2358,7 @@ C        WRITE(LOUT,*) 'CMENER = ',CMENER
 *********************************************************************
 
   622 CONTINUE
-      FOUT = WHAT(1)
+      FOUT = NINT(WHAT(1))
       IOUTFMT = NINT(WHAT(2))
       IF (IOUTFMT.EQ.0) IOUTFMT=1
       OLDOUT= (IOUTFMT.EQ.-1)
@@ -20459,22 +20463,22 @@ C        WRITE(6,1000)
      &1,F20.1,F15.3,/), '  === END OF TEST ;',
      &'  GENERATOR HAS THE SAME STATUS AS BEFORE CALLING DT_RNDMTE')
       END
-*
-*$ CREATE PHO_RNDM.FOR
-*COPY PHO_RNDM
-*
-*===pho_rndm===========================================================*
-*
-      DOUBLE PRECISION FUNCTION PHO_RNDM(DUMMY)
-
-      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
-      SAVE
-
-      PHO_RNDM = DT_RNDM(DUMMY)
-
-      RETURN
-      END
-
+C*
+C*$ CREATE PHO_RNDM.FOR
+C*COPY PHO_RNDM
+C*
+C*===pho_rndm===========================================================*
+C*
+C      DOUBLE PRECISION FUNCTION PHO_RNDM(DUMMY)
+C
+C      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
+C      SAVE
+C
+C      PHO_RNDM = DT_RNDM(DUMMY)
+C
+C      RETURN
+C      END
+C
 c...link with pythialib
 *$ CREATE PYR.FOR
 *COPY PYR
@@ -23087,261 +23091,261 @@ C        WRITE(LOUT,1000) IHIS,IHISL
       RETURN
       END
 
-*$ CREATE DT_OUTHGR.FOR
-*COPY DT_OUTHGR
-*
-*===outhgr=============================================================*
-*
-      SUBROUTINE DT_OUTHGR(I1,I2,I3,I4,I5,I6,CHEAD,IHEAD,NEVTS,FAC,
-     &                  ILOGY,INORM,NMODE)
-
-************************************************************************
-*                                                                      *
-*     Plot histogram(s) to standard output unit                        *
-*                                                                      *
-*         I1..6         indices of histograms to be plotted            *
-*         CHEAD,IHEAD   header string,integer                          *
-*         NEVTS         number of events                               *
-*         FAC           scaling factor                                 *
-*         ILOGY   = 1   logarithmic y-axis                             *
-*         INORM         normalization                                  *
-*                 = 0   no further normalization (FAC is obsolete)     *
-*                 = 1   per event and bin width                        *
-*                 = 2   per entry and bin width                        *
-*                 = 3   per bin entry                                  *
-*                 = 4   per event and "bin width" x1^2...x2^2          *
-*                 = 5   per event and "log. bin width" ln x1..ln x2    *
-*                 = 6   per event                                      *
-*         MODE    = 0   no output but normalization applied            *
-*                 = 1   all valid histograms separately (small frame)  *
-*                       all valid histograms separately (small frame)  *
-*                 = -1  and tables as histograms                       *
-*                 = 2   all valid histograms (one plot, wide frame)    *
-*                       all valid histograms (one plot, wide frame)    *
-*                 = -2  and tables as histograms                       *
-*                                                                      *
-*                                                                      *
-*     Note: All histograms to be plotted with one call to this         *
-*           subroutine and |MODE|=2 must have the same bin structure!  *
-*           There is no test included ensuring this fact.              *
-*                                                                      *
-* This version dated 23.4.95 is written  by S. Roesler.                *
-************************************************************************
-
-      IMPLICIT DOUBLE PRECISION(A-H,O-Z)
-      SAVE
-
-      PARAMETER ( LINP = 5 ,
-     &            LOUT = 6 ,
-     &            LDAT = 9 )
-
-      CHARACTER*72 CHEAD
-
-      PARAMETER (ZERO   =  0.0D0,
-     &           IZERO  =  0,
-     &           ONE    =  1.0D0,
-     &           TWO    =  2.0D0,
-     &           OHALF  =  0.5D0,
-     &           EPS    =  1.0D-5,
-     &           TINY   =  1.0D-8,
-     &           SMALL  =  -1.0D8,
-     &           RLARGE =  1.0D8 )
-
-* histograms
-
-      PARAMETER (NHIS=150, NDIM=250)
-
-      COMMON /DTHIS1/ HIST(7,NHIS,NDIM),DENTRY(2,NHIS),OVERF(NHIS),
-     &                UNDERF(NHIS),IBINS(NHIS),ISWI(NHIS),IHISL
-
-      PARAMETER (NDIM2 = 2*NDIM)
-      DIMENSION XX(NDIM2),YY(NDIM2)
-
-      PARAMETER (NHISTO = 6)
-      DIMENSION YY1(NDIM,NHISTO),XX1(NDIM,NHISTO),IDX1(NHISTO),
-     &          IDX(NHISTO)
-
-      CHARACTER*43 CNORM(0:8)
-      DATA CNORM /'no further normalization                   ',
-     &            'per event and bin width                    ',
-     &            'per entry1 and bin width                   ',
-     &            'per bin entry                              ',
-     &            'per event and "bin width" x1^2...x2^2      ',
-     &            'per event and "log. bin width" ln x1..ln x2',
-     &            'per event                                  ',
-     &            'per bin entry1                             ',
-     &            'per entry2 and bin width                   '/
-
-      IDX1(1) = I1
-      IDX1(2) = I2
-      IDX1(3) = I3
-      IDX1(4) = I4
-      IDX1(5) = I5
-      IDX1(6) = I6
-
-      MODE = NMODE
-
-* initialization if "wide frame" is requested
-      IF (ABS(MODE).EQ.2) THEN
-         DO 1 I=1,NHISTO
-            DO 2 J=1,NDIM
-               XX1(J,I) = ZERO
-               YY1(J,I) = ZERO
-    2       CONTINUE
-    1    CONTINUE
-      ENDIF
-
-* plot header
-      WRITE(LOUT,'(/1X,A,I3,/,1X,70A1)') CHEAD,IHEAD,('=',II=1,70)
-
-* check histogram indices
-      NHI = 0
-      DO 3 I=1,NHISTO
-         IF ((IDX1(I).GE.1).AND.(IDX1(I).LE.IHISL)) THEN
-            IF (ISWI(IDX1(I)).NE.0) THEN
-               IF (DENTRY(1,IDX1(I)).LT.ONE) THEN
-                  WRITE(LOUT,1000)
-     &                 IDX1(I),UNDERF(IDX1(I)),OVERF(IDX1(I))
- 1000             FORMAT(/,1X,'OUTHGR:   warning!  no entries in',
-     &                   ' histogram ',I3,/,21X,'underflows:',F10.0,
-     &                   '   overflows:  ',F10.0)
-               ELSE
-                  NHI = NHI+1
-                  IDX(NHI) = IDX1(I)
-               ENDIF
-            ENDIF
-         ENDIF
-    3 CONTINUE
-      IF (NHI.EQ.0) THEN
-         WRITE(LOUT,1001)
- 1001    FORMAT(/,1X,'OUTHGR:   warning!  histogram indices not valid')
-         RETURN
-      ENDIF
-
-* check normalization request
-      IF ( ((FAC.EQ.ZERO).AND.(INORM.NE.0)).OR.
-     &     ((NEVTS.LT.1).AND.((INORM.EQ.1).OR.(INORM.EQ.4).OR.
-     &                        (INORM.EQ.5).OR.(INORM.EQ.6))).OR.
-     &     (INORM.LT.0).OR.(INORM.GT.8) ) THEN
-         WRITE(LOUT,1002) NEVTS,INORM,FAC
- 1002    FORMAT(/,1X,'OUTHGR:   warning!  normalization request not ',
-     &          'valid',/,21X,'NEVTS = ',I7,4X,'INORM = ',I2,4X,
-     &          'FAC = ',E11.4)
-         RETURN
-      ENDIF
-
-      WRITE(LOUT,'(/,1X,A,I8)') 'number of events:',NEVTS
-
-* apply normalization
-      DO 4 N=1,NHI
-
-         I = IDX(N)
-
-         IF (ISWI(I).EQ.1) THEN
-            WRITE(LOUT,1003) I,HIST(1,I,1),HIST(1,I,IBINS(I)+1),IBINS(I)
- 1003       FORMAT(/,1X,'histo.',I4,', linear binning from',2X,E10.4,
-     &             ' to',2X,E10.4,',',2X,I3,' bins')
-         ELSEIF (ISWI(I).EQ.2) THEN
-            WRITE(LOUT,1003) I,HIST(1,I,1),HIST(1,I,IBINS(I)+1),IBINS(I)
-            WRITE(LOUT,1007)
- 1007       FORMAT(1X,'user defined bin structure')
-         ELSEIF (ISWI(I).EQ.3) THEN
-            WRITE(LOUT,1004)
-     &         I,10**HIST(1,I,1),10**HIST(1,I,IBINS(I)+1),IBINS(I)
- 1004       FORMAT(/,1X,'histo.',I4,', logar. binning from',2X,E10.4,
-     &             ' to',2X,E10.4,',',2X,I3,' bins')
-         ELSEIF (ISWI(I).EQ.4) THEN
-            WRITE(LOUT,1004)
-     &         I,10**HIST(1,I,1),10**HIST(1,I,IBINS(I)+1),IBINS(I)
-            WRITE(LOUT,1007)
-         ELSE
-            WRITE(LOUT,1008) ISWI(I)
- 1008       FORMAT(/,1X,'warning!  inconsistent bin structure flag ',I4)
-         ENDIF
-         WRITE(LOUT,1005) DENTRY(1,I),DENTRY(2,I),UNDERF(I),OVERF(I)
- 1005    FORMAT(13X,'entries:',2F9.0,' underfl.:',F8.0,
-     &          ' overfl.:',F8.0)
-         WRITE(LOUT,1009) CNORM(INORM)
- 1009    FORMAT(1X,'normalization: ',A,/)
-
-         DO 5 K=1,IBINS(I)
-            CALL DT_GETBIN(I,K,NEVTS,INORM,XLOW,XHI,XMEAN,YMEAN,YERR)
-            YMEAN = FAC*YMEAN
-            YERR  = FAC*YERR
-            WRITE(LOUT,1006) XLOW,XMEAN,YMEAN,YERR,HIST(2,I,K)
-            WRITE(LOUT,1006) XHI ,XMEAN,YMEAN,YERR,HIST(2,I,K)
- 1006       FORMAT(1X,5E11.3)
-*    small frame
-            II = 2*K
-            XX(II-1) = HIST(1,I,K)
-            XX(II)   = HIST(1,I,K+1)
-            YY(II-1) = YMEAN
-            YY(II)   = YMEAN
-*    wide frame
-            XX1(K,N) = XMEAN
-            IF ((ISWI(I).EQ.3).OR.(ISWI(I).EQ.4))
-     &         XX1(K,N) = LOG10(XMEAN)
-            YY1(K,N) = YMEAN
-    5    CONTINUE
-
-* plot small frame
-         IF (ABS(MODE).EQ.1) THEN
-            IBIN2 = 2*IBINS(I)
-            WRITE(LOUT,'(/,1X,A)') 'Preview:'
-            IF(ILOGY.EQ.1) THEN
-              CALL DT_XGLOGY(IBIN2,1,XX,YY,YY)
-            ELSE
-              CALL DT_XGRAPH(IBIN2,1,XX,YY,YY)
-            ENDIF
-         ENDIF
-
-    4 CONTINUE
-
-* plot wide frame
-      IF (ABS(MODE).EQ.2) THEN
-         WRITE(LOUT,'(/,1X,A)') 'Preview:'
-         NSIZE = NDIM*NHISTO
-         DXLOW = HIST(1,IDX(1),1)
-         DDX   = ABS(HIST(1,IDX(1),2)-HIST(1,IDX(1),1))
-         YLOW  = RLARGE
-         YHI   = SMALL
-         DO 6 I=1,NHISTO
-            DO 7 J=1,NDIM
-               IF (YY1(J,I).LT.YLOW) THEN
-                  IF (ILOGY.EQ.1) THEN
-                     IF (YY1(J,I).GT.ZERO) YLOW = YY1(J,I)
-                  ELSE
-                     YLOW = YY1(J,I)
-                  ENDIF
-               ENDIF
-               IF (YY1(J,I).GT.YHI) YHI = YY1(J,I)
-    7       CONTINUE
-    6    CONTINUE
-         DY = (YHI-YLOW)/DBLE(NDIM)
-         IF (DY.LE.ZERO) THEN
-            WRITE(LOUT,'(1X,A,6I4,A,2E12.4)')
-     &         'OUTHGR:   warning! zero bin width for histograms ',
-     &         IDX,': ',YLOW,YHI
-            RETURN
-         ENDIF
-         IF (ILOGY.EQ.1) THEN
-            YLOW = LOG10(YLOW)
-            DY   = (LOG10(YHI)-YLOW)/100.0D0
-            DO 8 I=1,NHISTO
-               DO 9 J=1,NDIM
-                  IF (YY1(J,I).LE.ZERO) THEN
-                     YY1(J,I) = YLOW
-                  ELSE
-                     YY1(J,I) = LOG10(YY1(J,I))
-                  ENDIF
-    9          CONTINUE
-    8       CONTINUE
-         ENDIF
-         CALL DT_SRPLOT(XX1,YY1,NSIZE,NHISTO,NDIM,DXLOW,DDX,YLOW,DY)
-      ENDIF
-
-      RETURN
-      END
+C*$ CREATE DT_OUTHGR.FOR
+C*COPY DT_OUTHGR
+C*
+C*===outhgr=============================================================*
+C*
+C      SUBROUTINE DT_OUTHGR(I1,I2,I3,I4,I5,I6,CHEAD,IHEAD,NEVTS,FAC,
+C     &                  ILOGY,INORM,NMODE)
+C
+C************************************************************************
+C*                                                                      *
+C*     Plot histogram(s) to standard output unit                        *
+C*                                                                      *
+C*         I1..6         indices of histograms to be plotted            *
+C*         CHEAD,IHEAD   header string,integer                          *
+C*         NEVTS         number of events                               *
+C*         FAC           scaling factor                                 *
+C*         ILOGY   = 1   logarithmic y-axis                             *
+C*         INORM         normalization                                  *
+C*                 = 0   no further normalization (FAC is obsolete)     *
+C*                 = 1   per event and bin width                        *
+C*                 = 2   per entry and bin width                        *
+C*                 = 3   per bin entry                                  *
+C*                 = 4   per event and "bin width" x1^2...x2^2          *
+C*                 = 5   per event and "log. bin width" ln x1..ln x2    *
+C*                 = 6   per event                                      *
+C*         MODE    = 0   no output but normalization applied            *
+C*                 = 1   all valid histograms separately (small frame)  *
+C*                       all valid histograms separately (small frame)  *
+C*                 = -1  and tables as histograms                       *
+C*                 = 2   all valid histograms (one plot, wide frame)    *
+C*                       all valid histograms (one plot, wide frame)    *
+C*                 = -2  and tables as histograms                       *
+C*                                                                      *
+C*                                                                      *
+C*     Note: All histograms to be plotted with one call to this         *
+C*           subroutine and |MODE|=2 must have the same bin structure!  *
+C*           There is no test included ensuring this fact.              *
+C*                                                                      *
+C* This version dated 23.4.95 is written  by S. Roesler.                *
+C************************************************************************
+C
+C      IMPLICIT DOUBLE PRECISION(A-H,O-Z)
+C      SAVE
+C
+C      PARAMETER ( LINP = 5 ,
+C     &            LOUT = 6 ,
+C     &            LDAT = 9 )
+C
+C      CHARACTER*72 CHEAD
+C
+C      PARAMETER (ZERO   =  0.0D0,
+C     &           IZERO  =  0,
+C     &           ONE    =  1.0D0,
+C     &           TWO    =  2.0D0,
+C     &           OHALF  =  0.5D0,
+C     &           EPS    =  1.0D-5,
+C     &           TINY   =  1.0D-8,
+C     &           SMALL  =  -1.0D8,
+C     &           RLARGE =  1.0D8 )
+C
+C* histograms
+C
+C      PARAMETER (NHIS=150, NDIM=250)
+C
+C      COMMON /DTHIS1/ HIST(7,NHIS,NDIM),DENTRY(2,NHIS),OVERF(NHIS),
+C     &                UNDERF(NHIS),IBINS(NHIS),ISWI(NHIS),IHISL
+C
+C      PARAMETER (NDIM2 = 2*NDIM)
+C      DIMENSION XX(NDIM2),YY(NDIM2)
+C
+C      PARAMETER (NHISTO = 6)
+C      DIMENSION YY1(NDIM,NHISTO),XX1(NDIM,NHISTO),IDX1(NHISTO),
+C     &          IDX(NHISTO)
+C
+C      CHARACTER*43 CNORM(0:8)
+C      DATA CNORM /'no further normalization                   ',
+C     &            'per event and bin width                    ',
+C     &            'per entry1 and bin width                   ',
+C     &            'per bin entry                              ',
+C     &            'per event and "bin width" x1^2...x2^2      ',
+C     &            'per event and "log. bin width" ln x1..ln x2',
+C     &            'per event                                  ',
+C     &            'per bin entry1                             ',
+C     &            'per entry2 and bin width                   '/
+C
+C      IDX1(1) = I1
+C      IDX1(2) = I2
+C      IDX1(3) = I3
+C      IDX1(4) = I4
+C      IDX1(5) = I5
+C      IDX1(6) = I6
+C
+C      MODE = NMODE
+C
+C* initialization if "wide frame" is requested
+C      IF (ABS(MODE).EQ.2) THEN
+C         DO 1 I=1,NHISTO
+C            DO 2 J=1,NDIM
+C               XX1(J,I) = ZERO
+C               YY1(J,I) = ZERO
+C    2       CONTINUE
+C    1    CONTINUE
+C      ENDIF
+C
+C* plot header
+C      WRITE(LOUT,'(/1X,A,I3,/,1X,70A1)') CHEAD,IHEAD,('=',II=1,70)
+C
+C* check histogram indices
+C      NHI = 0
+C      DO 3 I=1,NHISTO
+C         IF ((IDX1(I).GE.1).AND.(IDX1(I).LE.IHISL)) THEN
+C            IF (ISWI(IDX1(I)).NE.0) THEN
+C               IF (DENTRY(1,IDX1(I)).LT.ONE) THEN
+C                  WRITE(LOUT,1000)
+C     &                 IDX1(I),UNDERF(IDX1(I)),OVERF(IDX1(I))
+C 1000             FORMAT(/,1X,'OUTHGR:   warning!  no entries in',
+C     &                   ' histogram ',I3,/,21X,'underflows:',F10.0,
+C     &                   '   overflows:  ',F10.0)
+C               ELSE
+C                  NHI = NHI+1
+C                  IDX(NHI) = IDX1(I)
+C               ENDIF
+C            ENDIF
+C         ENDIF
+C    3 CONTINUE
+C      IF (NHI.EQ.0) THEN
+C         WRITE(LOUT,1001)
+C 1001    FORMAT(/,1X,'OUTHGR:   warning!  histogram indices not valid')
+C         RETURN
+C      ENDIF
+C
+C* check normalization request
+C      IF ( ((FAC.EQ.ZERO).AND.(INORM.NE.0)).OR.
+C     &     ((NEVTS.LT.1).AND.((INORM.EQ.1).OR.(INORM.EQ.4).OR.
+C     &                        (INORM.EQ.5).OR.(INORM.EQ.6))).OR.
+C     &     (INORM.LT.0).OR.(INORM.GT.8) ) THEN
+C         WRITE(LOUT,1002) NEVTS,INORM,FAC
+C 1002    FORMAT(/,1X,'OUTHGR:   warning!  normalization request not ',
+C     &          'valid',/,21X,'NEVTS = ',I7,4X,'INORM = ',I2,4X,
+C     &          'FAC = ',E11.4)
+C         RETURN
+C      ENDIF
+C
+C      WRITE(LOUT,'(/,1X,A,I8)') 'number of events:',NEVTS
+C
+C* apply normalization
+C      DO 4 N=1,NHI
+C
+C         I = IDX(N)
+C
+C         IF (ISWI(I).EQ.1) THEN
+C            WRITE(LOUT,1003) I,HIST(1,I,1),HIST(1,I,IBINS(I)+1),IBINS(I)
+C 1003       FORMAT(/,1X,'histo.',I4,', linear binning from',2X,E10.4,
+C     &             ' to',2X,E10.4,',',2X,I3,' bins')
+C         ELSEIF (ISWI(I).EQ.2) THEN
+C            WRITE(LOUT,1003) I,HIST(1,I,1),HIST(1,I,IBINS(I)+1),IBINS(I)
+C            WRITE(LOUT,1007)
+C 1007       FORMAT(1X,'user defined bin structure')
+C         ELSEIF (ISWI(I).EQ.3) THEN
+C            WRITE(LOUT,1004)
+C     &         I,10**HIST(1,I,1),10**HIST(1,I,IBINS(I)+1),IBINS(I)
+C 1004       FORMAT(/,1X,'histo.',I4,', logar. binning from',2X,E10.4,
+C     &             ' to',2X,E10.4,',',2X,I3,' bins')
+C         ELSEIF (ISWI(I).EQ.4) THEN
+C            WRITE(LOUT,1004)
+C     &         I,10**HIST(1,I,1),10**HIST(1,I,IBINS(I)+1),IBINS(I)
+C            WRITE(LOUT,1007)
+C         ELSE
+C            WRITE(LOUT,1008) ISWI(I)
+C 1008       FORMAT(/,1X,'warning!  inconsistent bin structure flag ',I4)
+C         ENDIF
+C         WRITE(LOUT,1005) DENTRY(1,I),DENTRY(2,I),UNDERF(I),OVERF(I)
+C 1005    FORMAT(13X,'entries:',2F9.0,' underfl.:',F8.0,
+C     &          ' overfl.:',F8.0)
+C         WRITE(LOUT,1009) CNORM(INORM)
+C 1009    FORMAT(1X,'normalization: ',A,/)
+C
+C         DO 5 K=1,IBINS(I)
+C            CALL DT_GETBIN(I,K,NEVTS,INORM,XLOW,XHI,XMEAN,YMEAN,YERR)
+C            YMEAN = FAC*YMEAN
+C            YERR  = FAC*YERR
+C            WRITE(LOUT,1006) XLOW,XMEAN,YMEAN,YERR,HIST(2,I,K)
+C            WRITE(LOUT,1006) XHI ,XMEAN,YMEAN,YERR,HIST(2,I,K)
+C 1006       FORMAT(1X,5E11.3)
+C*    small frame
+C            II = 2*K
+C            XX(II-1) = HIST(1,I,K)
+C            XX(II)   = HIST(1,I,K+1)
+C            YY(II-1) = YMEAN
+C            YY(II)   = YMEAN
+C*    wide frame
+C            XX1(K,N) = XMEAN
+C            IF ((ISWI(I).EQ.3).OR.(ISWI(I).EQ.4))
+C     &         XX1(K,N) = LOG10(XMEAN)
+C            YY1(K,N) = YMEAN
+C    5    CONTINUE
+C
+C* plot small frame
+C         IF (ABS(MODE).EQ.1) THEN
+C            IBIN2 = 2*IBINS(I)
+C            WRITE(LOUT,'(/,1X,A)') 'Preview:'
+C            IF(ILOGY.EQ.1) THEN
+C              CALL DT_XGLOGY(IBIN2,1,XX,YY,YY)
+C            ELSE
+C              CALL DT_XGRAPH(IBIN2,1,XX,YY,YY)
+C            ENDIF
+C         ENDIF
+C
+C    4 CONTINUE
+C
+C* plot wide frame
+C      IF (ABS(MODE).EQ.2) THEN
+C         WRITE(LOUT,'(/,1X,A)') 'Preview:'
+C         NSIZE = NDIM*NHISTO
+C         DXLOW = HIST(1,IDX(1),1)
+C         DDX   = ABS(HIST(1,IDX(1),2)-HIST(1,IDX(1),1))
+C         YLOW  = RLARGE
+C         YHI   = SMALL
+C         DO 6 I=1,NHISTO
+C            DO 7 J=1,NDIM
+C               IF (YY1(J,I).LT.YLOW) THEN
+C                  IF (ILOGY.EQ.1) THEN
+C                     IF (YY1(J,I).GT.ZERO) YLOW = YY1(J,I)
+C                  ELSE
+C                     YLOW = YY1(J,I)
+C                  ENDIF
+C               ENDIF
+C               IF (YY1(J,I).GT.YHI) YHI = YY1(J,I)
+C    7       CONTINUE
+C    6    CONTINUE
+C         DY = (YHI-YLOW)/DBLE(NDIM)
+C         IF (DY.LE.ZERO) THEN
+C            WRITE(LOUT,'(1X,A,6I4,A,2E12.4)')
+C     &         'OUTHGR:   warning! zero bin width for histograms ',
+C     &         IDX,': ',YLOW,YHI
+C            RETURN
+C         ENDIF
+C         IF (ILOGY.EQ.1) THEN
+C            YLOW = LOG10(YLOW)
+C            DY   = (LOG10(YHI)-YLOW)/100.0D0
+C            DO 8 I=1,NHISTO
+C               DO 9 J=1,NDIM
+C                  IF (YY1(J,I).LE.ZERO) THEN
+C                     YY1(J,I) = YLOW
+C                  ELSE
+C                     YY1(J,I) = LOG10(YY1(J,I))
+C                  ENDIF
+C    9          CONTINUE
+C    8       CONTINUE
+C         ENDIF
+C         CALL DT_SRPLOT(XX1,YY1,NSIZE,NHISTO,NDIM,DXLOW,DDX,YLOW,DY)
+C      ENDIF
+C
+C      RETURN
+C      END
 
 *$ CREATE DT_GETBIN.FOR
 *COPY DT_GETBIN
@@ -23418,639 +23422,639 @@ C     XMEAN  = HIST(3,IHIS,IBIN)/YSUM/MAX(HIST(2,IHIS,IBIN),ONE)
       RETURN
       END
 
-*$ CREATE DT_JOIHIS.FOR
-*COPY DT_JOIHIS
-*
-*===joihis=============================================================*
-*
-      SUBROUTINE DT_JOIHIS(IH1,IH2,COPER,FAC1,FAC2,KEVT,NORM,ILOGY,MODE)
+C*$ CREATE DT_JOIHIS.FOR
+C*COPY DT_JOIHIS
+C*
+C*===joihis=============================================================*
+C*
+C      SUBROUTINE DT_JOIHIS(IH1,IH2,COPER,FAC1,FAC2,KEVT,NORM,ILOGY,MODE)
+C
+C************************************************************************
+C*                                                                      *
+C*     Operation on histograms.                                         *
+C*                                                                      *
+C*     input:  IH1,IH2      histogram indices to be joined              *
+C*             COPER        character defining the requested operation, *
+C*                          i.e. '+', '-', '*', '/'                     *
+C*             FAC1,FAC2    factors for joining, i.e.                   *
+C*                          FAC1*histo1 COPER FAC2*histo2               *
+C*                                                                      *
+C* This version dated 23.4.95 is written  by S. Roesler.                *
+C************************************************************************
+C
+C      IMPLICIT DOUBLE PRECISION(A-H,O-Z)
+C      SAVE
+C
+C      PARAMETER ( LINP = 5 ,
+C     &            LOUT = 6 ,
+C     &            LDAT = 9 )
+C
+C      CHARACTER COPER*1
+C
+C      PARAMETER (ZERO   =  0.0D0,
+C     &           ONE    =  1.0D0,
+C     &           OHALF  =  0.5D0,
+C     &           TINY8  =  1.0D-8,
+C     &           SMALL  =  -1.0D8,
+C     &           RLARGE =  1.0D8 )
+C
+C* histograms
+C
+C      PARAMETER (NHIS=150, NDIM=250)
+C
+C      COMMON /DTHIS1/ HIST(7,NHIS,NDIM),DENTRY(2,NHIS),OVERF(NHIS),
+C     &                UNDERF(NHIS),IBINS(NHIS),ISWI(NHIS),IHISL
+C
+C      PARAMETER (NDIM2 = 2*NDIM)
+C      DIMENSION XX(NDIM2),YY(NDIM2),YY1(NDIM),XX1(NDIM)
+C
+C      CHARACTER*43 CNORM(0:6)
+C      DATA CNORM /'no further normalization                   ',
+C     &            'per event and bin width                    ',
+C     &            'per entry and bin width                    ',
+C     &            'per bin entry                              ',
+C     &            'per event and "bin width" x1^2...x2^2      ',
+C     &            'per event and "log. bin width" ln x1..ln x2',
+C     &            'per event                                  '/
+C
+C* check histogram indices
+C      IF ((IH1.LT.    1).OR.(IH2.LT.    1).OR.
+C     &    (IH1.GT.IHISL).OR.(IH2.GT.IHISL)) THEN
+C         WRITE(LOUT,1000) IH1,IH2,IHISL
+C 1000    FORMAT(1X,'JOIHIS:   warning!  inconsistent histogram ',
+C     &          'indices (',I3,',',I3,'),',/,21X,'valid range:  1,',I3)
+C         GOTO 9999
+C      ENDIF
+C
+C* check bin structure of histograms to be joined
+C      IF (IBINS(IH1).NE.IBINS(IH2)) THEN
+C         WRITE(LOUT,1001) IH1,IH2,IBINS(IH1),IBINS(IH2)
+C 1001    FORMAT(1X,'JOIHIS:   warning!  joining histograms ',I3,
+C     &          ' and ',I3,' failed',/,21X,
+C     &          'due to different numbers of bins (',I3,',',I3,')')
+C         GOTO 9999
+C      ENDIF
+C      DO 1 K=1,IBINS(IH1)+1
+C         IF (ABS(HIST(1,IH1,K)-HIST(1,IH2,K)).GT.TINY8) THEN
+C            WRITE(LOUT,1002) IH1,IH2,K,HIST(1,IH1,K),HIST(1,IH2,K)
+C 1002       FORMAT(1X,'JOIHIS:   warning!  joining histograms ',I3,
+C     &             ' and ',I3,' failed at bin edge ',I3,/,21X,
+C     &             'X1,X2 = ',2E11.4)
+C            GOTO 9999
+C         ENDIF
+C    1 CONTINUE
+C
+C      WRITE(LOUT,1003) IH1,IH2,COPER,FAC1,FAC2
+C 1003 FORMAT(1X,'JOIHIS:   joining histograms ',I3,',',I3,' with ',
+C     &       'operation ',A,/,11X,'and factors ',2E11.4)
+C      WRITE(LOUT,1004) CNORM(NORM)
+C 1004 FORMAT(1X,'normalization: ',A,/)
+C
+C      DO 2 K=1,IBINS(IH1)
+C         CALL DT_GETBIN(IH1,K,KEVT,NORM,XLOW1,XHI1,XMEAN1,YMEAN1,YERR1)
+C         CALL DT_GETBIN(IH2,K,KEVT,NORM,XLOW2,XHI2,XMEAN2,YMEAN2,YERR2)
+C         XLOW  = XLOW1
+C         XHI   = XHI1
+C         XMEAN = OHALF*(XMEAN1+XMEAN2)
+C         IF (COPER.EQ.'+') THEN
+C            YMEAN = FAC1*YMEAN1+FAC2*YMEAN2
+C         ELSEIF (COPER.EQ.'*') THEN
+C            YMEAN = FAC1*YMEAN1*FAC2*YMEAN2
+C         ELSEIF (COPER.EQ.'/') THEN
+C            IF (YMEAN2.EQ.ZERO) THEN
+C               YMEAN = ZERO
+C            ELSE
+C               IF (FAC2.EQ.ZERO) FAC2 = ONE
+C               YMEAN = FAC1*YMEAN1/(FAC2*YMEAN2)
+C            ENDIF
+C         ELSE
+C            GOTO 9998
+C         ENDIF
+C         WRITE(LOUT,1006) XLOW,XMEAN,YMEAN,HIST(2,IH1,K),HIST(2,IH2,K)
+C         WRITE(LOUT,1006) XHI ,XMEAN,YMEAN,HIST(2,IH1,K),HIST(2,IH2,K)
+C 1006    FORMAT(1X,5E11.3)
+C*    small frame
+C         II = 2*K
+C         XX(II-1) = HIST(1,IH1,K)
+C         XX(II)   = HIST(1,IH1,K+1)
+C         YY(II-1) = YMEAN
+C         YY(II)   = YMEAN
+C*    wide frame
+C         XX1(K) = XMEAN
+C         IF ((ISWI(IH1).EQ.3).OR.(ISWI(IH1).EQ.4)) XX1(K) = LOG10(XMEAN)
+C         YY1(K) = YMEAN
+C    2 CONTINUE
+C
+C* plot small frame
+C      IF (ABS(MODE).EQ.1) THEN
+C         IBIN2 = 2*IBINS(IH1)
+C         WRITE(LOUT,'(/,1X,A)') 'Preview:'
+C         IF(ILOGY.EQ.1) THEN
+C           CALL DT_XGLOGY(IBIN2,1,XX,YY,YY)
+C         ELSE
+C           CALL DT_XGRAPH(IBIN2,1,XX,YY,YY)
+C         ENDIF
+C      ENDIF
+C
+C* plot wide frame
+C      IF (ABS(MODE).EQ.2) THEN
+C         WRITE(LOUT,'(/,1X,A)') 'Preview:'
+C         NSIZE = NDIM
+C         DXLOW = HIST(1,IH1,1)
+C         DDX   = ABS(HIST(1,IH1,2)-HIST(1,IH1,1))
+C         YLOW  = RLARGE
+C         YHI   = SMALL
+C         DO 3 I=1,NDIM
+C            IF (YY1(I).LT.YLOW) THEN
+C               IF (ILOGY.EQ.1) THEN
+C                  IF (YY1(I).GT.ZERO) YLOW = YY1(I)
+C               ELSE
+C                  YLOW = YY1(I)
+C               ENDIF
+C            ENDIF
+C            IF (YY1(I).GT.YHI) YHI = YY1(I)
+C    3    CONTINUE
+C         DY = (YHI-YLOW)/DBLE(NDIM)
+C         IF (DY.LE.ZERO) THEN
+C            WRITE(LOUT,'(1X,A,2I4,A,2E12.4)')
+C     &         'JOIHIS:   warning! zero bin width for histograms ',
+C     &         IH1,IH2,': ',YLOW,YHI
+C            RETURN
+C         ENDIF
+C         IF (ILOGY.EQ.1) THEN
+C            YLOW = LOG10(YLOW)
+C            DY   = (LOG10(YHI)-YLOW)/100.0D0
+C            DO 4 I=1,NDIM
+C               IF (YY1(I).LE.ZERO) THEN
+C                  YY1(I) = YLOW
+C               ELSE
+C                  YY1(I) = LOG10(YY1(I))
+C               ENDIF
+C    4       CONTINUE
+C         ENDIF
+C         CALL DT_SRPLOT(XX1,YY1,NSIZE,1,NDIM,DXLOW,DDX,YLOW,DY)
+C      ENDIF
+C
+C      RETURN
+C
+C 9998 CONTINUE
+C      WRITE(LOUT,1005) COPER
+C 1005 FORMAT(1X,'JOIHIS:   unknown operation ',A)
+C
+C 9999 CONTINUE
+C      RETURN
+C      END
 
-************************************************************************
-*                                                                      *
-*     Operation on histograms.                                         *
-*                                                                      *
-*     input:  IH1,IH2      histogram indices to be joined              *
-*             COPER        character defining the requested operation, *
-*                          i.e. '+', '-', '*', '/'                     *
-*             FAC1,FAC2    factors for joining, i.e.                   *
-*                          FAC1*histo1 COPER FAC2*histo2               *
-*                                                                      *
-* This version dated 23.4.95 is written  by S. Roesler.                *
-************************************************************************
+C*$ CREATE DT_XGRAPH.FOR
+C*COPY DT_XGRAPH
+C*
+C*===qgraph=============================================================*
+C*
+C      SUBROUTINE DT_XGRAPH(N,IARG,X,Y1,Y2)
+CC***********************************************************************
+CC
+CC     calculate quasi graphic picture with 25 lines and 79 columns
+CC     ranges will be chosen automatically
+CC
+CC     input     N          dimension of input fields
+CC               IARG       number of curves (fields) to plot
+CC               X          field of X
+CC               Y1         field of Y1
+CC               Y2         field of Y2
+CC
+CC This subroutine is written by R. Engel.
+CC***********************************************************************
+C      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
+C      SAVE
+C
+C      PARAMETER ( LINP = 5 ,
+C     &            LOUT = 6 ,
+C     &            LDAT = 9 )
+C
+CC
+C      DIMENSION X(N),Y1(N),Y2(N)
+C      PARAMETER (EPS=1.D-30)
+C      PARAMETER (IYRAST=5,IXRAST=10,IBREIT=79,IZEIL=20)
+C      CHARACTER SYMB(5)
+C      CHARACTER COL(0:149,0:49)
+CC
+C      DATA SYMB /'0','e','z','#','x'/
+CC
+C      ISPALT=IBREIT-10
+CC
+CC***  automatic range fitting
+CC
+C      XMAX=X(1)
+C      XMIN=X(1)
+C      DO 600 I=1,N
+C         XMAX=MAX(X(I),XMAX)
+C         XMIN=MIN(X(I),XMIN)
+C 600  CONTINUE
+C      XZOOM=(XMAX-XMIN)/DBLE(ISPALT)
+CC
+C      ITEST=0
+C      DO 1100 K=0,IZEIL-1
+C         ITEST=ITEST+1
+C         IF (ITEST.EQ.IYRAST) THEN
+C            DO 1010 L=1,ISPALT-1
+C               COL(L,K)='-'
+C1010        CONTINUE
+C            COL(ISPALT,K)='+'
+C            ITEST=0
+C            DO 1020 L=0,ISPALT-1,IXRAST
+C               COL(L,K)='+'
+C1020        CONTINUE
+C         ELSE
+C            DO 1030 L=1,ISPALT-1
+C               COL(L,K)=' '
+C1030        CONTINUE
+C            DO 1040 L=0,ISPALT-1,IXRAST
+C               COL(L,K)='|'
+C1040        CONTINUE
+C            COL(ISPALT,K)='|'
+C         ENDIF
+C1100  CONTINUE
+CC
+CC***  plot curve Y1
+CC
+C      YMAX=Y1(1)
+C      YMIN=Y1(1)
+C      DO 500 I=1,N
+C         YMAX=MAX(Y1(I),YMAX)
+C         YMIN=MIN(Y1(I),YMIN)
+C500   CONTINUE
+C      IF(IARG.GT.1) THEN
+C        DO 550 I=1,N
+C           YMAX=MAX(Y2(I),YMAX)
+C           YMIN=MIN(Y2(I),YMIN)
+C550     CONTINUE
+C      ENDIF
+C      YMAX=(YMAX-YMIN)/40.0D0+YMAX
+C      YMIN=YMIN-(YMAX-YMIN)/40.0D0
+C      YZOOM=(YMAX-YMIN)/DBLE(IZEIL)
+C      IF(YZOOM.LT.EPS) THEN
+C        WRITE(LOUT,'(1X,A)')
+C     &    'XGRAPH:WARNING: MIN = MAX, OUTPUT SUPPRESSED'
+C        RETURN
+C      ENDIF
+CC
+CC***  plot curve Y1
+CC
+C      ILAST=-1
+C      LLAST=-1
+C      DO 1200 K=1,N
+C         L=NINT((X(K)-XMIN)/XZOOM)
+C         I=NINT((YMAX-Y1(K))/YZOOM)
+C         IF(ILAST.GE.0) THEN
+C           LD = L-LLAST
+C           ID = I-ILAST
+C           DO 55 II=0,LD,SIGN(1,LD)
+C             DO 66 KK=0,ID,SIGN(1,ID)
+C               COL(II+LLAST,KK+ILAST)=SYMB(1)
+C 66          CONTINUE
+C 55        CONTINUE
+C         ELSE
+C           COL(L,I)=SYMB(1)
+C         ENDIF
+C         ILAST = I
+C         LLAST = L
+C1200  CONTINUE
+CC
+C      IF(IARG.GT.1) THEN
+CC
+CC***  plot curve Y2
+CC
+C        DO 1250 K=1,N
+C           L=NINT((X(K)-XMIN)/XZOOM)
+C           I=NINT((YMAX-Y2(K))/YZOOM)
+C           COL(L,I)=SYMB(2)
+C1250    CONTINUE
+C      ENDIF
+CC
+CC***  write it
+CC
+C      WRITE(LOUT,'(1X,79A)') ('-',I=1,IBREIT)
+CC
+CC***  write range of X
+CC
+C      XZOOM = (XMAX-XMIN)/DBLE(7)
+C      WRITE(LOUT,120) (XZOOM*DBLE(I-1)+XMIN,I=1,7)
+CC
+C      DO 1300 K=0,IZEIL-1
+C         YPOS=YMAX-((DBLE(K)+0.5D0)*YZOOM)
+C         WRITE(LOUT,110) YPOS,(COL(I,K),I=0,ISPALT)
+C 110     FORMAT(1X,1PE9.2,70A1)
+C1300  CONTINUE
+CC
+CC***  write range of X
+CC
+C      XZOOM = (XMAX-XMIN)/DBLE(7)
+C      WRITE(LOUT,120) (XZOOM*DBLE(I-1)+XMIN,I=1,7)
+C      WRITE(LOUT,'(1X,79A)') ('-',I=1,IBREIT)
+C 120  FORMAT(6X,7(1PE10.3))
+C      END
 
-      IMPLICIT DOUBLE PRECISION(A-H,O-Z)
-      SAVE
+C*$ CREATE DT_XGLOGY.FOR
+C*COPY DT_XGLOGY
+C*
+C*===qglogy=============================================================*
+C*
+C      SUBROUTINE DT_XGLOGY(N,IARG,X,Y1,Y2)
+CC***********************************************************************
+CC
+CC     calculate quasi graphic picture with 25 lines and 79 columns
+CC     logarithmic y axis
+CC     ranges will be chosen automatically
+CC
+CC     input     N          dimension of input fields
+CC               IARG       number of curves (fields) to plot
+CC               X          field of X
+CC               Y1         field of Y1
+CC               Y2         field of Y2
+CC
+CC This subroutine is written by R. Engel.
+CC***********************************************************************
+CC
+C      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
+C      SAVE
+C
+C      PARAMETER ( LINP = 5 ,
+C     &            LOUT = 6 ,
+C     &            LDAT = 9 )
+C
+C      DIMENSION X(N),Y1(N),Y2(N)
+C      PARAMETER (EPS=1.D-30)
+C      PARAMETER (IYRAST=5,IXRAST=10,IBREIT=79,IZEIL=20)
+C      CHARACTER SYMB(5)
+C      CHARACTER COL(0:149,0:49)
+C      PARAMETER (DEPS = 1.D-10)
+CC
+C      DATA SYMB /'0','e','z','#','x'/
+CC
+C      ISPALT=IBREIT-10
+CC
+CC***  automatic range fitting
+CC
+C      XMAX=X(1)
+C      XMIN=X(1)
+C      DO 600 I=1,N
+C         XMAX=MAX(X(I),XMAX)
+C         XMIN=MIN(X(I),XMIN)
+C 600  CONTINUE
+C      XZOOM=(XMAX-XMIN)/DBLE(ISPALT)
+CC
+C      ITEST=0
+C      DO 1100 K=0,IZEIL-1
+C         ITEST=ITEST+1
+C         IF (ITEST.EQ.IYRAST) THEN
+C            DO 1010 L=1,ISPALT-1
+C               COL(L,K)='-'
+C1010        CONTINUE
+C            COL(ISPALT,K)='+'
+C            ITEST=0
+C            DO 1020 L=0,ISPALT-1,IXRAST
+C               COL(L,K)='+'
+C1020        CONTINUE
+C         ELSE
+C            DO 1030 L=1,ISPALT-1
+C               COL(L,K)=' '
+C1030        CONTINUE
+C            DO 1040 L=0,ISPALT-1,IXRAST
+C               COL(L,K)='|'
+C1040        CONTINUE
+C            COL(ISPALT,K)='|'
+C         ENDIF
+C1100  CONTINUE
+CC
+CC***  plot curve Y1
+CC
+C      YMAX=Y1(1)
+C      YMIN=MAX(Y1(1),EPS)
+C      DO 500 I=1,N
+C         YMAX =MAX(Y1(I),YMAX)
+C         IF(Y1(I).GT.EPS) THEN
+C           IF(YMIN.EQ.EPS) THEN
+C             YMIN = Y1(I)/10.D0
+C           ELSE
+C             YMIN = MIN(Y1(I),YMIN)
+C           ENDIF
+C         ENDIF
+C500   CONTINUE
+C      IF(IARG.GT.1) THEN
+C        DO 550 I=1,N
+C           YMAX=MAX(Y2(I),YMAX)
+C           IF(Y2(I).GT.EPS) THEN
+C             IF(YMIN.EQ.EPS) THEN
+C               YMIN = Y2(I)
+C             ELSE
+C               YMIN = MIN(Y2(I),YMIN)
+C             ENDIF
+C           ENDIF
+C550     CONTINUE
+C      ENDIF
+CC
+C      DO 560 I=1,N
+C        Y1(I) = MAX(Y1(I),YMIN)
+C 560  CONTINUE
+C      IF(IARG.GT.1) THEN
+C        DO 570 I=1,N
+C          Y2(I) = MAX(Y2(I),YMIN)
+C 570    CONTINUE
+C      ENDIF
+CC
+C      IF(YMAX.LE.YMIN) THEN
+C        WRITE(LOUT,'(/1X,A,2E12.3,/)')
+C     &     'XGLOGY:ERROR:YMIN,YMAX ',YMIN,YMAX
+C        WRITE(LOUT,'(1X,A)') 'MIN = MAX, OUTPUT SUPPRESSED'
+C        RETURN
+C      ENDIF
+CC
+C      YMA=(LOG10(YMAX)-LOG10(YMIN))/20.0D0+LOG10(YMAX)
+C      YMI=LOG10(YMIN)-(LOG10(YMAX)-LOG10(YMIN))/20.0D0
+C      YZOOM=(YMA-YMI)/DBLE(IZEIL)
+C      IF(YZOOM.LT.EPS) THEN
+C        WRITE(LOUT,'(1X,A)')
+C     &    'XGLOGY:WARNING: MIN = MAX, OUTPUT SUPPRESSED'
+C        RETURN
+C      ENDIF
+CC
+CC***  plot curve Y1
+CC
+C      ILAST=-1
+C      LLAST=-1
+C      DO 1200 K=1,N
+C         L=NINT((X(K)-XMIN)/XZOOM)
+C         I=NINT((YMA-LOG10(Y1(K)))/YZOOM)
+C         IF(ILAST.GE.0) THEN
+C           LD = L-LLAST
+C           ID = I-ILAST
+C           DO 55 II=0,LD,SIGN(1,LD)
+C             DO 66 KK=0,ID,SIGN(1,ID)
+C               COL(II+LLAST,KK+ILAST)=SYMB(1)
+C 66          CONTINUE
+C 55        CONTINUE
+C         ELSE
+C           COL(L,I)=SYMB(1)
+C         ENDIF
+C         ILAST = I
+C         LLAST = L
+C1200  CONTINUE
+CC
+C      IF(IARG.GT.1) THEN
+CC
+CC***  plot curve Y2
+CC
+C        DO 1250 K=1,N
+C           L=NINT((X(K)-XMIN)/XZOOM)
+C           I=NINT((YMA-LOG10(Y2(K)))/YZOOM)
+C           COL(L,I)=SYMB(2)
+C1250    CONTINUE
+C      ENDIF
+CC
+CC***  write it
+CC
+C      WRITE(LOUT,'(2X,A)') '(LOGARITHMIC Y AXIS)'
+C      WRITE(LOUT,'(1X,79A)') ('-',I=1,IBREIT)
+CC
+CC***  write range of X
+CC
+C      XZOOM1 = (XMAX-XMIN)/DBLE(7)
+C      WRITE(LOUT,120) (XZOOM1*DBLE(I-1)+XMIN,I=1,7)
+CC
+C      DO 1300 K=0,IZEIL-1
+C         YPOS=10.D0**(YMA-((DBLE(K)+0.5D0)*YZOOM))
+C         WRITE(LOUT,110) YPOS,(COL(I,K),I=0,ISPALT)
+C 110     FORMAT(1X,1PE9.2,70A1)
+C1300  CONTINUE
+CC
+CC***  write range of X
+CC
+C      WRITE(LOUT,120) (XZOOM1*DBLE(I-1)+XMIN,I=1,7)
+C      WRITE(LOUT,'(1X,79A)') ('-',I=1,IBREIT)
+C 120  FORMAT(6X,7(1PE10.3))
+CC
+C      END
 
-      PARAMETER ( LINP = 5 ,
-     &            LOUT = 6 ,
-     &            LDAT = 9 )
-
-      CHARACTER COPER*1
-
-      PARAMETER (ZERO   =  0.0D0,
-     &           ONE    =  1.0D0,
-     &           OHALF  =  0.5D0,
-     &           TINY8  =  1.0D-8,
-     &           SMALL  =  -1.0D8,
-     &           RLARGE =  1.0D8 )
-
-* histograms
-
-      PARAMETER (NHIS=150, NDIM=250)
-
-      COMMON /DTHIS1/ HIST(7,NHIS,NDIM),DENTRY(2,NHIS),OVERF(NHIS),
-     &                UNDERF(NHIS),IBINS(NHIS),ISWI(NHIS),IHISL
-
-      PARAMETER (NDIM2 = 2*NDIM)
-      DIMENSION XX(NDIM2),YY(NDIM2),YY1(NDIM),XX1(NDIM)
-
-      CHARACTER*43 CNORM(0:6)
-      DATA CNORM /'no further normalization                   ',
-     &            'per event and bin width                    ',
-     &            'per entry and bin width                    ',
-     &            'per bin entry                              ',
-     &            'per event and "bin width" x1^2...x2^2      ',
-     &            'per event and "log. bin width" ln x1..ln x2',
-     &            'per event                                  '/
-
-* check histogram indices
-      IF ((IH1.LT.    1).OR.(IH2.LT.    1).OR.
-     &    (IH1.GT.IHISL).OR.(IH2.GT.IHISL)) THEN
-         WRITE(LOUT,1000) IH1,IH2,IHISL
- 1000    FORMAT(1X,'JOIHIS:   warning!  inconsistent histogram ',
-     &          'indices (',I3,',',I3,'),',/,21X,'valid range:  1,',I3)
-         GOTO 9999
-      ENDIF
-
-* check bin structure of histograms to be joined
-      IF (IBINS(IH1).NE.IBINS(IH2)) THEN
-         WRITE(LOUT,1001) IH1,IH2,IBINS(IH1),IBINS(IH2)
- 1001    FORMAT(1X,'JOIHIS:   warning!  joining histograms ',I3,
-     &          ' and ',I3,' failed',/,21X,
-     &          'due to different numbers of bins (',I3,',',I3,')')
-         GOTO 9999
-      ENDIF
-      DO 1 K=1,IBINS(IH1)+1
-         IF (ABS(HIST(1,IH1,K)-HIST(1,IH2,K)).GT.TINY8) THEN
-            WRITE(LOUT,1002) IH1,IH2,K,HIST(1,IH1,K),HIST(1,IH2,K)
- 1002       FORMAT(1X,'JOIHIS:   warning!  joining histograms ',I3,
-     &             ' and ',I3,' failed at bin edge ',I3,/,21X,
-     &             'X1,X2 = ',2E11.4)
-            GOTO 9999
-         ENDIF
-    1 CONTINUE
-
-      WRITE(LOUT,1003) IH1,IH2,COPER,FAC1,FAC2
- 1003 FORMAT(1X,'JOIHIS:   joining histograms ',I3,',',I3,' with ',
-     &       'operation ',A,/,11X,'and factors ',2E11.4)
-      WRITE(LOUT,1004) CNORM(NORM)
- 1004 FORMAT(1X,'normalization: ',A,/)
-
-      DO 2 K=1,IBINS(IH1)
-         CALL DT_GETBIN(IH1,K,KEVT,NORM,XLOW1,XHI1,XMEAN1,YMEAN1,YERR1)
-         CALL DT_GETBIN(IH2,K,KEVT,NORM,XLOW2,XHI2,XMEAN2,YMEAN2,YERR2)
-         XLOW  = XLOW1
-         XHI   = XHI1
-         XMEAN = OHALF*(XMEAN1+XMEAN2)
-         IF (COPER.EQ.'+') THEN
-            YMEAN = FAC1*YMEAN1+FAC2*YMEAN2
-         ELSEIF (COPER.EQ.'*') THEN
-            YMEAN = FAC1*YMEAN1*FAC2*YMEAN2
-         ELSEIF (COPER.EQ.'/') THEN
-            IF (YMEAN2.EQ.ZERO) THEN
-               YMEAN = ZERO
-            ELSE
-               IF (FAC2.EQ.ZERO) FAC2 = ONE
-               YMEAN = FAC1*YMEAN1/(FAC2*YMEAN2)
-            ENDIF
-         ELSE
-            GOTO 9998
-         ENDIF
-         WRITE(LOUT,1006) XLOW,XMEAN,YMEAN,HIST(2,IH1,K),HIST(2,IH2,K)
-         WRITE(LOUT,1006) XHI ,XMEAN,YMEAN,HIST(2,IH1,K),HIST(2,IH2,K)
- 1006    FORMAT(1X,5E11.3)
-*    small frame
-         II = 2*K
-         XX(II-1) = HIST(1,IH1,K)
-         XX(II)   = HIST(1,IH1,K+1)
-         YY(II-1) = YMEAN
-         YY(II)   = YMEAN
-*    wide frame
-         XX1(K) = XMEAN
-         IF ((ISWI(IH1).EQ.3).OR.(ISWI(IH1).EQ.4)) XX1(K) = LOG10(XMEAN)
-         YY1(K) = YMEAN
-    2 CONTINUE
-
-* plot small frame
-      IF (ABS(MODE).EQ.1) THEN
-         IBIN2 = 2*IBINS(IH1)
-         WRITE(LOUT,'(/,1X,A)') 'Preview:'
-         IF(ILOGY.EQ.1) THEN
-           CALL DT_XGLOGY(IBIN2,1,XX,YY,YY)
-         ELSE
-           CALL DT_XGRAPH(IBIN2,1,XX,YY,YY)
-         ENDIF
-      ENDIF
-
-* plot wide frame
-      IF (ABS(MODE).EQ.2) THEN
-         WRITE(LOUT,'(/,1X,A)') 'Preview:'
-         NSIZE = NDIM
-         DXLOW = HIST(1,IH1,1)
-         DDX   = ABS(HIST(1,IH1,2)-HIST(1,IH1,1))
-         YLOW  = RLARGE
-         YHI   = SMALL
-         DO 3 I=1,NDIM
-            IF (YY1(I).LT.YLOW) THEN
-               IF (ILOGY.EQ.1) THEN
-                  IF (YY1(I).GT.ZERO) YLOW = YY1(I)
-               ELSE
-                  YLOW = YY1(I)
-               ENDIF
-            ENDIF
-            IF (YY1(I).GT.YHI) YHI = YY1(I)
-    3    CONTINUE
-         DY = (YHI-YLOW)/DBLE(NDIM)
-         IF (DY.LE.ZERO) THEN
-            WRITE(LOUT,'(1X,A,2I4,A,2E12.4)')
-     &         'JOIHIS:   warning! zero bin width for histograms ',
-     &         IH1,IH2,': ',YLOW,YHI
-            RETURN
-         ENDIF
-         IF (ILOGY.EQ.1) THEN
-            YLOW = LOG10(YLOW)
-            DY   = (LOG10(YHI)-YLOW)/100.0D0
-            DO 4 I=1,NDIM
-               IF (YY1(I).LE.ZERO) THEN
-                  YY1(I) = YLOW
-               ELSE
-                  YY1(I) = LOG10(YY1(I))
-               ENDIF
-    4       CONTINUE
-         ENDIF
-         CALL DT_SRPLOT(XX1,YY1,NSIZE,1,NDIM,DXLOW,DDX,YLOW,DY)
-      ENDIF
-
-      RETURN
-
- 9998 CONTINUE
-      WRITE(LOUT,1005) COPER
- 1005 FORMAT(1X,'JOIHIS:   unknown operation ',A)
-
- 9999 CONTINUE
-      RETURN
-      END
-
-*$ CREATE DT_XGRAPH.FOR
-*COPY DT_XGRAPH
-*
-*===qgraph=============================================================*
-*
-      SUBROUTINE DT_XGRAPH(N,IARG,X,Y1,Y2)
-C***********************************************************************
+C*$ CREATE DT_SRPLOT.FOR
+C*COPY DT_SRPLOT
+C*
+C*===plot===============================================================*
+C*
+C      SUBROUTINE DT_SRPLOT(X,Y,N,M,MM,XO,DX,YO,DY)
 C
-C     calculate quasi graphic picture with 25 lines and 79 columns
-C     ranges will be chosen automatically
+C      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
+C      SAVE
 C
-C     input     N          dimension of input fields
-C               IARG       number of curves (fields) to plot
-C               X          field of X
-C               Y1         field of Y1
-C               Y2         field of Y2
+C      PARAMETER ( LINP = 5 ,
+C     &            LOUT = 6 ,
+C     &            LDAT = 9 )
 C
-C This subroutine is written by R. Engel.
-C***********************************************************************
-      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
-      SAVE
-
-      PARAMETER ( LINP = 5 ,
-     &            LOUT = 6 ,
-     &            LDAT = 9 )
-
-C
-      DIMENSION X(N),Y1(N),Y2(N)
-      PARAMETER (EPS=1.D-30)
-      PARAMETER (IYRAST=5,IXRAST=10,IBREIT=79,IZEIL=20)
-      CHARACTER SYMB(5)
-      CHARACTER COL(0:149,0:49)
-C
-      DATA SYMB /'0','e','z','#','x'/
-C
-      ISPALT=IBREIT-10
-C
-C***  automatic range fitting
-C
-      XMAX=X(1)
-      XMIN=X(1)
-      DO 600 I=1,N
-         XMAX=MAX(X(I),XMAX)
-         XMIN=MIN(X(I),XMIN)
- 600  CONTINUE
-      XZOOM=(XMAX-XMIN)/DBLE(ISPALT)
-C
-      ITEST=0
-      DO 1100 K=0,IZEIL-1
-         ITEST=ITEST+1
-         IF (ITEST.EQ.IYRAST) THEN
-            DO 1010 L=1,ISPALT-1
-               COL(L,K)='-'
-1010        CONTINUE
-            COL(ISPALT,K)='+'
-            ITEST=0
-            DO 1020 L=0,ISPALT-1,IXRAST
-               COL(L,K)='+'
-1020        CONTINUE
-         ELSE
-            DO 1030 L=1,ISPALT-1
-               COL(L,K)=' '
-1030        CONTINUE
-            DO 1040 L=0,ISPALT-1,IXRAST
-               COL(L,K)='|'
-1040        CONTINUE
-            COL(ISPALT,K)='|'
-         ENDIF
-1100  CONTINUE
-C
-C***  plot curve Y1
-C
-      YMAX=Y1(1)
-      YMIN=Y1(1)
-      DO 500 I=1,N
-         YMAX=MAX(Y1(I),YMAX)
-         YMIN=MIN(Y1(I),YMIN)
-500   CONTINUE
-      IF(IARG.GT.1) THEN
-        DO 550 I=1,N
-           YMAX=MAX(Y2(I),YMAX)
-           YMIN=MIN(Y2(I),YMIN)
-550     CONTINUE
-      ENDIF
-      YMAX=(YMAX-YMIN)/40.0D0+YMAX
-      YMIN=YMIN-(YMAX-YMIN)/40.0D0
-      YZOOM=(YMAX-YMIN)/DBLE(IZEIL)
-      IF(YZOOM.LT.EPS) THEN
-        WRITE(LOUT,'(1X,A)')
-     &    'XGRAPH:WARNING: MIN = MAX, OUTPUT SUPPRESSED'
-        RETURN
-      ENDIF
-C
-C***  plot curve Y1
-C
-      ILAST=-1
-      LLAST=-1
-      DO 1200 K=1,N
-         L=NINT((X(K)-XMIN)/XZOOM)
-         I=NINT((YMAX-Y1(K))/YZOOM)
-         IF(ILAST.GE.0) THEN
-           LD = L-LLAST
-           ID = I-ILAST
-           DO 55 II=0,LD,SIGN(1,LD)
-             DO 66 KK=0,ID,SIGN(1,ID)
-               COL(II+LLAST,KK+ILAST)=SYMB(1)
- 66          CONTINUE
- 55        CONTINUE
-         ELSE
-           COL(L,I)=SYMB(1)
-         ENDIF
-         ILAST = I
-         LLAST = L
-1200  CONTINUE
-C
-      IF(IARG.GT.1) THEN
-C
-C***  plot curve Y2
-C
-        DO 1250 K=1,N
-           L=NINT((X(K)-XMIN)/XZOOM)
-           I=NINT((YMAX-Y2(K))/YZOOM)
-           COL(L,I)=SYMB(2)
-1250    CONTINUE
-      ENDIF
-C
-C***  write it
-C
-      WRITE(LOUT,'(1X,79A)') ('-',I=1,IBREIT)
-C
-C***  write range of X
-C
-      XZOOM = (XMAX-XMIN)/DBLE(7)
-      WRITE(LOUT,120) (XZOOM*DBLE(I-1)+XMIN,I=1,7)
-C
-      DO 1300 K=0,IZEIL-1
-         YPOS=YMAX-((DBLE(K)+0.5D0)*YZOOM)
-         WRITE(LOUT,110) YPOS,(COL(I,K),I=0,ISPALT)
- 110     FORMAT(1X,1PE9.2,70A1)
-1300  CONTINUE
-C
-C***  write range of X
-C
-      XZOOM = (XMAX-XMIN)/DBLE(7)
-      WRITE(LOUT,120) (XZOOM*DBLE(I-1)+XMIN,I=1,7)
-      WRITE(LOUT,'(1X,79A)') ('-',I=1,IBREIT)
- 120  FORMAT(6X,7(1PE10.3))
-      END
-
-*$ CREATE DT_XGLOGY.FOR
-*COPY DT_XGLOGY
-*
-*===qglogy=============================================================*
-*
-      SUBROUTINE DT_XGLOGY(N,IARG,X,Y1,Y2)
-C***********************************************************************
-C
-C     calculate quasi graphic picture with 25 lines and 79 columns
-C     logarithmic y axis
-C     ranges will be chosen automatically
-C
-C     input     N          dimension of input fields
-C               IARG       number of curves (fields) to plot
-C               X          field of X
-C               Y1         field of Y1
-C               Y2         field of Y2
-C
-C This subroutine is written by R. Engel.
-C***********************************************************************
-C
-      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
-      SAVE
-
-      PARAMETER ( LINP = 5 ,
-     &            LOUT = 6 ,
-     &            LDAT = 9 )
-
-      DIMENSION X(N),Y1(N),Y2(N)
-      PARAMETER (EPS=1.D-30)
-      PARAMETER (IYRAST=5,IXRAST=10,IBREIT=79,IZEIL=20)
-      CHARACTER SYMB(5)
-      CHARACTER COL(0:149,0:49)
-      PARAMETER (DEPS = 1.D-10)
-C
-      DATA SYMB /'0','e','z','#','x'/
-C
-      ISPALT=IBREIT-10
-C
-C***  automatic range fitting
-C
-      XMAX=X(1)
-      XMIN=X(1)
-      DO 600 I=1,N
-         XMAX=MAX(X(I),XMAX)
-         XMIN=MIN(X(I),XMIN)
- 600  CONTINUE
-      XZOOM=(XMAX-XMIN)/DBLE(ISPALT)
-C
-      ITEST=0
-      DO 1100 K=0,IZEIL-1
-         ITEST=ITEST+1
-         IF (ITEST.EQ.IYRAST) THEN
-            DO 1010 L=1,ISPALT-1
-               COL(L,K)='-'
-1010        CONTINUE
-            COL(ISPALT,K)='+'
-            ITEST=0
-            DO 1020 L=0,ISPALT-1,IXRAST
-               COL(L,K)='+'
-1020        CONTINUE
-         ELSE
-            DO 1030 L=1,ISPALT-1
-               COL(L,K)=' '
-1030        CONTINUE
-            DO 1040 L=0,ISPALT-1,IXRAST
-               COL(L,K)='|'
-1040        CONTINUE
-            COL(ISPALT,K)='|'
-         ENDIF
-1100  CONTINUE
-C
-C***  plot curve Y1
-C
-      YMAX=Y1(1)
-      YMIN=MAX(Y1(1),EPS)
-      DO 500 I=1,N
-         YMAX =MAX(Y1(I),YMAX)
-         IF(Y1(I).GT.EPS) THEN
-           IF(YMIN.EQ.EPS) THEN
-             YMIN = Y1(I)/10.D0
-           ELSE
-             YMIN = MIN(Y1(I),YMIN)
-           ENDIF
-         ENDIF
-500   CONTINUE
-      IF(IARG.GT.1) THEN
-        DO 550 I=1,N
-           YMAX=MAX(Y2(I),YMAX)
-           IF(Y2(I).GT.EPS) THEN
-             IF(YMIN.EQ.EPS) THEN
-               YMIN = Y2(I)
-             ELSE
-               YMIN = MIN(Y2(I),YMIN)
-             ENDIF
-           ENDIF
-550     CONTINUE
-      ENDIF
-C
-      DO 560 I=1,N
-        Y1(I) = MAX(Y1(I),YMIN)
- 560  CONTINUE
-      IF(IARG.GT.1) THEN
-        DO 570 I=1,N
-          Y2(I) = MAX(Y2(I),YMIN)
- 570    CONTINUE
-      ENDIF
-C
-      IF(YMAX.LE.YMIN) THEN
-        WRITE(LOUT,'(/1X,A,2E12.3,/)')
-     &     'XGLOGY:ERROR:YMIN,YMAX ',YMIN,YMAX
-        WRITE(LOUT,'(1X,A)') 'MIN = MAX, OUTPUT SUPPRESSED'
-        RETURN
-      ENDIF
-C
-      YMA=(LOG10(YMAX)-LOG10(YMIN))/20.0D0+LOG10(YMAX)
-      YMI=LOG10(YMIN)-(LOG10(YMAX)-LOG10(YMIN))/20.0D0
-      YZOOM=(YMA-YMI)/DBLE(IZEIL)
-      IF(YZOOM.LT.EPS) THEN
-        WRITE(LOUT,'(1X,A)')
-     &    'XGLOGY:WARNING: MIN = MAX, OUTPUT SUPPRESSED'
-        RETURN
-      ENDIF
-C
-C***  plot curve Y1
-C
-      ILAST=-1
-      LLAST=-1
-      DO 1200 K=1,N
-         L=NINT((X(K)-XMIN)/XZOOM)
-         I=NINT((YMA-LOG10(Y1(K)))/YZOOM)
-         IF(ILAST.GE.0) THEN
-           LD = L-LLAST
-           ID = I-ILAST
-           DO 55 II=0,LD,SIGN(1,LD)
-             DO 66 KK=0,ID,SIGN(1,ID)
-               COL(II+LLAST,KK+ILAST)=SYMB(1)
- 66          CONTINUE
- 55        CONTINUE
-         ELSE
-           COL(L,I)=SYMB(1)
-         ENDIF
-         ILAST = I
-         LLAST = L
-1200  CONTINUE
-C
-      IF(IARG.GT.1) THEN
-C
-C***  plot curve Y2
-C
-        DO 1250 K=1,N
-           L=NINT((X(K)-XMIN)/XZOOM)
-           I=NINT((YMA-LOG10(Y2(K)))/YZOOM)
-           COL(L,I)=SYMB(2)
-1250    CONTINUE
-      ENDIF
-C
-C***  write it
-C
-      WRITE(LOUT,'(2X,A)') '(LOGARITHMIC Y AXIS)'
-      WRITE(LOUT,'(1X,79A)') ('-',I=1,IBREIT)
-C
-C***  write range of X
-C
-      XZOOM1 = (XMAX-XMIN)/DBLE(7)
-      WRITE(LOUT,120) (XZOOM1*DBLE(I-1)+XMIN,I=1,7)
-C
-      DO 1300 K=0,IZEIL-1
-         YPOS=10.D0**(YMA-((DBLE(K)+0.5D0)*YZOOM))
-         WRITE(LOUT,110) YPOS,(COL(I,K),I=0,ISPALT)
- 110     FORMAT(1X,1PE9.2,70A1)
-1300  CONTINUE
-C
-C***  write range of X
-C
-      WRITE(LOUT,120) (XZOOM1*DBLE(I-1)+XMIN,I=1,7)
-      WRITE(LOUT,'(1X,79A)') ('-',I=1,IBREIT)
- 120  FORMAT(6X,7(1PE10.3))
-C
-      END
-
-*$ CREATE DT_SRPLOT.FOR
-*COPY DT_SRPLOT
-*
-*===plot===============================================================*
-*
-      SUBROUTINE DT_SRPLOT(X,Y,N,M,MM,XO,DX,YO,DY)
-
-      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
-      SAVE
-
-      PARAMETER ( LINP = 5 ,
-     &            LOUT = 6 ,
-     &            LDAT = 9 )
-
-*
-*     initial version
-*     J. Ranft, (FORTRAN-Programmierung,J.R.,Teubner, Leipzig, 72)
-*     This is a subroutine of fluka to plot Y across the page
-*     as a function of X down the page. Up to 37 curves can be
-*     plotted in the same picture with different plotting characters.
-*     Output of first 10 overprinted characters addad by FB 88
-*  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-*
-*     Input Variables:
-*        X   = array containing the values of X
-*        Y   = array containing the values of Y
-*        N   = number of values in X and in Y
-*              can exceed the fixed number of lines
-*        M   = number of different curves X,Y are containing
-*        MM  = number of points in each curve i.e. N=M*MM
-*        XO  = smallest value of X to be plotted
-*        DX  = increment of X between subsequent lines
-*        YO  = smallest value of Y to be plotted
-*        DY  = increment of Y between subsequent character spaces
-*
-*        other variables used inside:
-*        XX  = numbers along the X-coordinate axis
-*        YY  = numbers along the Y-coordinate axis
-*        LL  = ten lines temporary storage for the plot
-*        L   = character set used to plot different curves
-*        LOV = memorizes overprinted symbols
-*              the first 10 overprinted symbols are printed on
-*              the end of the line to avoid ambiguities
-*              (added by FB as considered quite helpful)
-*
-*********************************************************************
-*
-      DIMENSION XX(61),YY(61),LL(101,10)
-      DIMENSION X(N),Y(N),L(40),LOV(40,10)
-      DATA  L/
-     11H*,1H2,1H3,1H4,1H5,1H6,1H7,1H8,1H9,1HZ,
-     21H+,1HA,1HO,1HB,1HC,1HD,1HE,1HF,1HG,1HH,
-     31HI,1HJ,1HK,1HL,1HM,1HN,1HO,1HP,1HQ,1HR,
-     41HS,1HT,1HU,1HV,1HW,1HX,1HY,1H1,1H-,1H  /
-*
-*
-      MN=51
-      DO 10 I=1,MN
-        AI=I-1
-   10 XX(I)=XO+AI*DX
-      DO 20 I=1,11
-        AI=I-1
-   20 YY(I)=YO+10.0D0*AI*DY
-      WRITE(LOUT, 500) (YY(I),I=1,11)
-      MMN=MN-1
-*
-*
-      DO 90 JJ=1,MMN,10
-        JJJ=JJ-1
-        DO 30 I=1,101
-          DO 30 J=1,10
-   30   LL(I,J)=L(40)
-        DO 40 I=1,101
-   40   LL(I,1)=L(39)
-        DO 50 I=1,101,10
-          DO 50 J=1,10
-   50   LL(I,J)=L(38)
-        DO 60 I=1,40
-          DO 60 J=1,10
-   60   LOV(I,J)=L(40)
-*
-*
-        DO 70 I=1,M
-          DO 70 J=1,MM
-            II=J+(I-1)*MM
-            AIX=(X(II)-(XO-DX/2.0D0))/DX+1.0D0
-            AIY=(Y(II)-(YO-DY/2.0D0))/DY+1.0D0
-            AIX=AIX-DBLE(JJJ)
-*           changed Sept.88 by FB to avoid INTEGER OVERFLOW
-            IF( AIX .GT. 1.D0.AND. AIX .LT. 11.D0.AND. AIY .GT. 1.D0.AND
-     +      . AIY .LT. 102.D0) THEN
-              IX=INT(AIX)
-              IY=INT(AIY)
-              IF( IX.GT. 0.AND. IX.LE. 10.AND. IY.GT. 0.AND. IY.LE. 101)
-     +        THEN
-                IF(LL(IY,IX).NE.L(38).AND.LL(IY,IX).NE.L(39)) LOV(I,IX)
-     +          =LL(IY,IX)
-                LL(IY,IX)=L(I)
-              ENDIF
-            ENDIF
-   70   CONTINUE
-*
-*
-        DO 80 I=1,10
-          II=I+JJJ
-          III=II+1
-          WRITE(LOUT,510) XX(II),XX(III) , (LL(J,I),J=1,101) ,
-     &                    (LOV(J,I),J=1,10)
-   80   CONTINUE
-   90 CONTINUE
-*
-*
-      WRITE(LOUT, 520)
-      WRITE(LOUT, 500) (YY(I),I=1,11)
-      RETURN
-*
-  500 FORMAT(11X,11(1PE10.2),11HOVERPRINTED)
-  510 FORMAT(1X,2(1PE10.2),101A1,1H ,10A1)
-  520 FORMAT(20X,10('1---------'),'1')
-      END
+C*
+C*     initial version
+C*     J. Ranft, (FORTRAN-Programmierung,J.R.,Teubner, Leipzig, 72)
+C*     This is a subroutine of fluka to plot Y across the page
+C*     as a function of X down the page. Up to 37 curves can be
+C*     plotted in the same picture with different plotting characters.
+C*     Output of first 10 overprinted characters addad by FB 88
+C*  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+C*
+C*     Input Variables:
+C*        X   = array containing the values of X
+C*        Y   = array containing the values of Y
+C*        N   = number of values in X and in Y
+C*              can exceed the fixed number of lines
+C*        M   = number of different curves X,Y are containing
+C*        MM  = number of points in each curve i.e. N=M*MM
+C*        XO  = smallest value of X to be plotted
+C*        DX  = increment of X between subsequent lines
+C*        YO  = smallest value of Y to be plotted
+C*        DY  = increment of Y between subsequent character spaces
+C*
+C*        other variables used inside:
+C*        XX  = numbers along the X-coordinate axis
+C*        YY  = numbers along the Y-coordinate axis
+C*        LL  = ten lines temporary storage for the plot
+C*        L   = character set used to plot different curves
+C*        LOV = memorizes overprinted symbols
+C*              the first 10 overprinted symbols are printed on
+C*              the end of the line to avoid ambiguities
+C*              (added by FB as considered quite helpful)
+C*
+C*********************************************************************
+C*
+C      DIMENSION XX(61),YY(61),LL(101,10)
+C      DIMENSION X(N),Y(N),L(40),LOV(40,10)
+C      DATA  L/
+C     11H*,1H2,1H3,1H4,1H5,1H6,1H7,1H8,1H9,1HZ,
+C     21H+,1HA,1HO,1HB,1HC,1HD,1HE,1HF,1HG,1HH,
+C     31HI,1HJ,1HK,1HL,1HM,1HN,1HO,1HP,1HQ,1HR,
+C     41HS,1HT,1HU,1HV,1HW,1HX,1HY,1H1,1H-,1H  /
+C*
+C*
+C      MN=51
+C      DO 10 I=1,MN
+C        AI=I-1
+C   10 XX(I)=XO+AI*DX
+C      DO 20 I=1,11
+C        AI=I-1
+C   20 YY(I)=YO+10.0D0*AI*DY
+C      WRITE(LOUT, 500) (YY(I),I=1,11)
+C      MMN=MN-1
+C*
+C*
+C      DO 90 JJ=1,MMN,10
+C        JJJ=JJ-1
+C        DO 30 I=1,101
+C          DO 30 J=1,10
+C   30   LL(I,J)=L(40)
+C        DO 40 I=1,101
+C   40   LL(I,1)=L(39)
+C        DO 50 I=1,101,10
+C          DO 50 J=1,10
+C   50   LL(I,J)=L(38)
+C        DO 60 I=1,40
+C          DO 60 J=1,10
+C   60   LOV(I,J)=L(40)
+C*
+C*
+C        DO 70 I=1,M
+C          DO 70 J=1,MM
+C            II=J+(I-1)*MM
+C            AIX=(X(II)-(XO-DX/2.0D0))/DX+1.0D0
+C            AIY=(Y(II)-(YO-DY/2.0D0))/DY+1.0D0
+C            AIX=AIX-DBLE(JJJ)
+C*           changed Sept.88 by FB to avoid INTEGER OVERFLOW
+C            IF( AIX .GT. 1.D0.AND. AIX .LT. 11.D0.AND. AIY .GT. 1.D0.AND
+C     +      . AIY .LT. 102.D0) THEN
+C              IX=INT(AIX)
+C              IY=INT(AIY)
+C              IF( IX.GT. 0.AND. IX.LE. 10.AND. IY.GT. 0.AND. IY.LE. 101)
+C     +        THEN
+C                IF(LL(IY,IX).NE.L(38).AND.LL(IY,IX).NE.L(39)) LOV(I,IX)
+C     +          =LL(IY,IX)
+C                LL(IY,IX)=L(I)
+C              ENDIF
+C            ENDIF
+C   70   CONTINUE
+C*
+C*
+C        DO 80 I=1,10
+C          II=I+JJJ
+C          III=II+1
+C          WRITE(LOUT,510) XX(II),XX(III) , (LL(J,I),J=1,101) ,
+C     &                    (LOV(J,I),J=1,10)
+C   80   CONTINUE
+C   90 CONTINUE
+C*
+C*
+C      WRITE(LOUT, 520)
+C      WRITE(LOUT, 500) (YY(I),I=1,11)
+C      RETURN
+C*
+C  500 FORMAT(11X,11(1PE10.2),11HOVERPRINTED)
+C  510 FORMAT(1X,2(1PE10.2),101A1,1H ,10A1)
+C  520 FORMAT(20X,10('1---------'),'1')
+C      END
 *$ CREATE DT_DEFSET.FOR
 *COPY DT_DEFSET
 *
