@@ -8,8 +8,7 @@
       COMMON/HARD/ NIA1,NIR1,NIA2,NIR2,NF1,NF2,NFT
       INTEGER IHFLA
       COMMON/HFLAV/ IHFLA
-	Integer IPST
-	Common/pshower/IPST
+      Integer IPST
+      Common/pshower/IPST
 c IPST = 1 print also propagators of initial state cascade...
 c      SAVE
-

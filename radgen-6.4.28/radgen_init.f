@@ -39,9 +39,9 @@
         ixytest = -1
       endif
      
-      if ((INUMOD.gt.1).and.(CHANUM.gt.1)) then
-         mcSet_TarA = INUMOD
-         mcSet_TarZ = CHANUM
+      if ((NINT(INUMOD).gt.1).and.(NINT(CHANUM).gt.1)) then
+         mcSet_TarA = NINT(INUMOD)
+         mcSet_TarZ = NINT(CHANUM)
       endif
       
       write(*,*) mcSet_TarA, mcSet_TarZ
