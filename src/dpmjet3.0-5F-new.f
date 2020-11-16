@@ -2068,68 +2068,24 @@ C        WRITE(LOUT,*) 'CMENER = ',CMENER
 *                                                                   *
 *               control card:  codewd = GLAUB-PAR                   *
 *                                                                   *
-*                parameters in Glauber-formalism                    *
-*                                                                   *
-*    what (1)  # of nucleon configurations sampled in integration   *
-*              over nuclear desity                default: 1000     *
-*    what (2)  # of bins for integration over impact-parameter and  *
-*              for profile-function calculation   default: 49       *
-*    what (3)  = 1 calculation of tot., el. and qel. cross sections *
-*                                                 default: 0        *
-*    what (4)  = 1   read pre-calculated impact-parameter distrib.  *
-*                    from "sdum".glb                                *
-*              =-1   dump pre-calculated impact-parameter distrib.  *
-*                    into "sdum".glb                                *
-*              = 100 read pre-calculated impact-parameter distrib.  *
-*                    for variable projectile/target/energy runs     *
-*                    from "sdum".glb                                *
-*                                                 default: 0        *
-*    what (5..6)   no meaning                                       *
-*    sdum      if |what (4)| = 1 name of in/output-file (sdum.glb)  *
+*                         NOT USED IN BEAGLE                        *
 *                                                                   *
 *********************************************************************
 
   560 CONTINUE
-      IF (WHAT(1).GT.ZERO) JSTATB = NINT(WHAT(1))
-      IF (WHAT(2).GT.ZERO) JBINSB = NINT(WHAT(2))
-      IF (WHAT(3).EQ.ONE) LPROD = .FALSE.
-      IF ((NINT(ABS(WHAT(4))).EQ.1).OR.(NINT(WHAT(4)).EQ.100)) THEN
-         IOGLB = NINT(WHAT(4))
-         CGLB  = SDUM
-      ENDIF
+      STOP "FATAL ERROR: DPMJET Glauber GLAUB-PAR not used in BeAGLE"
       GOTO 10
 
 *********************************************************************
 *                                                                   *
 *               control card:  codewd = GLAUB-INI                   *
-*                                                                   *
-*             pre-initialization of profile function                *
-*                                                                   *
-*       what (1)      lower energy limit for initialization         *
-*                > 0  Lab. frame                                    *
-*                < 0  nucleon-nucleon cms                           *
-*       what (2)      upper energy limit for initialization         *
-*                > 0  Lab. frame                                    *
-*                < 0  nucleon-nucleon cms                           *
-*       what (3) > 0  # of equidistant lin. bins in E               *
-*                < 0  # of equidistant log. bins in E               *
-*       what (4)      maximum projectile mass number for which the  *
-*                     Glauber data are initialized for each         *
-*                     projectile mass number                        *
-*                     (if <= mass given with the PROJPAR-card)      *
-*                                              default: 18          *
-*       what (5)      steps in mass number starting from what (4)   *
-*                     up to mass number defined with PROJPAR-card   *
-*                     for which Glauber data are initialized        *
-*                                              default: 5           *
-*       what (6)      no meaning                                    *
-*       sdum          no meaning                                    *
+*                                                                   * 
+*                         NOT USED IN BEAGLE                        *
 *                                                                   *
 *********************************************************************
 
   565 CONTINUE
-      IOGLB = -100
-      CALL DT_GLBINI(WHAT)
+      STOP "FATAL ERROR: DPMJET Glauber GLAUB-INI not used in BeAGLE"
       GOTO 10
 
 *********************************************************************
@@ -6280,8 +6236,9 @@ C         ENDIF
 * variable projectile/target/energy runs:
 * read pre-initialized profile-functions from file
       ELSEIF (IOGLB.EQ.100) THEN
-         CALL DT_GLBSET(IJPROJ,IINA,IINB,RRELAB,0)
-         GOTO 100
+         STOP "FATAL ERROR: BeAGLE does not use GLBSETs"
+C         CALL DT_GLBSET(IJPROJ,IINA,IINB,RRELAB,0)
+C         GOTO 100
       ENDIF
 
 * cross sections averaged over NSTATB nucleon configurations
@@ -7589,7 +7546,8 @@ C                    ENDIF
 * new patch for pre-initialized variable projectile/target/energy runs,
 * bypassed for use within FLUKA (Nidx=-2)
       IF (IOGLB.EQ.100) THEN
-         IF (NIDX.NE.-2) CALL DT_GLBSET(IJPROJ,NA,NB,EPROJ,1)
+         STOP "FATAL ERROR: BeAGLE does not use GLBSETs"
+C         IF (NIDX.NE.-2) CALL DT_GLBSET(IJPROJ,NA,NB,EPROJ,1)
 *
 * variable energy run, interpolate profile function
       ELSE
@@ -8218,692 +8176,692 @@ C         ENDIF
       RETURN
       END
 
-*$ CREATE DT_GLBINI.FOR
-*COPY DT_GLBINI
-*
-*===glbini=============================================================*
-*
-      SUBROUTINE DT_GLBINI(WHAT)
-
-************************************************************************
-* Pre-initialization of profile function                               *
-* This version dated 28.11.00 is written by S. Roesler.                *
-*                                                                      *
-* Last change 27.12.2006 by S. Roesler.                                *
-************************************************************************
-
-      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
-      SAVE
-
-      PARAMETER ( LINP = 5 ,
-     &            LOUT = 6 ,
-     &            LDAT = 9 )
-
-      PARAMETER (ZERO=0.0D0,ONE=1.0D0,TINY14=1.D-14)
-
-      LOGICAL LCMS
-
-      INCLUDE 'beagle.inc'
-
-* particle properties (BAMJET index convention)
-      CHARACTER*8  ANAME
-      COMMON /DTPART/ ANAME(210),AAM(210),GA(210),TAU(210),
-     &                IICH(210),IIBAR(210),K1(210),K2(210)
-
-* properties of interacting particles
-      COMMON /DTPRTA/ IT,ITZ,IP,IPZ,IJPROJ,IBPROJ,IJTARG,IBTARG,ITMODE,
-     &     ITMMOD,MODHYP,NHYPER,IDHYP(5)
-
-      PARAMETER (NCOMPX=20,NEB=8,NQB= 5,KSITEB=50)
-
-* emulsion treatment
-      COMMON /DTCOMP/ EMUFRA(NCOMPX),IEMUMA(NCOMPX),IEMUCH(NCOMPX),
-     &                NCOMPO,IEMUL
-
-* Glauber formalism: flags and parameters for statistics
-      LOGICAL LPROD
-      CHARACTER*8 CGLB
-      COMMON /DTGLGP/ JSTATB,JBINSB,CGLB,IOGLB,LPROD
-
-* number of data sets other than protons and nuclei
-* at the moment = 2 (pions and kaons)
-      PARAMETER (MAXOFF=2)
-      DIMENSION IJPINI(5),IOFFST(25)
-      DATA IJPINI / 13, 15,  0,  0,  0/
-* Glauber data-set to be used for hadron projectiles
-* (0=proton, 1=pion, 2=kaon)
-      DATA (IOFFST(K),K=1,25) /
-     &  0, 0,-1,-1,-1,-1,-1, 0, 0,-1,-1, 2, 1, 1, 2, 2, 0, 0, 2, 0,
-     &  0, 0, 1, 2, 2/
-* Acceptance interval for target nucleus mass
-      PARAMETER (KBACC = 6)
-
-C* flags for input different options
-C      LOGICAL LEMCCK,LHADRO,LSEADI,LEVAPO
-C      COMMON /DTFLG1/ IFRAG(2),IRESCO,IMSHL,IRESRJ,IOULEV(6),
-C     &                LEMCCK,LHADRO(0:9),LSEADI,LEVAPO,IFRAME,ITRSPT
-
-      PARAMETER (MAXMSS = 100)
-      DIMENSION IASAV(MAXMSS),IBSAV(MAXMSS)
-      DIMENSION WHAT(6)
-
-      DATA JPEACH,JPSTEP / 18, 5 /
-
-* temporary patch until fix has been implemented in phojet:
-*  maximum energy for pion projectile
-      DATA ECMXPI / 100000.0D0 /
-*
-*--------------------------------------------------------------------------
-* general initializations
-*
-*  steps in projectile mass number for initialization
-      IF (WHAT(4).GT.ZERO) JPEACH = INT(WHAT(4))
-      IF (WHAT(5).GT.ZERO) JPSTEP = INT(WHAT(5))
-*
-*  energy range and binning
-      ELO  = ABS(WHAT(1))
-      EHI  = ABS(WHAT(2))
-      IF (ELO.GT.EHI) ELO = EHI
-      NEBIN = MAX(INT(WHAT(3)),1)
-      IF (ELO.EQ.EHI) NEBIN = 0
-      LCMS = (WHAT(1).LT.ZERO).OR.(WHAT(2).LT.ZERO)
-      IF (LCMS) THEN
-         ECMINI = EHI
-      ELSE
-         ECMINI = SQRT(AAM(IJPROJ)**2+AAM(IJTARG)**2
-     &                 +2.0D0*AAM(IJTARG)*EHI)
-      ENDIF
-*
-*  default arguments for Glauber-routine
-      XI  = ZERO
-      Q2I = ZERO
-*
-*  initialize nuclear parameters, etc.
-
-*  initialize evaporation if the code is not used as Fluka event generator
-      IF (ITRSPT.NE.1) THEN
-         CALL NCDTRD
-         CALL INCINI
-      ENDIF
-
-*
-*  open Glauber-data output file
-      IDX = INDEX(CGLB,' ')
-      K   = 12
-      IF (IDX.GT.1) K = IDX-1
-      OPEN(LDAT,FILE=CGLB(1:K)//'.glb',STATUS='UNKNOWN')
-*
-*--------------------------------------------------------------------------
-* Glauber-initialization for proton and nuclei projectiles
-*
-*  initialize phojet for proton-proton interactions
-      ELAB = ZERO
-      PLAB = ZERO
-      CALL DT_LTINI(IJPROJ,IJTARG,ELAB,PLAB,ECMINI,1)
-      CALL DT_PHOINI
-*
-*  record projectile masses
-      NASAV = 0
-      NPROJ = MIN(IP,JPEACH)
-      DO 10 KPROJ=1,NPROJ
-         NASAV = NASAV+1
-         IF (NASAV.GT.MAXMSS) STOP ' GLBINI: NASAV > MAXMSS ! '
-         IASAV(NASAV) = KPROJ
-   10 CONTINUE
-      IF (IP.GT.JPEACH) THEN
-         NPROJ = DBLE(IP-JPEACH)/DBLE(JPSTEP)
-         IF (NPROJ.EQ.0) THEN
-            NASAV = NASAV+1
-            IF (NASAV.GT.MAXMSS) STOP ' GLBINI: NASAV > MAXMSS ! '
-            IASAV(NASAV) = IP
-         ELSE
-            DO 11 IPROJ=1,NPROJ
-               KPROJ = JPEACH+IPROJ*JPSTEP
-               NASAV = NASAV+1
-               IF (NASAV.GT.MAXMSS) STOP ' GLBINI: NASAV > MAXMSS ! '
-               IASAV(NASAV) = KPROJ
-   11       CONTINUE
-            IF (KPROJ.LT.IP) THEN
-               NASAV = NASAV+1
-               IF (NASAV.GT.MAXMSS) STOP ' GLBINI: NASAV > MAXMSS ! '
-               IASAV(NASAV) = IP
-            ENDIF
-         ENDIF
-      ENDIF
-*
-*  record target masses
-      NBSAV = 0
-      NTARG = 1
-      IF (NCOMPO.GT.0) NTARG = NCOMPO
-      DO 12 ITARG=1,NTARG
-         NBSAV = NBSAV+1
-         IF (NBSAV.GT.MAXMSS) STOP ' GLBINI: NBSAV > MAXMSS ! '
-         IF (NCOMPO.GT.0) THEN
-            IBSAV(NBSAV) = IEMUMA(ITARG)
-         ELSE
-            IBSAV(NBSAV) = IT
-         ENDIF
-   12 CONTINUE
-*
-*  print masses
-      WRITE(LDAT,1000) NEBIN,': ',SIGN(ELO,WHAT(1)),SIGN(EHI,WHAT(2))
- 1000 FORMAT(I4,A,1P,2E13.5)
-      NLINES = DBLE(NASAV)/18.0D0
-      IF (NLINES.GT.0) THEN
-         DO 13 I=1,NLINES
-            IF (I.EQ.1) THEN
-               WRITE(LDAT,'(I4,A,18I4)')NASAV,': ',(IASAV(J),J=1,18)
-            ELSE
-               WRITE(LDAT,'(6X,18I4)') (IASAV(J),J=18*I-17,18*I)
-            ENDIF
-   13    CONTINUE
-      ENDIF
-      I0 = 18*NLINES+1
-      IF (I0.LE.NASAV) THEN
-         IF (I0.EQ.1) THEN
-            WRITE(LDAT,'(I4,A,18I4)')NASAV,': ',(IASAV(J),J=I0,NASAV)
-         ELSE
-            WRITE(LDAT,'(6X,18I4)') (IASAV(J),J=I0,NASAV)
-         ENDIF
-      ENDIF
-      NLINES = DBLE(NBSAV)/18.0D0
-      IF (NLINES.GT.0) THEN
-         DO 14 I=1,NLINES
-            IF (I.EQ.1) THEN
-               WRITE(LDAT,'(I4,A,18I4)')NBSAV,': ',(IBSAV(J),J=1,18)
-            ELSE
-               WRITE(LDAT,'(6X,18I4)') (IBSAV(J),J=18*I-17,18*I)
-            ENDIF
-   14    CONTINUE
-      ENDIF
-      I0 = 18*NLINES+1
-      IF (I0.LE.NBSAV) THEN
-         IF (I0.EQ.1) THEN
-            WRITE(LDAT,'(I4,A,18I4)')NBSAV,': ',(IBSAV(J),J=I0,NBSAV)
-         ELSE
-            WRITE(LDAT,'(6X,18I4)') (IBSAV(J),J=I0,NBSAV)
-         ENDIF
-      ENDIF
-*
-*  calculate Glauber-data for each energy and mass combination
-*
-*   loop over energy bins
-      ELO = LOG10(ELO)
-      EHI = LOG10(EHI)
-      DEBIN = (EHI-ELO)/MAX(DBLE(NEBIN),ONE)
-      DO 1 IE=1,NEBIN+1
-         E = ELO+DBLE(IE-1)*DEBIN
-         E = 10**E
-         IF (LCMS) THEN
-            E   = MAX(2.0D0*AAM(IJPROJ)+0.1D0,E)
-            ECM = E
-         ELSE
-            PLAB = ZERO
-            ECM  = ZERO
-            E    = MAX(AAM(IJPROJ)+0.1D0,E)
-            CALL DT_LTINI(IJPROJ,IJTARG,E,PLAB,ECM,0)
-         ENDIF
-*
-*   loop over projectile and target masses
-         DO 2 ITARG=1,NBSAV
-            DO 3 IPROJ=1,NASAV
-               CALL DT_XSGLAU(IASAV(IPROJ),IBSAV(ITARG),IJPROJ,
-     &                                       XI,Q2I,ECM,1,1,-1)
-    3       CONTINUE
-    2    CONTINUE
-*
-    1 CONTINUE
-*
-*--------------------------------------------------------------------------
-* Glauber-initialization for pion, kaon, ... projectiles
-*
-      DO 6 IJ=1,MAXOFF
-*
-*  initialize phojet for this interaction
-         ELAB = ZERO
-         PLAB = ZERO
-         IJPROJ = IJPINI(IJ)
-         IP     = 1
-         IPZ    = 1
-*
-*   temporary patch until fix has been implemented in phojet:
-         IF (ECMINI.GT.ECMXPI) THEN
-            CALL DT_LTINI(IJPROJ,IJTARG,ELAB,PLAB,ECMXPI,1)
-         ELSE
-            CALL DT_LTINI(IJPROJ,IJTARG,ELAB,PLAB,ECMINI,1)
-         ENDIF
-         CALL DT_PHOINI
-*
-*  calculate Glauber-data for each energy and mass combination
-*
-*   loop over energy bins
-         DO 4 IE=1,NEBIN+1
-            E = ELO+DBLE(IE-1)*DEBIN
-            E = 10**E
-            IF (LCMS) THEN
-               E   = MAX(2.0D0*AAM(IJPROJ)+TINY14,E)
-               ECM = E
-            ELSE
-               PLAB = ZERO
-               ECM  = ZERO
-               E    = MAX(AAM(IJPROJ)+TINY14,E)
-               CALL DT_LTINI(IJPROJ,IJTARG,E,PLAB,ECM,0)
-            ENDIF
-*
-*   loop over projectile and target masses
-            DO 5 ITARG=1,NBSAV
-               CALL DT_XSGLAU(1,IBSAV(ITARG),IJPROJ,XI,Q2I,ECM,1,1,-1)
-    5       CONTINUE
-*
-    4    CONTINUE
-*
-    6 CONTINUE
-
-*--------------------------------------------------------------------------
-* close output unit(s), etc.
-*
-      CLOSE(LDAT)
-
-      RETURN
-      END
-
-*$ CREATE DT_GLBSET.FOR
-*COPY DT_GLBSET
-*
-*===glbset=============================================================*
-*
-      SUBROUTINE DT_GLBSET(IDPROJ,NA,NB,ELAB,MODE)
-************************************************************************
-* Interpolation of pre-initialized profile functions                   *
-* This version dated 28.11.00 is written by S. Roesler.                *
-************************************************************************
-
-      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
-      SAVE
-
-      PARAMETER ( LINP = 5 ,
-     &            LOUT = 6 ,
-     &            LDAT = 9 )
-
-      PARAMETER (ZERO=0.0D0,ONE=1.0D0)
-
-      LOGICAL LCMS,LREAD,LFRST1,LFRST2
-
-* particle properties (BAMJET index convention)
-      CHARACTER*8  ANAME
-      COMMON /DTPART/ ANAME(210),AAM(210),GA(210),TAU(210),
-     &                IICH(210),IIBAR(210),K1(210),K2(210)
-
-* Glauber formalism: flags and parameters for statistics
-      LOGICAL LPROD
-      CHARACTER*8 CGLB
-      COMMON /DTGLGP/ JSTATB,JBINSB,CGLB,IOGLB,LPROD
-
-      PARAMETER (NCOMPX=20,NEB=8,NQB= 5,KSITEB=50)
-
-* Glauber formalism: parameters
-      COMMON /DTGLAM/ RASH(NCOMPX),RBSH(NCOMPX),
-     &                BMAX(NCOMPX),BSTEP(NCOMPX),
-     &                SIGSH,ROSH,GSH,BSITE(0:NEB,NQB,NCOMPX,KSITEB),
-     &                NSITEB,NSTATB
-
-* Glauber formalism: cross sections
-      COMMON /DTGLXS/ ECMNN(NEB),Q2G(NQB),ECMNOW,Q2,
-     &                XSTOT(NEB,NQB,NCOMPX),XSELA(NEB,NQB,NCOMPX),
-     &                XSQEP(NEB,NQB,NCOMPX),XSQET(NEB,NQB,NCOMPX),
-     &                XSQE2(NEB,NQB,NCOMPX),XSPRO(NEB,NQB,NCOMPX),
-     &                XSDEL(NEB,NQB,NCOMPX),XSDQE(NEB,NQB,NCOMPX),
-     &                XETOT(NEB,NQB,NCOMPX),XEELA(NEB,NQB,NCOMPX),
-     &                XEQEP(NEB,NQB,NCOMPX),XEQET(NEB,NQB,NCOMPX),
-     &                XEQE2(NEB,NQB,NCOMPX),XEPRO(NEB,NQB,NCOMPX),
-     &                XEDEL(NEB,NQB,NCOMPX),XEDQE(NEB,NQB,NCOMPX),
-     &                BSLOPE,NEBINI,NQBINI
-
-* number of data sets other than protons and nuclei
-* at the moment = 2 (pions and kaons)
-      PARAMETER (MAXOFF=2)
-      DIMENSION IJPINI(5),IOFFST(25)
-      DATA IJPINI / 13, 15,  0,  0,  0/
-* Glauber data-set to be used for hadron projectiles
-* (0=proton, 1=pion, 2=kaon)
-      DATA (IOFFST(K),K=1,25) /
-     &  0, 0,-1,-1,-1,-1,-1, 0, 0,-1,-1, 2, 1, 1, 2, 2, 0, 0, 2, 0,
-     &  0, 0, 1, 2, 2/
-* Acceptance interval for target nucleus mass
-      PARAMETER (KBACC = 6)
-
-* emulsion treatment
-      COMMON /DTCOMP/ EMUFRA(NCOMPX),IEMUMA(NCOMPX),IEMUCH(NCOMPX),
-     &                NCOMPO,IEMUL
-
-      PARAMETER (MAXSET=5000,
-     &           MAXBIN=100)
-      DIMENSION XSIG(MAXSET,6),XERR(MAXSET,6),BPROFL(MAXSET,KSITEB)
-      DIMENSION IABIN(MAXBIN),IBBIN(MAXBIN),XS(6),XE(6),
-     &          BPRO0(KSITEB),BPRO1(KSITEB),BPRO(KSITEB),
-     &          IAIDX(10)
-
-      DATA LREAD,LFRST1,LFRST2 /.FALSE.,.TRUE.,.TRUE./
-*
-* read data from file
-*
-      IF (MODE.EQ.0) THEN
-
-         IF (LREAD) RETURN
-
-         DO 1 I=1,MAXSET
-            DO 2 J=1,6
-               XSIG(I,J) = ZERO
-               XERR(I,J) = ZERO
-    2       CONTINUE
-            DO 3 J=1,KSITEB
-               BPROFL(I,J) = ZERO
-    3       CONTINUE
-    1    CONTINUE
-         DO 4 I=1,MAXBIN
-            IABIN(I) = 0
-            IBBIN(I) = 0
-    4    CONTINUE
-         DO 5 I=1,KSITEB
-            BPRO0(I) = ZERO
-            BPRO1(I) = ZERO
-            BPRO(I)  = ZERO
-    5    CONTINUE
-
-         IDX = INDEX(CGLB,' ')
-         K   = 12
-         IF (IDX.GT.1) K = IDX-1
-         OPEN(LDAT,FILE=CGLB(1:K)//'.glb',STATUS='UNKNOWN')
-         WRITE(LOUT,1000) CGLB(1:K)//'.glb'
- 1000    FORMAT(/,' GLBSET: impact parameter distributions read from ',
-     &          'file ',A12,/)
-*
-*  read binning information
-         READ(LDAT,'(I4,2X,2E13.5)') NEBIN,ELO,EHI
-*  return lower energy threshold to Fluka-interface
-         ELAB = ELO
-         LCMS = ELO.LT.ZERO
-         WRITE(LOUT,'(1X,A)') ' equidistant logarithmic energy binning:'
-         IF (LCMS) THEN
-            WRITE(LOUT,1001) '(cms)',ABS(ELO),ABS(EHI),NEBIN
-         ELSE
-            WRITE(LOUT,1001) '(lab)',ABS(ELO),ABS(EHI),NEBIN
-         ENDIF
- 1001    FORMAT(2X,A5,'  E_lo = ',1P,E9.3,'  E_hi = ',1P,E9.3,4X,
-     &          'No. of bins:',I5,/)
-         ELO  = LOG10(ABS(ELO))
-         EHI  = LOG10(ABS(EHI))
-         DEBIN = (EHI-ELO)/ABS(DBLE(NEBIN))
-         WRITE(LOUT,'(/,1X,A)') ' projectiles: (mass number)'
-         READ(LDAT,'(I4,2X,18I4)') NABIN,(IABIN(J),J=1,18)
-         IF (NABIN.LT.18) THEN
-            WRITE(LOUT,'(6X,18I4)') (IABIN(J),J=1,NABIN)
-         ELSE
-            WRITE(LOUT,'(6X,18I4)') (IABIN(J),J=1,18)
-         ENDIF
-         IF (NABIN.GT.MAXBIN) STOP ' GLBSET: NABIN > MAXBIN !'
-         IF (NABIN.GT.18) THEN
-            NLINES = DBLE(NABIN-18)/18.0D0
-            IF (NLINES.GT.0) THEN
-               DO 7 I=1,NLINES
-                  I0 = 18*(I+1)-17
-                  READ(LDAT,'(6X,18I4)') (IABIN(J),J=I0,I0+17)
-                  WRITE(LOUT,'(6X,18I4)') (IABIN(J),J=I0,I0+17)
-    7          CONTINUE
-            ENDIF
-            I0 = 18*(NLINES+1)+1
-            IF (I0.LE.NABIN) THEN
-               READ(LDAT,'(6X,18I4)') (IABIN(J),J=I0,NABIN)
-               WRITE(LOUT,'(6X,18I4)') (IABIN(J),J=I0,NABIN)
-            ENDIF
-         ENDIF
-         WRITE(LOUT,'(/,1X,A)') ' targets: (mass number)'
-         READ(LDAT,'(I4,2X,18I4)') NBBIN,(IBBIN(J),J=1,18)
-         IF (NBBIN.LT.18) THEN
-            WRITE(LOUT,'(6X,18I4)') (IBBIN(J),J=1,NBBIN)
-         ELSE
-            WRITE(LOUT,'(6X,18I4)') (IBBIN(J),J=1,18)
-         ENDIF
-         IF (NBBIN.GT.MAXBIN) STOP ' GLBSET: NBBIN > MAXBIN !'
-         IF (NBBIN.GT.18) THEN
-            NLINES = DBLE(NBBIN-18)/18.0D0
-            IF (NLINES.GT.0) THEN
-               DO 8 I=1,NLINES
-                  I0 = 18*(I+1)-17
-                  READ(LDAT,'(6X,18I4)') (IBBIN(J),J=I0,I0+17)
-                  WRITE(LOUT,'(6X,18I4)') (IBBIN(J),J=I0,I0+17)
-    8          CONTINUE
-            ENDIF
-            I0 = 18*(NLINES+1)+1
-            IF (I0.LE.NBBIN) THEN
-               READ(LDAT,'(6X,18I4)') (IBBIN(J),J=I0,NBBIN)
-               WRITE(LOUT,'(6X,18I4)') (IBBIN(J),J=I0,NBBIN)
-            ENDIF
-         ENDIF
-*  number of data sets to follow in the Glauber data file
-*   this variable is used for checks of consistency of projectile
-*   and target mass configurations given in header of Glauber data
-*   file and the data-sets which follow in this file
-         NSET0 = (NEBIN+1)*(NABIN+MAXOFF)*NBBIN
-*
-*  read profile function data
-         NSET  = 0
-         NAIDX = 0
-         IPOLD = 0
-   10    CONTINUE
-         NSET = NSET+1
-         IF (NSET.GT.MAXSET) STOP ' GLBSET: NSET > MAXSET ! '
-         READ(LDAT,1002,END=100) IP,IA,IB,ISTATB,ISITEB,ECM
- 1002    FORMAT(5I10,E15.5)
-         IF ((IP.NE.1).AND.(IP.NE.IPOLD)) THEN
-            NAIDX = NAIDX+1
-            IF (NAIDX.GT.10) STOP ' GLBSET: NAIDX > 10 !'
-            IAIDX(NAIDX) = IP
-            IPOLD = IP
-         ENDIF
-         READ(LDAT,'(6E12.5)') (XSIG(NSET,I),I=1,6)
-         READ(LDAT,'(6E12.5)') (XERR(NSET,I),I=1,6)
-         NLINES = INT(DBLE(ISITEB)/7.0D0)
-         IF (NLINES.GT.0) THEN
-            DO 11 I=1,NLINES
-               READ(LDAT,'(7E11.4)') (BPROFL(NSET,J),J=7*I-6,7*I)
-   11       CONTINUE
-         ENDIF
-         I0 = 7*NLINES+1
-         IF (I0.LE.ISITEB)
-     &      READ(LDAT,'(7E11.4)') (BPROFL(NSET,J),J=I0,ISITEB)
-         GOTO 10
-  100    CONTINUE
-         NSET = NSET-1
-         IF (NSET.NE.NSET0) STOP ' GLBSET: NSET.NE.NSET0 !'
-         WRITE(LOUT,'(/,1X,A)')
-     &   ' projectiles other than protons and nuclei: (particle index)'
-         IF (NAIDX.GT.0) THEN
-            WRITE(LOUT,'(6X,18I4)') (IAIDX(J),J=1,NAIDX)
-         ELSE
-            WRITE(LOUT,'(6X,A)') 'none'
-         ENDIF
-*
-         CLOSE(LDAT)
-         WRITE(LOUT,*)
-         LREAD = .TRUE.
-
-         IF (NCOMPO.EQ.0) THEN
-            DO 12 J=1,NBBIN
-               NCOMPO = NCOMPO+1
-               IEMUMA(NCOMPO) = IBBIN(J)
-               IEMUCH(NCOMPO) = IEMUMA(NCOMPO)/2
-               EMUFRA(NCOMPO) = 1.0D0
-   12       CONTINUE
-            IEMUL = 1
-         ENDIF
-*
-* calculate profile function for certain set of parameters
-*
-      ELSE
-
-c        write(*,*) 'glbset called for ',IDPROJ,NA,NB,ELAB,MODE
-*
-* check for type of projectile and set index-offset to entry in
-* Glauber data array correspondingly
-         IF (IDPROJ.GT.25) STOP ' GLBSET: IDPROJ > 25 !'
-         IF (IOFFST(IDPROJ).EQ.-1) THEN
-            STOP ' GLBSET: no data for this projectile !'
-         ELSEIF (IOFFST(IDPROJ).GT.0) THEN
-            IDXOFF = (NEBIN+1)*(NABIN+IOFFST(IDPROJ)-1)*NBBIN
-         ELSE
-            IDXOFF = 0
-         ENDIF
-*
-* get energy bin and interpolation factor
-         IF (LCMS) THEN
-            E = SQRT(AAM(IDPROJ)**2+AAM(1)**2+2.0D0*AAM(1)*ELAB)
-         ELSE
-            E = ELAB
-         ENDIF
-         E = LOG10(E)
-         IF (E.LT.ELO) THEN
-            IF (LFRST1) THEN
-               WRITE(LOUT,*) ' GLBSET: Too low energy! (E_lo,E) ',ELO,E
-               LFRST1 = .FALSE.
-            ENDIF
-            E = ELO
-         ENDIF
-         IF (E.GT.EHI) THEN
-            IF (LFRST2) THEN
-               WRITE(LOUT,*) ' GLBSET: Too high energy! (E_hi,E) ',EHI,E
-               LFRST2 = .FALSE.
-            ENDIF
-            E = EHI
-         ENDIF
-         IE0  = (E-ELO)/DEBIN+1
-         IE1  = IE0+1
-         FACE = (E-(ELO+DBLE(IE0-1)*DEBIN))/DEBIN
-*
-* get target nucleus index
-         KB = 0
-         NBACC = KBACC
-         DO 20 I=1,NBBIN
-            NBDIFF = ABS(NB-IBBIN(I))
-            IF (NB.EQ.IBBIN(I)) THEN
-               KB = I
-               GOTO 21
-            ELSEIF (NBDIFF.LE.NBACC) THEN
-               KB = I
-               NBACC = NBDIFF
-            ENDIF
-   20    CONTINUE
-         IF (KB.NE.0) GOTO 21
-         WRITE(LOUT,*) ' GLBSET: data not found for target ',NB
-         STOP
-   21    CONTINUE
-*
-* get projectile nucleus bin and interpolation factor
-         KA0 = 0
-         KA1 = 0
-         FACNA = 0
-         IF (IDXOFF.GT.0) THEN
-            KA0 = 1
-            KA1 = 1
-            KABIN = 1
-         ELSE
-            IF (NA.GT.IABIN(NABIN)) STOP ' GLBSET: NA > IABIN(NABIN) !'
-            DO 22 I=1,NABIN
-               IF (NA.EQ.IABIN(I)) THEN
-                  KA0 = I
-                  KA1 = I
-                  GOTO 23
-               ELSEIF (NA.LT.IABIN(I)) THEN
-                  KA0 = I-1
-                  KA1 = I
-                  GOTO 23
-               ENDIF
-   22       CONTINUE
-            WRITE(LOUT,*) ' GLBSET: data not found for projectile ',NA
-            STOP
-   23       CONTINUE
-            IF (KA0.NE.KA1)
-     &         FACNA = DBLE(NA-IABIN(KA0))/DBLE(IABIN(KA1)-IABIN(KA0))
-            KABIN = NABIN
-         ENDIF
-*
-* interpolate profile functions for interactions ka0-kb and ka1-kb
-* for energy E separately
-         IDX0 = IDXOFF+1+(IE0-1)*KABIN*NBBIN+(KB-1)*KABIN+(KA0-1)
-         IDX1 = IDXOFF+1+(IE1-1)*KABIN*NBBIN+(KB-1)*KABIN+(KA0-1)
-         IDY0 = IDXOFF+1+(IE0-1)*KABIN*NBBIN+(KB-1)*KABIN+(KA1-1)
-         IDY1 = IDXOFF+1+(IE1-1)*KABIN*NBBIN+(KB-1)*KABIN+(KA1-1)
-         DO 30 I=1,ISITEB
-            BPRO0(I) = BPROFL(IDX0,I)
-     &                 +FACE*(BPROFL(IDX1,I)-BPROFL(IDX0,I))
-            BPRO1(I) = BPROFL(IDY0,I)
-     &                 +FACE*(BPROFL(IDY1,I)-BPROFL(IDY0,I))
-   30    CONTINUE
-         RADB  = DT_RNCLUS(NB)
-         BSTP0 = 2.0D0*(DT_RNCLUS(IABIN(KA0))+RADB)/DBLE(ISITEB-1)
-         BSTP1 = 2.0D0*(DT_RNCLUS(IABIN(KA1))+RADB)/DBLE(ISITEB-1)
-*
-* interpolate cross sections for energy E and projectile mass
-         DO 31 I=1,6
-            XS0   = XSIG(IDX0,I)+FACE*(XSIG(IDX1,I)-XSIG(IDX0,I))
-            XS1   = XSIG(IDY0,I)+FACE*(XSIG(IDY1,I)-XSIG(IDY0,I))
-            XS(I) = XS0+FACNA*(XS1-XS0)
-            XE0   = XERR(IDX0,I)+FACE*(XERR(IDX1,I)-XERR(IDX0,I))
-            XE1   = XERR(IDY0,I)+FACE*(XERR(IDY1,I)-XERR(IDY0,I))
-            XE(I) = XE0+FACNA*(XE1-XE0)
-   31    CONTINUE
-*
-* interpolate between ka0 and ka1
-         RADA = DT_RNCLUS(NA)
-         BMX  = 2.0D0*(RADA+RADB)
-         BSTP = BMX/DBLE(ISITEB-1)
-         BPRO(1) = ZERO
-         DO 32 I=1,ISITEB-1
-            B = DBLE(I)*BSTP
-*
-*   calculate values of profile functions at B
-            IDX0 = B/BSTP0+1
-            IF (IDX0.GT.ISITEB) IDX0 = ISITEB
-            IDX1 = MIN(IDX0+1,ISITEB)
-            FACB = (B-DBLE(IDX0-1)*BSTP0)/BSTP0
-            BPR0 = BPRO0(IDX0)+FACB*(BPRO0(IDX1)-BPRO0(IDX0))
-            IDX0 = B/BSTP1+1
-            IF (IDX0.GT.ISITEB) IDX0 = ISITEB
-            IDX1 = MIN(IDX0+1,ISITEB)
-            FACB = (B-DBLE(IDX0-1)*BSTP1)/BSTP1
-            BPR1 = BPRO1(IDX0)+FACB*(BPRO1(IDX1)-BPRO1(IDX0))
-*
-            BPRO(I+1) = BPR0+FACNA*(BPR1-BPR0)
-   32    CONTINUE
-*
-* fill common dtglam
-         NSITEB   = ISITEB
-         RASH(1)  = RADA
-         RBSH(1)  = RADB
-         BMAX(1)  = BMX
-         BSTEP(1) = BSTP
-         DO 33 I=1,KSITEB
-            BSITE(0,1,1,I) = BPRO(I)
-   33    CONTINUE
-*
-* fill common dtglxs
-         XSTOT(1,1,1) = XS(1)
-         XSELA(1,1,1) = XS(2)
-         XSQEP(1,1,1) = XS(3)
-         XSQET(1,1,1) = XS(4)
-         XSQE2(1,1,1) = XS(5)
-         XSPRO(1,1,1) = XS(6)
-         XETOT(1,1,1) = XE(1)
-         XEELA(1,1,1) = XE(2)
-         XEQEP(1,1,1) = XE(3)
-         XEQET(1,1,1) = XE(4)
-         XEQE2(1,1,1) = XE(5)
-         XEPRO(1,1,1) = XE(6)
-
-      ENDIF
-
-      RETURN
-      END
+C*$ CREATE DT_GLBINI.FOR
+C*COPY DT_GLBINI
+C*
+C*===glbini=============================================================*
+C*
+C      SUBROUTINE DT_GLBINI(WHAT)
+C
+C************************************************************************
+C* Pre-initialization of profile function                               *
+C* This version dated 28.11.00 is written by S. Roesler.                *
+C*                                                                      *
+C* Last change 27.12.2006 by S. Roesler.                                *
+C************************************************************************
+C
+C      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
+C      SAVE
+C
+C      PARAMETER ( LINP = 5 ,
+C     &            LOUT = 6 ,
+C     &            LDAT = 9 )
+C
+C      PARAMETER (ZERO=0.0D0,ONE=1.0D0,TINY14=1.D-14)
+C
+C      LOGICAL LCMS
+C
+C      INCLUDE 'beagle.inc'
+C
+C* particle properties (BAMJET index convention)
+C      CHARACTER*8  ANAME
+C      COMMON /DTPART/ ANAME(210),AAM(210),GA(210),TAU(210),
+C     &                IICH(210),IIBAR(210),K1(210),K2(210)
+C
+C* properties of interacting particles
+C      COMMON /DTPRTA/ IT,ITZ,IP,IPZ,IJPROJ,IBPROJ,IJTARG,IBTARG,ITMODE,
+C     &     ITMMOD,MODHYP,NHYPER,IDHYP(5)
+C
+C      PARAMETER (NCOMPX=20,NEB=8,NQB= 5,KSITEB=50)
+C
+C* emulsion treatment
+C      COMMON /DTCOMP/ EMUFRA(NCOMPX),IEMUMA(NCOMPX),IEMUCH(NCOMPX),
+C     &                NCOMPO,IEMUL
+C
+C* Glauber formalism: flags and parameters for statistics
+C      LOGICAL LPROD
+C      CHARACTER*8 CGLB
+C      COMMON /DTGLGP/ JSTATB,JBINSB,CGLB,IOGLB,LPROD
+C
+C* number of data sets other than protons and nuclei
+C* at the moment = 2 (pions and kaons)
+C      PARAMETER (MAXOFF=2)
+C      DIMENSION IJPINI(5),IOFFST(25)
+C      DATA IJPINI / 13, 15,  0,  0,  0/
+C* Glauber data-set to be used for hadron projectiles
+C* (0=proton, 1=pion, 2=kaon)
+C      DATA (IOFFST(K),K=1,25) /
+C     &  0, 0,-1,-1,-1,-1,-1, 0, 0,-1,-1, 2, 1, 1, 2, 2, 0, 0, 2, 0,
+C     &  0, 0, 1, 2, 2/
+C* Acceptance interval for target nucleus mass
+C      PARAMETER (KBACC = 6)
+C
+CC* flags for input different options
+CC      LOGICAL LEMCCK,LHADRO,LSEADI,LEVAPO
+CC      COMMON /DTFLG1/ IFRAG(2),IRESCO,IMSHL,IRESRJ,IOULEV(6),
+CC     &                LEMCCK,LHADRO(0:9),LSEADI,LEVAPO,IFRAME,ITRSPT
+C
+C      PARAMETER (MAXMSS = 100)
+C      DIMENSION IASAV(MAXMSS),IBSAV(MAXMSS)
+C      DIMENSION WHAT(6)
+C
+C      DATA JPEACH,JPSTEP / 18, 5 /
+C
+C* temporary patch until fix has been implemented in phojet:
+C*  maximum energy for pion projectile
+C      DATA ECMXPI / 100000.0D0 /
+C*
+C*--------------------------------------------------------------------------
+C* general initializations
+C*
+C*  steps in projectile mass number for initialization
+C      IF (WHAT(4).GT.ZERO) JPEACH = INT(WHAT(4))
+C      IF (WHAT(5).GT.ZERO) JPSTEP = INT(WHAT(5))
+C*
+C*  energy range and binning
+C      ELO  = ABS(WHAT(1))
+C      EHI  = ABS(WHAT(2))
+C      IF (ELO.GT.EHI) ELO = EHI
+C      NEBIN = MAX(INT(WHAT(3)),1)
+C      IF (ELO.EQ.EHI) NEBIN = 0
+C      LCMS = (WHAT(1).LT.ZERO).OR.(WHAT(2).LT.ZERO)
+C      IF (LCMS) THEN
+C         ECMINI = EHI
+C      ELSE
+C         ECMINI = SQRT(AAM(IJPROJ)**2+AAM(IJTARG)**2
+C     &                 +2.0D0*AAM(IJTARG)*EHI)
+C      ENDIF
+C*
+C*  default arguments for Glauber-routine
+C      XI  = ZERO
+C      Q2I = ZERO
+C*
+C*  initialize nuclear parameters, etc.
+C
+C*  initialize evaporation if the code is not used as Fluka event generator
+C      IF (ITRSPT.NE.1) THEN
+C         CALL NCDTRD
+C         CALL INCINI
+C      ENDIF
+C
+C*
+C*  open Glauber-data output file
+C      IDX = INDEX(CGLB,' ')
+C      K   = 12
+C      IF (IDX.GT.1) K = IDX-1
+C      OPEN(LDAT,FILE=CGLB(1:K)//'.glb',STATUS='UNKNOWN')
+C*
+C*--------------------------------------------------------------------------
+C* Glauber-initialization for proton and nuclei projectiles
+C*
+C*  initialize phojet for proton-proton interactions
+C      ELAB = ZERO
+C      PLAB = ZERO
+C      CALL DT_LTINI(IJPROJ,IJTARG,ELAB,PLAB,ECMINI,1)
+C      CALL DT_PHOINI
+C*
+C*  record projectile masses
+C      NASAV = 0
+C      NPROJ = MIN(IP,JPEACH)
+C      DO 10 KPROJ=1,NPROJ
+C         NASAV = NASAV+1
+C         IF (NASAV.GT.MAXMSS) STOP ' GLBINI: NASAV > MAXMSS ! '
+C         IASAV(NASAV) = KPROJ
+C   10 CONTINUE
+C      IF (IP.GT.JPEACH) THEN
+C         NPROJ = DBLE(IP-JPEACH)/DBLE(JPSTEP)
+C         IF (NPROJ.EQ.0) THEN
+C            NASAV = NASAV+1
+C            IF (NASAV.GT.MAXMSS) STOP ' GLBINI: NASAV > MAXMSS ! '
+C            IASAV(NASAV) = IP
+C         ELSE
+C            DO 11 IPROJ=1,NPROJ
+C               KPROJ = JPEACH+IPROJ*JPSTEP
+C               NASAV = NASAV+1
+C               IF (NASAV.GT.MAXMSS) STOP ' GLBINI: NASAV > MAXMSS ! '
+C               IASAV(NASAV) = KPROJ
+C   11       CONTINUE
+C            IF (KPROJ.LT.IP) THEN
+C               NASAV = NASAV+1
+C               IF (NASAV.GT.MAXMSS) STOP ' GLBINI: NASAV > MAXMSS ! '
+C               IASAV(NASAV) = IP
+C            ENDIF
+C         ENDIF
+C      ENDIF
+C*
+C*  record target masses
+C      NBSAV = 0
+C      NTARG = 1
+C      IF (NCOMPO.GT.0) NTARG = NCOMPO
+C      DO 12 ITARG=1,NTARG
+C         NBSAV = NBSAV+1
+C         IF (NBSAV.GT.MAXMSS) STOP ' GLBINI: NBSAV > MAXMSS ! '
+C         IF (NCOMPO.GT.0) THEN
+C            IBSAV(NBSAV) = IEMUMA(ITARG)
+C         ELSE
+C            IBSAV(NBSAV) = IT
+C         ENDIF
+C   12 CONTINUE
+C*
+C*  print masses
+C      WRITE(LDAT,1000) NEBIN,': ',SIGN(ELO,WHAT(1)),SIGN(EHI,WHAT(2))
+C 1000 FORMAT(I4,A,1P,2E13.5)
+C      NLINES = DBLE(NASAV)/18.0D0
+C      IF (NLINES.GT.0) THEN
+C         DO 13 I=1,NLINES
+C            IF (I.EQ.1) THEN
+C               WRITE(LDAT,'(I4,A,18I4)')NASAV,': ',(IASAV(J),J=1,18)
+C            ELSE
+C               WRITE(LDAT,'(6X,18I4)') (IASAV(J),J=18*I-17,18*I)
+C            ENDIF
+C   13    CONTINUE
+C      ENDIF
+C      I0 = 18*NLINES+1
+C      IF (I0.LE.NASAV) THEN
+C         IF (I0.EQ.1) THEN
+C            WRITE(LDAT,'(I4,A,18I4)')NASAV,': ',(IASAV(J),J=I0,NASAV)
+C         ELSE
+C            WRITE(LDAT,'(6X,18I4)') (IASAV(J),J=I0,NASAV)
+C         ENDIF
+C      ENDIF
+C      NLINES = DBLE(NBSAV)/18.0D0
+C      IF (NLINES.GT.0) THEN
+C         DO 14 I=1,NLINES
+C            IF (I.EQ.1) THEN
+C               WRITE(LDAT,'(I4,A,18I4)')NBSAV,': ',(IBSAV(J),J=1,18)
+C            ELSE
+C               WRITE(LDAT,'(6X,18I4)') (IBSAV(J),J=18*I-17,18*I)
+C            ENDIF
+C   14    CONTINUE
+C      ENDIF
+C      I0 = 18*NLINES+1
+C      IF (I0.LE.NBSAV) THEN
+C         IF (I0.EQ.1) THEN
+C            WRITE(LDAT,'(I4,A,18I4)')NBSAV,': ',(IBSAV(J),J=I0,NBSAV)
+C         ELSE
+C            WRITE(LDAT,'(6X,18I4)') (IBSAV(J),J=I0,NBSAV)
+C         ENDIF
+C      ENDIF
+C*
+C*  calculate Glauber-data for each energy and mass combination
+C*
+C*   loop over energy bins
+C      ELO = LOG10(ELO)
+C      EHI = LOG10(EHI)
+C      DEBIN = (EHI-ELO)/MAX(DBLE(NEBIN),ONE)
+C      DO 1 IE=1,NEBIN+1
+C         E = ELO+DBLE(IE-1)*DEBIN
+C         E = 10**E
+C         IF (LCMS) THEN
+C            E   = MAX(2.0D0*AAM(IJPROJ)+0.1D0,E)
+C            ECM = E
+C         ELSE
+C            PLAB = ZERO
+C            ECM  = ZERO
+C            E    = MAX(AAM(IJPROJ)+0.1D0,E)
+C            CALL DT_LTINI(IJPROJ,IJTARG,E,PLAB,ECM,0)
+C         ENDIF
+C*
+C*   loop over projectile and target masses
+C         DO 2 ITARG=1,NBSAV
+C            DO 3 IPROJ=1,NASAV
+C               CALL DT_XSGLAU(IASAV(IPROJ),IBSAV(ITARG),IJPROJ,
+C     &                                       XI,Q2I,ECM,1,1,-1)
+C    3       CONTINUE
+C    2    CONTINUE
+C*
+C    1 CONTINUE
+C*
+C*--------------------------------------------------------------------------
+C* Glauber-initialization for pion, kaon, ... projectiles
+C* 
+C      DO 6 IJ=1,MAXOFF
+C*
+C*  initialize phojet for this interaction
+C         ELAB = ZERO
+C         PLAB = ZERO
+C         IJPROJ = IJPINI(IJ)
+C         IP     = 1
+C         IPZ    = 1
+C*
+C*   temporary patch until fix has been implemented in phojet:
+C         IF (ECMINI.GT.ECMXPI) THEN
+C            CALL DT_LTINI(IJPROJ,IJTARG,ELAB,PLAB,ECMXPI,1)
+C         ELSE
+C            CALL DT_LTINI(IJPROJ,IJTARG,ELAB,PLAB,ECMINI,1)
+C         ENDIF
+C         CALL DT_PHOINI
+C*
+C*  calculate Glauber-data for each energy and mass combination
+C*
+C*   loop over energy bins
+C         DO 4 IE=1,NEBIN+1
+C            E = ELO+DBLE(IE-1)*DEBIN
+C            E = 10**E
+C            IF (LCMS) THEN
+C               E   = MAX(2.0D0*AAM(IJPROJ)+TINY14,E)
+C               ECM = E
+C            ELSE
+C               PLAB = ZERO
+C               ECM  = ZERO
+C               E    = MAX(AAM(IJPROJ)+TINY14,E)
+C               CALL DT_LTINI(IJPROJ,IJTARG,E,PLAB,ECM,0)
+C            ENDIF
+C*
+C*   loop over projectile and target masses
+C            DO 5 ITARG=1,NBSAV
+C               CALL DT_XSGLAU(1,IBSAV(ITARG),IJPROJ,XI,Q2I,ECM,1,1,-1)
+C    5       CONTINUE
+C*
+C    4    CONTINUE
+C*
+C    6 CONTINUE
+C
+C*--------------------------------------------------------------------------
+C* close output unit(s), etc.
+C*
+C      CLOSE(LDAT)
+C
+C      RETURN
+C      END
+C
+C*$ CREATE DT_GLBSET.FOR
+C*COPY DT_GLBSET
+C*
+C*===glbset=============================================================*
+C*
+C      SUBROUTINE DT_GLBSET(IDPROJ,NA,NB,ELAB,MODE)
+C************************************************************************
+C* Interpolation of pre-initialized profile functions                   *
+C* This version dated 28.11.00 is written by S. Roesler.                *
+C************************************************************************
+C
+C      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
+C      SAVE
+C
+C      PARAMETER ( LINP = 5 ,
+C     &            LOUT = 6 ,
+C     &            LDAT = 9 )
+C
+C      PARAMETER (ZERO=0.0D0,ONE=1.0D0)
+C
+C      LOGICAL LCMS,LREAD,LFRST1,LFRST2
+C
+C* particle properties (BAMJET index convention)
+C      CHARACTER*8  ANAME
+C      COMMON /DTPART/ ANAME(210),AAM(210),GA(210),TAU(210),
+C     &                IICH(210),IIBAR(210),K1(210),K2(210)
+C
+C* Glauber formalism: flags and parameters for statistics
+C      LOGICAL LPROD
+C      CHARACTER*8 CGLB
+C      COMMON /DTGLGP/ JSTATB,JBINSB,CGLB,IOGLB,LPROD
+C
+C      PARAMETER (NCOMPX=20,NEB=8,NQB= 5,KSITEB=50)
+C
+C* Glauber formalism: parameters
+C      COMMON /DTGLAM/ RASH(NCOMPX),RBSH(NCOMPX),
+C     &                BMAX(NCOMPX),BSTEP(NCOMPX),
+C     &                SIGSH,ROSH,GSH,BSITE(0:NEB,NQB,NCOMPX,KSITEB),
+C     &                NSITEB,NSTATB
+C
+C* Glauber formalism: cross sections
+C      COMMON /DTGLXS/ ECMNN(NEB),Q2G(NQB),ECMNOW,Q2,
+C     &                XSTOT(NEB,NQB,NCOMPX),XSELA(NEB,NQB,NCOMPX),
+C     &                XSQEP(NEB,NQB,NCOMPX),XSQET(NEB,NQB,NCOMPX),
+C     &                XSQE2(NEB,NQB,NCOMPX),XSPRO(NEB,NQB,NCOMPX),
+C     &                XSDEL(NEB,NQB,NCOMPX),XSDQE(NEB,NQB,NCOMPX),
+C     &                XETOT(NEB,NQB,NCOMPX),XEELA(NEB,NQB,NCOMPX),
+C     &                XEQEP(NEB,NQB,NCOMPX),XEQET(NEB,NQB,NCOMPX),
+C     &                XEQE2(NEB,NQB,NCOMPX),XEPRO(NEB,NQB,NCOMPX),
+C     &                XEDEL(NEB,NQB,NCOMPX),XEDQE(NEB,NQB,NCOMPX),
+C     &                BSLOPE,NEBINI,NQBINI
+C
+C* number of data sets other than protons and nuclei
+C* at the moment = 2 (pions and kaons)
+C      PARAMETER (MAXOFF=2)
+C      DIMENSION IJPINI(5),IOFFST(25)
+C      DATA IJPINI / 13, 15,  0,  0,  0/
+C* Glauber data-set to be used for hadron projectiles
+C* (0=proton, 1=pion, 2=kaon)
+C      DATA (IOFFST(K),K=1,25) /
+C     &  0, 0,-1,-1,-1,-1,-1, 0, 0,-1,-1, 2, 1, 1, 2, 2, 0, 0, 2, 0,
+C     &  0, 0, 1, 2, 2/
+C* Acceptance interval for target nucleus mass
+C      PARAMETER (KBACC = 6)
+C
+C* emulsion treatment
+C      COMMON /DTCOMP/ EMUFRA(NCOMPX),IEMUMA(NCOMPX),IEMUCH(NCOMPX),
+C     &                NCOMPO,IEMUL
+C
+C      PARAMETER (MAXSET=5000,
+C     &           MAXBIN=100)
+C      DIMENSION XSIG(MAXSET,6),XERR(MAXSET,6),BPROFL(MAXSET,KSITEB)
+C      DIMENSION IABIN(MAXBIN),IBBIN(MAXBIN),XS(6),XE(6),
+C     &          BPRO0(KSITEB),BPRO1(KSITEB),BPRO(KSITEB),
+C     &          IAIDX(10)
+C
+C      DATA LREAD,LFRST1,LFRST2 /.FALSE.,.TRUE.,.TRUE./
+C*
+C* read data from file
+C*
+C      IF (MODE.EQ.0) THEN
+C
+C         IF (LREAD) RETURN
+C
+C         DO 1 I=1,MAXSET
+C            DO 2 J=1,6
+C               XSIG(I,J) = ZERO
+C               XERR(I,J) = ZERO
+C    2       CONTINUE
+C            DO 3 J=1,KSITEB
+C               BPROFL(I,J) = ZERO
+C    3       CONTINUE
+C    1    CONTINUE
+C         DO 4 I=1,MAXBIN
+C            IABIN(I) = 0
+C            IBBIN(I) = 0
+C    4    CONTINUE
+C         DO 5 I=1,KSITEB
+C            BPRO0(I) = ZERO
+C            BPRO1(I) = ZERO
+C            BPRO(I)  = ZERO
+C    5    CONTINUE
+C
+C         IDX = INDEX(CGLB,' ')
+C         K   = 12
+C         IF (IDX.GT.1) K = IDX-1
+C         OPEN(LDAT,FILE=CGLB(1:K)//'.glb',STATUS='UNKNOWN')
+C         WRITE(LOUT,1000) CGLB(1:K)//'.glb'
+C 1000    FORMAT(/,' GLBSET: impact parameter distributions read from ',
+C     &          'file ',A12,/)
+C*
+C*  read binning information
+C         READ(LDAT,'(I4,2X,2E13.5)') NEBIN,ELO,EHI
+C*  return lower energy threshold to Fluka-interface
+C         ELAB = ELO
+C         LCMS = ELO.LT.ZERO
+C         WRITE(LOUT,'(1X,A)') ' equidistant logarithmic energy binning:'
+C         IF (LCMS) THEN
+C            WRITE(LOUT,1001) '(cms)',ABS(ELO),ABS(EHI),NEBIN
+C         ELSE
+C            WRITE(LOUT,1001) '(lab)',ABS(ELO),ABS(EHI),NEBIN
+C         ENDIF
+C 1001    FORMAT(2X,A5,'  E_lo = ',1P,E9.3,'  E_hi = ',1P,E9.3,4X,
+C     &          'No. of bins:',I5,/)
+C         ELO  = LOG10(ABS(ELO))
+C         EHI  = LOG10(ABS(EHI))
+C         DEBIN = (EHI-ELO)/ABS(DBLE(NEBIN))
+C         WRITE(LOUT,'(/,1X,A)') ' projectiles: (mass number)'
+C         READ(LDAT,'(I4,2X,18I4)') NABIN,(IABIN(J),J=1,18)
+C         IF (NABIN.LT.18) THEN
+C            WRITE(LOUT,'(6X,18I4)') (IABIN(J),J=1,NABIN)
+C         ELSE
+C            WRITE(LOUT,'(6X,18I4)') (IABIN(J),J=1,18)
+C         ENDIF
+C         IF (NABIN.GT.MAXBIN) STOP ' GLBSET: NABIN > MAXBIN !'
+C         IF (NABIN.GT.18) THEN
+C            NLINES = DBLE(NABIN-18)/18.0D0
+C            IF (NLINES.GT.0) THEN
+C               DO 7 I=1,NLINES
+C                  I0 = 18*(I+1)-17
+C                  READ(LDAT,'(6X,18I4)') (IABIN(J),J=I0,I0+17)
+C                  WRITE(LOUT,'(6X,18I4)') (IABIN(J),J=I0,I0+17)
+C    7          CONTINUE
+C            ENDIF
+C            I0 = 18*(NLINES+1)+1
+C            IF (I0.LE.NABIN) THEN
+C               READ(LDAT,'(6X,18I4)') (IABIN(J),J=I0,NABIN)
+C               WRITE(LOUT,'(6X,18I4)') (IABIN(J),J=I0,NABIN)
+C            ENDIF
+C         ENDIF
+C         WRITE(LOUT,'(/,1X,A)') ' targets: (mass number)'
+C         READ(LDAT,'(I4,2X,18I4)') NBBIN,(IBBIN(J),J=1,18)
+C         IF (NBBIN.LT.18) THEN
+C            WRITE(LOUT,'(6X,18I4)') (IBBIN(J),J=1,NBBIN)
+C         ELSE
+C            WRITE(LOUT,'(6X,18I4)') (IBBIN(J),J=1,18)
+C         ENDIF
+C         IF (NBBIN.GT.MAXBIN) STOP ' GLBSET: NBBIN > MAXBIN !'
+C         IF (NBBIN.GT.18) THEN
+C            NLINES = DBLE(NBBIN-18)/18.0D0
+C            IF (NLINES.GT.0) THEN
+C               DO 8 I=1,NLINES
+C                  I0 = 18*(I+1)-17
+C                  READ(LDAT,'(6X,18I4)') (IBBIN(J),J=I0,I0+17)
+C                  WRITE(LOUT,'(6X,18I4)') (IBBIN(J),J=I0,I0+17)
+C    8          CONTINUE
+C            ENDIF
+C            I0 = 18*(NLINES+1)+1
+C            IF (I0.LE.NBBIN) THEN
+C               READ(LDAT,'(6X,18I4)') (IBBIN(J),J=I0,NBBIN)
+C               WRITE(LOUT,'(6X,18I4)') (IBBIN(J),J=I0,NBBIN)
+C            ENDIF
+C         ENDIF
+C*  number of data sets to follow in the Glauber data file
+C*   this variable is used for checks of consistency of projectile
+C*   and target mass configurations given in header of Glauber data
+C*   file and the data-sets which follow in this file
+C         NSET0 = (NEBIN+1)*(NABIN+MAXOFF)*NBBIN
+C*
+C*  read profile function data
+C         NSET  = 0
+C         NAIDX = 0
+C         IPOLD = 0
+C   10    CONTINUE
+C         NSET = NSET+1
+C         IF (NSET.GT.MAXSET) STOP ' GLBSET: NSET > MAXSET ! '
+C         READ(LDAT,1002,END=100) IP,IA,IB,ISTATB,ISITEB,ECM
+C 1002    FORMAT(5I10,E15.5)
+C         IF ((IP.NE.1).AND.(IP.NE.IPOLD)) THEN
+C            NAIDX = NAIDX+1
+C            IF (NAIDX.GT.10) STOP ' GLBSET: NAIDX > 10 !'
+C            IAIDX(NAIDX) = IP
+C            IPOLD = IP
+C         ENDIF
+C         READ(LDAT,'(6E12.5)') (XSIG(NSET,I),I=1,6)
+C         READ(LDAT,'(6E12.5)') (XERR(NSET,I),I=1,6)
+C         NLINES = INT(DBLE(ISITEB)/7.0D0)
+C         IF (NLINES.GT.0) THEN
+C            DO 11 I=1,NLINES
+C               READ(LDAT,'(7E11.4)') (BPROFL(NSET,J),J=7*I-6,7*I)
+C   11       CONTINUE
+C         ENDIF
+C         I0 = 7*NLINES+1
+C         IF (I0.LE.ISITEB)
+C     &      READ(LDAT,'(7E11.4)') (BPROFL(NSET,J),J=I0,ISITEB)
+C         GOTO 10
+C  100    CONTINUE
+C         NSET = NSET-1
+C         IF (NSET.NE.NSET0) STOP ' GLBSET: NSET.NE.NSET0 !'
+C         WRITE(LOUT,'(/,1X,A)')
+C     &   ' projectiles other than protons and nuclei: (particle index)'
+C         IF (NAIDX.GT.0) THEN
+C            WRITE(LOUT,'(6X,18I4)') (IAIDX(J),J=1,NAIDX)
+C         ELSE
+C            WRITE(LOUT,'(6X,A)') 'none'
+C         ENDIF
+C*
+C         CLOSE(LDAT)
+C         WRITE(LOUT,*)
+C         LREAD = .TRUE.
+C
+C         IF (NCOMPO.EQ.0) THEN
+C            DO 12 J=1,NBBIN
+C               NCOMPO = NCOMPO+1
+C               IEMUMA(NCOMPO) = IBBIN(J)
+C               IEMUCH(NCOMPO) = IEMUMA(NCOMPO)/2
+C               EMUFRA(NCOMPO) = 1.0D0
+C   12       CONTINUE
+C            IEMUL = 1
+C         ENDIF
+C*
+C* calculate profile function for certain set of parameters
+C*
+C      ELSE
+C
+Cc        write(*,*) 'glbset called for ',IDPROJ,NA,NB,ELAB,MODE
+C*
+C* check for type of projectile and set index-offset to entry in
+C* Glauber data array correspondingly
+C         IF (IDPROJ.GT.25) STOP ' GLBSET: IDPROJ > 25 !'
+C         IF (IOFFST(IDPROJ).EQ.-1) THEN
+C            STOP ' GLBSET: no data for this projectile !'
+C         ELSEIF (IOFFST(IDPROJ).GT.0) THEN
+C            IDXOFF = (NEBIN+1)*(NABIN+IOFFST(IDPROJ)-1)*NBBIN
+C         ELSE
+C            IDXOFF = 0
+C         ENDIF
+C*
+C* get energy bin and interpolation factor
+C         IF (LCMS) THEN
+C            E = SQRT(AAM(IDPROJ)**2+AAM(1)**2+2.0D0*AAM(1)*ELAB)
+C         ELSE
+C            E = ELAB
+C         ENDIF
+C         E = LOG10(E)
+C         IF (E.LT.ELO) THEN
+C            IF (LFRST1) THEN
+C               WRITE(LOUT,*) ' GLBSET: Too low energy! (E_lo,E) ',ELO,E
+C               LFRST1 = .FALSE.
+C            ENDIF
+C            E = ELO
+C         ENDIF
+C         IF (E.GT.EHI) THEN
+C            IF (LFRST2) THEN
+C               WRITE(LOUT,*) ' GLBSET: Too high energy! (E_hi,E) ',EHI,E
+C               LFRST2 = .FALSE.
+C            ENDIF
+C            E = EHI
+C         ENDIF
+C         IE0  = (E-ELO)/DEBIN+1
+C         IE1  = IE0+1
+C         FACE = (E-(ELO+DBLE(IE0-1)*DEBIN))/DEBIN
+C*
+C* get target nucleus index
+C         KB = 0
+C         NBACC = KBACC
+C         DO 20 I=1,NBBIN
+C            NBDIFF = ABS(NB-IBBIN(I))
+C            IF (NB.EQ.IBBIN(I)) THEN
+C               KB = I
+C               GOTO 21
+C            ELSEIF (NBDIFF.LE.NBACC) THEN
+C               KB = I
+C               NBACC = NBDIFF
+C            ENDIF
+C   20    CONTINUE
+C         IF (KB.NE.0) GOTO 21
+C         WRITE(LOUT,*) ' GLBSET: data not found for target ',NB
+C         STOP
+C   21    CONTINUE
+C*
+C* get projectile nucleus bin and interpolation factor
+C         KA0 = 0
+C         KA1 = 0
+C         FACNA = 0
+C         IF (IDXOFF.GT.0) THEN
+C            KA0 = 1
+C            KA1 = 1
+C            KABIN = 1
+C         ELSE
+C            IF (NA.GT.IABIN(NABIN)) STOP ' GLBSET: NA > IABIN(NABIN) !'
+C            DO 22 I=1,NABIN
+C               IF (NA.EQ.IABIN(I)) THEN
+C                  KA0 = I
+C                  KA1 = I
+C                  GOTO 23
+C               ELSEIF (NA.LT.IABIN(I)) THEN
+C                  KA0 = I-1
+C                  KA1 = I
+C                  GOTO 23
+C               ENDIF
+C   22       CONTINUE
+C            WRITE(LOUT,*) ' GLBSET: data not found for projectile ',NA
+C            STOP
+C   23       CONTINUE
+C            IF (KA0.NE.KA1)
+C     &         FACNA = DBLE(NA-IABIN(KA0))/DBLE(IABIN(KA1)-IABIN(KA0))
+C            KABIN = NABIN
+C         ENDIF
+C*
+C* interpolate profile functions for interactions ka0-kb and ka1-kb
+C* for energy E separately
+C         IDX0 = IDXOFF+1+(IE0-1)*KABIN*NBBIN+(KB-1)*KABIN+(KA0-1)
+C         IDX1 = IDXOFF+1+(IE1-1)*KABIN*NBBIN+(KB-1)*KABIN+(KA0-1)
+C         IDY0 = IDXOFF+1+(IE0-1)*KABIN*NBBIN+(KB-1)*KABIN+(KA1-1)
+C         IDY1 = IDXOFF+1+(IE1-1)*KABIN*NBBIN+(KB-1)*KABIN+(KA1-1)
+C         DO 30 I=1,ISITEB
+C            BPRO0(I) = BPROFL(IDX0,I)
+C     &                 +FACE*(BPROFL(IDX1,I)-BPROFL(IDX0,I))
+C            BPRO1(I) = BPROFL(IDY0,I)
+C     &                 +FACE*(BPROFL(IDY1,I)-BPROFL(IDY0,I))
+C   30    CONTINUE
+C         RADB  = DT_RNCLUS(NB)
+C         BSTP0 = 2.0D0*(DT_RNCLUS(IABIN(KA0))+RADB)/DBLE(ISITEB-1)
+C         BSTP1 = 2.0D0*(DT_RNCLUS(IABIN(KA1))+RADB)/DBLE(ISITEB-1)
+C*
+C* interpolate cross sections for energy E and projectile mass
+C         DO 31 I=1,6
+C            XS0   = XSIG(IDX0,I)+FACE*(XSIG(IDX1,I)-XSIG(IDX0,I))
+C            XS1   = XSIG(IDY0,I)+FACE*(XSIG(IDY1,I)-XSIG(IDY0,I))
+C            XS(I) = XS0+FACNA*(XS1-XS0)
+C            XE0   = XERR(IDX0,I)+FACE*(XERR(IDX1,I)-XERR(IDX0,I))
+C            XE1   = XERR(IDY0,I)+FACE*(XERR(IDY1,I)-XERR(IDY0,I))
+C            XE(I) = XE0+FACNA*(XE1-XE0)
+C   31    CONTINUE
+C*
+C* interpolate between ka0 and ka1
+C         RADA = DT_RNCLUS(NA)
+C         BMX  = 2.0D0*(RADA+RADB)
+C         BSTP = BMX/DBLE(ISITEB-1)
+C         BPRO(1) = ZERO
+C         DO 32 I=1,ISITEB-1
+C            B = DBLE(I)*BSTP
+C*
+C*   calculate values of profile functions at B
+C            IDX0 = B/BSTP0+1
+C            IF (IDX0.GT.ISITEB) IDX0 = ISITEB
+C            IDX1 = MIN(IDX0+1,ISITEB)
+C            FACB = (B-DBLE(IDX0-1)*BSTP0)/BSTP0
+C            BPR0 = BPRO0(IDX0)+FACB*(BPRO0(IDX1)-BPRO0(IDX0))
+C            IDX0 = B/BSTP1+1
+C            IF (IDX0.GT.ISITEB) IDX0 = ISITEB
+C            IDX1 = MIN(IDX0+1,ISITEB)
+C            FACB = (B-DBLE(IDX0-1)*BSTP1)/BSTP1
+C            BPR1 = BPRO1(IDX0)+FACB*(BPRO1(IDX1)-BPRO1(IDX0))
+C*
+C            BPRO(I+1) = BPR0+FACNA*(BPR1-BPR0)
+C   32    CONTINUE
+C*
+C* fill common dtglam
+C         NSITEB   = ISITEB
+C         RASH(1)  = RADA
+C         RBSH(1)  = RADB
+C         BMAX(1)  = BMX
+C         BSTEP(1) = BSTP
+C         DO 33 I=1,KSITEB
+C            BSITE(0,1,1,I) = BPRO(I)
+C   33    CONTINUE
+C*
+C* fill common dtglxs
+C         XSTOT(1,1,1) = XS(1)
+C         XSELA(1,1,1) = XS(2)
+C         XSQEP(1,1,1) = XS(3)
+C         XSQET(1,1,1) = XS(4)
+C         XSQE2(1,1,1) = XS(5)
+C         XSPRO(1,1,1) = XS(6)
+C         XETOT(1,1,1) = XE(1)
+C         XEELA(1,1,1) = XE(2)
+C         XEQEP(1,1,1) = XE(3)
+C         XEQET(1,1,1) = XE(4)
+C         XEQE2(1,1,1) = XE(5)
+C         XEPRO(1,1,1) = XE(6)
+C
+C      ENDIF
+C
+C      RETURN
+C      END
 *$ CREATE DT_LMKINE.FOR
 *COPY DT_LMKINE
 *
