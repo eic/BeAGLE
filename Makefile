@@ -54,16 +54,20 @@ LIBRAP = -L$(RAPGAP)/lib -lrapgap33 -lar4 -lbases
 #change the following library path according to the setting in 
 #your environment
 
-# BNL:
-FLUKA = /afs/rhic/eic/PACKAGES/fluka-64/
-LIB1 = -L/cern64/pro/lib -lmathlib -lkernlib -lpacklib_noshift -ldl -lm 
+FLUKA =$(FLUPRO)
+# temporary kludge
+FLUKA = /afs/rhic/eic/PACKAGES/fluka-64
 LIB2 = -L$(FLUKA) -lflukahp
+
+# BNL:
+###OLD: FLUKA = /afs/rhic/eic/PACKAGES/fluka-64/
+LIB1 = -L/cern64/pro/lib -lmathlib -lkernlib -lpacklib_noshift -ldl -lm 
 LIB3 = -L/afs/rhic/eic/lib -lLHAPDF 
 #LIB3 = -L/afs/rhic.bnl.gov/eic/restructured/env/EIC2018a/lib -lLHAPDF 
+#
 # JLAB:
-#FLUKA = /u/group/ldgeom/PACKAGES/fluka-64/
+###OLD: FLUKA = /u/group/ldgeom/PACKAGES/fluka-64/
 #LIB1 = -L/u/site/cernlib/x86_64_rhel6/2005/lib -lmathlib -lkernlib -lpacklib -ldl -lm 
-#LIB2 = -L$(FLUKA) -lflukahp
 #LIB3 = -L/u/group/ldgeom/PACKAGES/LHAPDF-5.9.1-64BIT/lib -lLHAPDF 
 
 #####################include directories###########################
@@ -71,7 +75,7 @@ INCLUDE = $(TOP)/include
 RAPINC = $(RAPGAP)/include
 #change the following fluka path according to the setting in 
 #your environment
-FLUINC = $(FLUKA)flukapro
+FLUINC = $(FLUKA)/flukapro
 
 ######################dependence rules#####################################
 #pythia library
