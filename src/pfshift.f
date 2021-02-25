@@ -1,4 +1,4 @@
-      SUBROUTINE PFSHIFT(WRAW,W2RAW,Q2,NU,MNUCL,PDEUT,IKIN)
+      SUBROUTINE PFSHIFT(WRAW,W2RAW,Q2,NU,MNUCL,PDEUT,PSPEC,IKIN)
 C
 C     2018-07-13 Mark D. Baker - Initial Version
 C
@@ -14,6 +14,9 @@ C     Input: WRAW, W2RAW - from Pythia subevent VINT(1),VINT(2)
 C            Q2, NU - from Pythia
 C            MNUCL - struck nucleon for IKIN=1 (VINT(4)), spectator for IKIN=2
 C            PDEUT - Deuteron "5"-momentum, irrelevant for IKIN=1
+C            PSPEC - Irrelevant for IKIN=1
+C                    Spectator "5"-momentum, for IKIN=2
+C                    "5"-momentum of sum of spec1+spec2 for IKIN=3
 C            IKIN - model for correct Pythia subsystem Wmu   
 C
 C     Common block input: P(mu)_true-P(mu)_naive OR use k
@@ -29,6 +32,8 @@ C              for bulk Fermi momentum too...
 C              W = q + P - pspec'
 C              where P is an incoming on-shell deuteron 
 C              pspec' given by an on-shell spectator with 3-momentum -k
+C              For A=3 case, W = q + P - pspec1' - pspec2' and 
+C              pspec' = pspec1' + pspec2'
 C     IKIN=0: Calculate IKIN=1, for filling in USERSET 3, but don't
 C     actually change the event record.
 C
@@ -46,7 +51,7 @@ C     Step 2 is to boost all momenta so the that subevent has the
 C     correct momentum in the HCMS (and ultimately TRF)
 C
       IMPLICIT NONE
-      DOUBLE PRECISION WRAW, W2RAW, Q2, NU, MNUCL, PDEUT(5)
+      DOUBLE PRECISION WRAW, W2RAW, Q2, NU, MNUCL, PDEUT(5), PSPEC(5)
       INTEGER IKIN
 
       include 'beagle.inc'
@@ -87,7 +92,7 @@ C Local
       DOUBLE PRECISION PTMP(MAXPRTS,NDIMM)
       INTEGER INDXP(MAXPRTS)
       LOGICAL W2FAIL
-      DOUBLE PRECISION ESPEC,WZIRF,W0IRF,WZHCMS,W0HCMS
+      DOUBLE PRECISION WZIRF,W0IRF,WZHCMS,W0HCMS
 
       IF (IOULEV(4).GE.2 .AND. NEVENT.LE.IOULEV(5)) then
          WRITE(*,*)"PFSHIFT(WRAW,W2RAW,Q2,NU,MNUCL,PDEUT,IKIN)"
@@ -106,15 +111,11 @@ C     Boost into naive HCMS  (assumes nucleon at rest in A-TRF)
       IF (IKIN.EQ.0 .OR. IKIN.EQ.1) THEN
          W2F = W2RAW + 2.*WRAW*DPF(4) - 2.*MNUCL*EKF
       ELSEIF (IKIN.EQ.2) THEN
-C         ESPEC=SQRT(MNUCL*MNUCL+PXF*PXF+PYF*PYF+PZF*PZF)
-C         W2F = 2.*PDEUT(5)*NU - Q2 + PDEUT(5)*PDEUT(5) + MNUCL*MNUCL
-C     &        -2.*ESPEC*(NU+PDEUT(5))-2*PZF*SQRT(Q2+NU*NU)
-         ESPEC=SQRT(MNUCL*MNUCL+(PDEUT(1)-PXF)**2+(PDEUT(2)-PYF)**2+
-     &        (PDEUT(3)-PZF)**2)
-         W2F = 2.*(PDEUT(4)-ESPEC)*NU - Q2 + PDEUT(5)*PDEUT(5) + 
-     &        MNUCL*MNUCL - 2.*ESPEC*PDEUT(5) - 2*PZF*SQRT(Q2+NU*NU) +
-     &        2.*(PDEUT(1)*(PDEUT(1)-PXF)+PDEUT(2)*(PDEUT(2)-PYF)+
-     &            PDEUT(3)*(PDEUT(3)-PZF))
+         W2F = 2.*(PDEUT(4)-PSPEC(4))*NU - Q2 + PDEUT(5)*PDEUT(5) + 
+     &        PSPEC(5)*PSPEC(5) - 2.*PSPEC(4)*PDEUT(4) 
+     &        - 2*(PDEUT(3)-PSPEC(3))*SQRT(Q2+NU*NU) +
+     &        2.*(PDEUT(1)*PSPEC(1)+PDEUT(2)*PSPEC(2)+
+     &            PDEUT(3)*PSPEC(3))
       ELSE
          WRITE(*,*) 'PFSHIFT ERROR: Illegal IKIN =',IKIN
          W2F = W2RAW
@@ -346,7 +347,7 @@ C
          ELSEIF (IKIN.EQ.2) THEN
 C     Note: Wmu transverse quantities are PXF,PYF=DPF(1,2). WZ,W0:
             WZIRF = SQRT(Q2+NU*NU)+PZF
-            W0IRF = NU + PDEUT(5) - ESPEC
+            W0IRF = NU + PDEUT(5) - PSPEC(4)
             CALL DT_LTNUC(WZIRF,W0IRF,WZHCMS,W0HCMS,3)
             FERBZ = WZHCMS/SQRT(W2TRY(NSCLTR))
          ELSE

@@ -721,20 +721,23 @@ C        CALL SHMAKF(IDUM,IDUM,IEMUMA(NCOMPO),IEMUCH(NCOMPO))
 *                  +2 DPMJET has pF, Pythia sub-event skeleton      *
 *                     given pF after the fact using on mass-shell   *
 *                     incoming struck nucleon w/ pF                 *
-*                  +3 Deuteron/SRC kinematics. A>2 non-SRC events   *
+*                  +3 A=2,3 or SRC kinematics. A>3 non-SRC events   *
 *                     revert to 2.                                  *
-*                                                 default: 1        *
-*       what (2) =    scale factor for Fermi-momentum  (D=0.55)     *
-*                         (should be set to 0.62 for what(3)>0)     *
+*                                                 default: 2        *
+*       what (2) =    scale factor for Fermi-momentum  (D=0.62)     *
+*                         (should be set to 0.55 for what(3)=-1)    *
 *       what (3) = Fermi momentum distribution                      *
-*                   0=DPMJET (D)                                    *
-*                   1=From PRC 53 (1996) 1689R: Deuteron only       *
+*                   -1= Old DPMJET approach (deprecated)            *
+*                   0=(D) use the recommended pF                    *
+*                   1= pF based on Ciofi & Simula PRC (1996) 1689R. *
 *                   2=High k tail only from version 1               *
 *                   3=Deuterons as in 1, but move nucleons to a     *
 *                     relative distance of hbar/k for k>0.25 GeV.   *
 *                   4=Add SRC (20%)for A>=12. Nucleons don't move.  *
 *                   5=SRC as in 4 and pair nucleons moved to        *
 *                     relative distance hbar/k in IRF if k>0.25 GeV.*
+*                   11-14 different distributions from default n(k),*
+*                   ranging from smaller (11) to larger (14) tail.  *
 *       what (4) = post-processing to correct 4-mom. errors for D.  *
 *                   0=No                                            *
 *                   1=Ad-hoc ion rest frame energy correction.      *
@@ -748,8 +751,8 @@ C        CALL SHMAKF(IDUM,IDUM,IEMUMA(NCOMPO),IEMUCH(NCOMPO))
 *********************************************************************
 
   170 CONTINUE
-      IFERPY = NINT(WHAT(1))
-      IF (WHAT(1).EQ.-1.0D0) THEN
+      IF (NINT(WHAT(1)).NE.0) IFERPY = NINT(WHAT(1))
+      IF (IFERPY.EQ.-1) THEN
          LFERMI = .FALSE.
       ELSE
          LFERMI = .TRUE.
@@ -757,6 +760,7 @@ C        CALL SHMAKF(IDUM,IDUM,IEMUMA(NCOMPO),IEMUCH(NCOMPO))
       XMOD = WHAT(2)
       IF (XMOD.GE.ZERO) FERMOD = XMOD
       IFMDIST = NINT(WHAT(3))
+      IF (IFMDIST.EQ.0) IFMDIST=1
       IFMPOST = NINT(WHAT(4))
       EUNBIND = WHAT(5)*1.0D-03
       IF (IFMPOST.EQ.1 .AND. IFERPY.GT.2) THEN
@@ -3103,6 +3107,7 @@ C     COMMON /PQCTRL/ PQRECF, PYQ_SUPF, PYQ_IPTF, PYQ_IEG
       IOULEV(4) = -1
       IOULEV(5) = 0
       IOULEV(6) = -1
+      IFERPY = 2
       IFMDIST = 0
       IFMPOST = 0
       INRLEV  = 0
@@ -3126,7 +3131,7 @@ C     COMMON /PQCTRL/ PQRECF, PYQ_SUPF, PYQ_IPTF, PYQ_IEG
          EPOT(I,24) = POTMES
          EPOT(I,25) = POTMES
    10 CONTINUE
-      FERMOD    = 0.55D0
+      FERMOD    = 0.62D0
       ETACOU(1) = ZERO
       ETACOU(2) = ZERO
       EUNBIND   = ZERO
@@ -5075,9 +5080,9 @@ C            ENDIF
          WHKK(4,NHKK) = 0.0D0
     2 CONTINUE
 
-* Special treatment for Deuteron, where IFMDIST can be 1 or 2 at the moment.
+* Special treatment for Deuteron.
 * Proton and neutron are back-to-back in the rest frame
-      IF (NMASS.EQ.2 .AND. IFMDIST .GT. 0) THEN
+      IF (NMASS.EQ.2 .AND. IFMDIST .GE. 0) THEN
          DO K=1,3
             PHKK(K,3) = -1.0D0*PHKK(K,2)
          ENDDO

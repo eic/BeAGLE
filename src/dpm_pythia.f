@@ -646,7 +646,7 @@ C  Local
 
       LOGICAL LFIRST
       INTEGER IREJ, IIMAIN, IIMAINN
-      DOUBLE PRECISION PDEUT(5), MNUCL
+      DOUBLE PRECISION PDEUT(5), PSPEC(5), MNUCL
 
       SAVE LFIRST
 
@@ -1090,26 +1090,33 @@ C     Not used unless IFERPY>2
          PDEUT(5)=AZMASS(IT,ITZ,ITMMOD)
          PDEUT(4)=PDEUT(5)
          MNUCL=VINT(4)
+         DO IDIM=1,5
+            PSPEC(IDIM)=0.0D0
+         ENDDO
          if (IFERPY.EQ.2) then
-            CALL PFSHIFT(VINT(1),VINT(2),VINT(307),VALNU,MNUCL,PDEUT,1)
+            CALL PFSHIFT(VINT(1),VINT(2),VINT(307),VALNU,MNUCL,PDEUT,
+     &           PSPEC,1)
          elseif (IFERPY.EQ.3) then
             if (IIMAINN.NE.-1) then
 C     Here MNUCL is the SPECTATOR (not struck) nucleon mass from D or SRC-pair:
                MNUCL=PHKK(5,IIMAINN)
+               DO IDIM=1,5
+                  PSPEC(IDIM)=PHKK(IDIM,IIMAINN)
+               ENDDO
                PDEUT(1)=PHKK(1,IIMAIN)+PHKK(1,IIMAINN)
                PDEUT(2)=PHKK(2,IIMAIN)+PHKK(2,IIMAINN)
                PDEUT(3)=PHKK(3,IIMAIN)+PHKK(3,IIMAINN)
                PDEUT(4)=SQRT(PDEUT(1)*PDEUT(1)+PDEUT(2)*PDEUT(2)+
      &              PDEUT(3)*PDEUT(3)+PDEUT(5)*PDEUT(5))
-
                CALL PFSHIFT(VINT(1),VINT(2),VINT(307),VALNU,MNUCL,PDEUT,
-     &              2)
+     &              PSPEC,2)
             else
                CALL PFSHIFT(VINT(1),VINT(2),VINT(307),VALNU,MNUCL,PDEUT,
-     &              1)
+     &              PSEPC,1)
             endif
          else
-            CALL PFSHIFT(VINT(1),VINT(2),VINT(307),VALNU,MNUCL,PDEUT,0)
+            CALL PFSHIFT(VINT(1),VINT(2),VINT(307),VALNU,MNUCL,PDEUT,
+     &           PSPEC,0)
          endif
          if(IOULEV(4).GE.2 .AND. NEVENT.LE.IOULEV(5)) THEN
             write(*,*) "DT_PYEVNTEP: TRF g*=z, after pf post-fix"
