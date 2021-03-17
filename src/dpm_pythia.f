@@ -257,17 +257,13 @@ c...read parameters from dpmjet
        print*,'kinematics cut read by PYTHIA:'
        print*,YMIN,' < y < ',YMAX,', ',Q2MIN,' < Q2 < ',Q2MAX
 
-C     Getting the date and time of the event generation
-        
-      call idate(today)   ! today(1)=day, (2)=month, (3)=year
-      call itime(now)     ! now(1)=hour, (2)=minute, (3)=second
-        
-!     Take date as the SEED for the random number generation
-       
 C...The random number for pythia 
-      initseed = today(1) + 10*today(2) + today(3) + now(1) + 5*now(3)
 C...Mark - fixed seed if requested in input for debugging 08/14/2016
-      IF (IFSEED.GT.0) initseed=IFSEED
+      IF (IFSEED.GT.0) THEN
+         initseed=IFSEED
+      ELSE
+         call getseed(initseed,.TRUE.)
+      ENDIF
       write(6,*) 'SEED = ', initseed
       call rndmq (idum1,idum2,initseed,' ')
         
