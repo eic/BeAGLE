@@ -745,8 +745,11 @@ C        CALL SHMAKF(IDUM,IDUM,IEMUMA(NCOMPO),IEMUCH(NCOMPO))
 *         NOTE: Ad-hoc post-processing not needed for what(1)>2     *
 *                                                 default: 0        *
 *       what (5) = add energy to residual nucleus in order to deal  *
-*                  with large mismatch in binding energy - unit=MeV *
-*       what (6), sdum   no meaning                                 *
+*                  with large mismatch in binding energy for small  *
+*                  systems. Unit=MeV. Not useful. Not recommended.  *
+*       what (6) = -1 Old Fermi-skin correction - breaks energy     *
+*                     conservation in naive HCMS.                   *
+*                  0 (D) Go ahead and conserve 4-momentum.          *
 *                                                                   *
 *********************************************************************
 
@@ -763,6 +766,7 @@ C        CALL SHMAKF(IDUM,IDUM,IEMUMA(NCOMPO),IEMUCH(NCOMPO))
       IF (IFMDIST.EQ.0) IFMDIST=1
       IFMPOST = NINT(WHAT(4))
       EUNBIND = WHAT(5)*1.0D-03
+      LLCPOT = (NINT(WHAT(6)).LT.0)
       IF (IFMPOST.EQ.1 .AND. IFERPY.GT.2) THEN
          IFMPOST=0
          WRITE(*,*)"WARNING: IFMPOST=1 incompatible with IFERPY>2."
@@ -3112,6 +3116,7 @@ C     COMMON /PQCTRL/ PQRECF, PYQ_SUPF, PYQ_IPTF, PYQ_IEG
       IFMPOST = 0
       INRLEV  = 0
       IGDOBST = 0
+      LLCPOT = .FALSE.
 
 * common /DTNPOT/
       DO 10 I=1,2
@@ -13094,7 +13099,7 @@ C     &                LEMCCK,LHADRO(0:9),LSEADI,LEVAPO,IFRAME,ITRSPT
      &          P1IN(4),P2IN(4),P1OUT(4),P2OUT(4)
 
       DIMENSION EXPNUC(2),EXC(2,260),NEXC(2,260)
-      LOGICAL LLCPOT
+C      LOGICAL LLCPOT  ! moved to beagle.inc
       DATA EXC,NEXC /520*ZERO,520*0/
       DATA EXPNUC /4.0D-3,4.0D-3/
 
@@ -13372,7 +13377,7 @@ C              Boost back to naive HCMS
 *   For the moment the modification in the excitation energy is simply
 *   corrected by scaling the energy of the residual nucleus.
 *
-               LLCPOT = .TRUE.
+C               LLCPOT = .TRUE.    ! Now set in FERMI card
                ILCOPT = 3
                IF ( LLCPOT ) THEN
                   NNCHIT = MAX ( INUC (I) - NTOT (I), 0 )
