@@ -259,7 +259,7 @@ c...read parameters from dpmjet
 
 C...The random number for pythia 
 C...Mark - fixed seed if requested in input for debugging 08/14/2016
-      IF (IFSEED.GT.0) THEN
+      IF (IFSEED.NE.0) THEN
          initseed=IFSEED
       ELSE
          call getseed(initseed,.TRUE.)

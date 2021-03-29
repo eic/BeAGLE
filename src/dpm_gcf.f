@@ -157,12 +157,10 @@ C       print*,YMIN,' < y < ',YMAX,', ',Q2MIN,' < Q2 < ',Q2MAX
 
 C     Getting the date and time of the event generation
 
-      IF (IFSEED.EQ.0) THEN 
-         call idate(today)      ! today(1)=day, (2)=month, (3)=year
-         call itime(now)        ! now(1)=hour, (2)=minute, (3)=second
-         initseed = today(1)+10*today(2)+today(3) + now(1)+5*now(3)
-      ELSE
+      IF (IFSEED.NE.0) THEN
          initseed=IFSEED
+      ELSE
+         call getseed(initseed,.TRUE.)
       ENDIF
       write(6,*) 'SEED = ', initseed
       call rndmq (idum1,idum2,initseed,' ')
@@ -1718,7 +1716,6 @@ C     &                LEMCCK,LHADRO(0:9),LSEADI,LEVAPO,IFRAME,ITRSPT
      &          P1IN(4),P2IN(4),P1OUT(4),P2OUT(4)
 
       DIMENSION EXPNUC(2),EXC(2,260),NEXC(2,260)
-      LOGICAL LLCPOT
       DATA EXC,NEXC /520*ZERO,520*0/
       DATA EXPNUC /4.0D-3,4.0D-3/
 

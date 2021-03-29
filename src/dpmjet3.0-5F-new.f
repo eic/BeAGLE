@@ -498,10 +498,10 @@ C1000 FORMAT(A10,6E10.0,A8)
 *                                                                   *
 *       what (1) =  mass number of target nucleus      default: 1   *
 *       what (2) =  charge of target nucleus           default: 1   *
-*       what (3) =  n/p handling: 0 = sequential n, then p          *
+*       what (3) =  n/p handling: 0 = sequential n, then p (D)      *
 *                                 1 = all en collisions             *
 *                                 2 = all ep collisions             *
-*                                 3 = random mix (D)                *
+*                                 3 = random mix                    *
 *       what (4) =  Target Mass calculation method                  *
 *                                -1 = old inconsistent approach     * 
 *                                 0 = AZMASS method 0 (D)           *
@@ -1070,7 +1070,11 @@ C...for pythia model
 *                        = 3 Full DPMJET treatment                  *
 *       what (3)         = Boost to lab frame (defined by MOMENTUM) *
 *                          0 = no (default)  1 = yes                *
-*       what (4)         = Format 0=new (D), -1=old(pre-LC)
+*       what (4)         = Format 0=new (D), -1=old(pre-LC)         *
+*       what (5)         = Apply potential correction to:           *
+*                          0 (D) = wounded nucleons except the pair *
+*                          +1    = all wounded nucleons             *
+*                          -1    = no nucleons                       * 
 *********************************************************************
 
   240 CONTINUE
@@ -1117,6 +1121,7 @@ C         MODEGA = 0               ! Try this.
          IGDOBST = NINT(WHAT(3))
          IF (IGDOBST.NE.0) STOP "DT_INIT: GCF boost mode not available."
          OLDOUT = (NINT(WHAT(4)).EQ.-1)
+         IUSEPOT = NINT(WHAT(5))
          IF (INRLEV.EQ.0) INRLEV=3
       ELSE
          STOP ' Unknown model !'
@@ -3116,6 +3121,7 @@ C     COMMON /PQCTRL/ PQRECF, PYQ_SUPF, PYQ_IPTF, PYQ_IEG
       IFMPOST = 0
       INRLEV  = 0
       IGDOBST = 0
+      IUSEPOT = 0
       LLCPOT = .FALSE.
 
 * common /DTNPOT/
@@ -12122,6 +12128,8 @@ C     &                LEMCCK,LHADRO(0:9),LSEADI,LEVAPO,IFRAME,ITRSPT
 Cc...added by liang & Mark to include pythia energy loss datas
       double precision PAUX, DPF
       COMMON /PFAUX/ PAUX(4), DPF(4)
+C... Local added by Mark to avoid double-counting mean-field FSI for GCF
+      LOGICAL USEPOTDRG
 
       GOTO (1,2) MODE
 
@@ -12431,6 +12439,12 @@ C                    PSEC(4) = PSEC(4)-XSCPOT*SCPOT*FDEN*EPOT(IPOT,IDSEC)
                      ENDIF
                   ENDIF
                ELSEIF (IPOT.EQ.2) THEN
+C  In the case of GCF, the mean field FSI between the SRC pair and the
+C  nuclear remnant is in the spectral function. We shouldn't double 
+C  count. IUSEPOT=1 forces double counting anyway. IUSEPOT=-1 in GCF
+C  will force NO potential drag.
+                  USEPOTDRG = (MCGENE.NE.7 .OR. IUSEPOT.EQ.1 .OR. 
+     &                 (IUSEPOT.EQ.0 .AND. ISTHKK(JMOHKK(1,I)).NE.3))
                   IF ((JTW.GT.0).AND.(IOTHER.EQ.0)) THEN
 *      this is most likely a wounded nucleon
 **test
@@ -12441,12 +12455,15 @@ C                    RAD   = RNUCLE*DBLE(IT)**ONETHI
 C                    FDEN  = 1.4D0*DT_DENSIT(IT,RDIST,RAD)
 C                    PSEC(4) = PSEC(4)-XSCPOT*SCPOT*FDEN*EPOT(IPOT,IDSEC)
 **
-                     PSEC(4) = PSEC(4)-XSCPOT*SCPOT*EPOT(IPOT,IDSEC)
                      JTW = JTW-1
-                     JPMOD = 1
+                     IF (USEPOTDRG) THEN
+                        PSEC(4) = PSEC(4)-XSCPOT*SCPOT*EPOT(IPOT,IDSEC)
+                        JPMOD = 1
+                     ENDIF
                   ELSE
 *      correct only if part. was materialized inside nucleus
-                     IF ((NOBAM(I).NE.2).AND.(NOBAM(I).LT.3)) THEN
+                     IF ((NOBAM(I).NE.2).AND.(NOBAM(I).LT.3)
+     &                    .AND.USEPOTDRG) THEN
                         PSEC(4) = PSEC(4)-XSCPOT*SCPOT*EPOT(IPOT,IDSEC)
                         JPMOD = 1
                      ENDIF
