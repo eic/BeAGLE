@@ -20542,7 +20542,7 @@ C      END
      &  '            |',/,               
      &  ' |                                                           ',
      &  '            |',/,   
-     &  ' | Pre-release version',51X,'|',/,1X,'|',71X,'|',/,
+     &  ' | Version 1.01.00    ',51X,'|',/,1X,'|',71X,'|',/,
      &  ' | Authors: Elke Aschenauer, Mark D. Baker, J.H. Lee, Liang Z',
      &  'heng        |',/,
      &  ' | Contact: liangzhphy@gmail.com or mdbaker@mdbpads.com',18X,
