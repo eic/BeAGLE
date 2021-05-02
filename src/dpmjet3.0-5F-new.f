@@ -120,11 +120,6 @@
       COMMON /DTXCUT/ XSEACU,UNON,UNOM,UNOSEA,CVQ,CDQ,CSEA,SSMIMA,
      &                SSMIMQ,VVMTHR
 
-C* flags for input different options
-C      LOGICAL LEMCCK,LHADRO,LSEADI,LEVAPO
-C      COMMON /DTFLG1/ IFRAG(2),IRESCO,IMSHL,IRESRJ,IOULEV(6),
-C     &                LEMCCK,LHADRO(0:9),LSEADI,LEVAPO,IFRAME,ITRSPT
-
 * nuclear potential
       LOGICAL LFERMI
       COMMON /DTNPOT/ PFERMP(2),PFERMN(2),FERMOD,
@@ -274,15 +269,18 @@ c....Since we need to use FSEED card read in this random number seed
 c....initialization will be moved to the START card region
 *   initialization and test of the random number generator
 C  2019-12-02 MDB Move Fluka initializations NCDTRD, INCINI here
+*  initialize evaporation if the code is not used as Fluka event generator
+C  BeAGLE runs with ITRSPT=0
          IF (ITRSPT.NE.1) THEN
 
             CALL NCDTRD
             CALL INCINI
 
+C MDB. Change these from 1,-1,0,0 to 13,-1,3,3 to match card that works.
+            INSEED = 13
             IJKLIN = -1
-            INSEED = 1
-            ISEED1 = 0
-            ISEED2 = 0
+            ISEED1 = 3
+            ISEED2 = 3
 
 c            CALL RNINIT (INSEED,IJKLIN,ISEED1,ISEED2)
 
@@ -2599,7 +2597,7 @@ C    which needs to be read by the program a fort.INSEED file
 C    will be generated.
 C....IJKLIN gives the random number seed for the current run.
 C....The use of the other two (ISEED1, ISEED2) is still unknown?
-      print*,'%%%%%%%%%%%%%%%% RANDOM SEED %%%%%%%%%%%%%%%%'
+      print*,'%%%%%%%%%% FLUKA RANDOM SEED INIT %%%%%%%%%%%'
       print*,INSEED, IJKLIN, ISEED1, ISEED2
       print*,'%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%'
       CALL RNINIT (INSEED,IJKLIN,ISEED1,ISEED2)
@@ -2813,11 +2811,6 @@ C     ENDIF
 * Lorentz-parameters of the current interaction
       COMMON /DTLTRA/ GACMS(2),BGCMS(2),GALAB,BGLAB,BLAB,
      &                UMO,PPCM,EPROJ,PPROJ
-
-C* flags for input different options
-C      LOGICAL LEMCCK,LHADRO,LSEADI,LEVAPO
-C      COMMON /DTFLG1/ IFRAG(2),IRESCO,IMSHL,IRESRJ,IOULEV(6),
-C     &                LEMCCK,LHADRO(0:9),LSEADI,LEVAPO,IFRAME,ITRSPT
 
 * flags for particle decays
       COMMON /DTFRPA/ MSTUX(20),PARUX(20),MSTJX(20),PARJX(20),
@@ -3038,11 +3031,6 @@ c         CALL DT_PYOUTEP(4)
 * threshold values for x-sampling (DTUNUC 1.x)
       COMMON /DTXCUT/ XSEACU,UNON,UNOM,UNOSEA,CVQ,CDQ,CSEA,SSMIMA,
      &                SSMIMQ,VVMTHR
-
-C* flags for input different options
-C      LOGICAL LEMCCK,LHADRO,LSEADI,LEVAPO
-C      COMMON /DTFLG1/ IFRAG(2),IRESCO,IMSHL,IRESRJ,IOULEV(6),
-C     &                LEMCCK,LHADRO(0:9),LSEADI,LEVAPO,IFRAME,ITRSPT
 
 * n-n cross section fluctuations
       PARAMETER (NBINS = 1000)
@@ -3448,11 +3436,6 @@ C...Pythia Parameters.
      &                XEQE2(NEB,NQB,NCOMPX),XEPRO(NEB,NQB,NCOMPX),
      &                XEDEL(NEB,NQB,NCOMPX),XEDQE(NEB,NQB,NCOMPX),
      &                BSLOPE,NEBINI,NQBINI
-
-C* flags for input different options
-C      LOGICAL LEMCCK,LHADRO,LSEADI,LEVAPO
-C      COMMON /DTFLG1/ IFRAG(2),IRESCO,IMSHL,IRESRJ,IOULEV(6),
-C     &                LEMCCK,LHADRO(0:9),LSEADI,LEVAPO,IFRAME,ITRSPT
 
 * event flag
       COMMON /DTEVNO/ NEVENT,ICASCA
@@ -4648,11 +4631,6 @@ C      COMMON /NPARINT/ PosNuc(4)
      &                IDBAM(NMXHKK),IDCH(NMXHKK),NPOINT(10),
      &                IHIST(2,NMXHKK)
 
-C* flags for input different options
-C      LOGICAL LEMCCK,LHADRO,LSEADI,LEVAPO
-C      COMMON /DTFLG1/ IFRAG(2),IRESCO,IMSHL,IRESRJ,IOULEV(6),
-C     &                LEMCCK,LHADRO(0:9),LSEADI,LEVAPO,IFRAME,ITRSPT
-
 * rejection counter
       COMMON /DTREJC/ IRPT,IRHHA,IRRES(2),LOMRES,LOBRES,
      &                IRCHKI(2),IRFRAG,IRCRON(3),IREVT,
@@ -4951,11 +4929,6 @@ C      CALL DT_PYOUTEP(4)
       COMMON /DTEVT2/ IDRES(NMXHKK),IDXRES(NMXHKK),NOBAM(NMXHKK),
      &                IDBAM(NMXHKK),IDCH(NMXHKK),NPOINT(10),
      &                IHIST(2,NMXHKK)
-
-C* flags for input different options
-C      LOGICAL LEMCCK,LHADRO,LSEADI,LEVAPO
-C      COMMON /DTFLG1/ IFRAG(2),IRESCO,IMSHL,IRESRJ,IOULEV(6),
-C     &                LEMCCK,LHADRO(0:9),LSEADI,LEVAPO,IFRAME,ITRSPT
 
 * auxiliary common for chain system storage (DTUNUC 1.x)
       COMMON /DTCHSY/ ISKPCH(8,MAXINT),IPOSP(MAXNCL),IPOST(MAXNCL)
@@ -5656,11 +5629,6 @@ C        ENDIF
       PARAMETER (TINY10=1.0D-10)
 
       INCLUDE 'beagle.inc'
-
-C* flags for input different options
-C      LOGICAL LEMCCK,LHADRO,LSEADI,LEVAPO
-C      COMMON /DTFLG1/ IFRAG(2),IRESCO,IMSHL,IRESRJ,IOULEV(6),
-C     &                LEMCCK,LHADRO(0:9),LSEADI,LEVAPO,IFRAME,ITRSPT
 
 * rejection counter
       COMMON /DTREJC/ IRPT,IRHHA,IRRES(2),LOMRES,LOBRES,
@@ -8192,692 +8160,6 @@ C         ENDIF
       RETURN
       END
 
-C*$ CREATE DT_GLBINI.FOR
-C*COPY DT_GLBINI
-C*
-C*===glbini=============================================================*
-C*
-C      SUBROUTINE DT_GLBINI(WHAT)
-C
-C************************************************************************
-C* Pre-initialization of profile function                               *
-C* This version dated 28.11.00 is written by S. Roesler.                *
-C*                                                                      *
-C* Last change 27.12.2006 by S. Roesler.                                *
-C************************************************************************
-C
-C      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
-C      SAVE
-C
-C      PARAMETER ( LINP = 5 ,
-C     &            LOUT = 6 ,
-C     &            LDAT = 9 )
-C
-C      PARAMETER (ZERO=0.0D0,ONE=1.0D0,TINY14=1.D-14)
-C
-C      LOGICAL LCMS
-C
-C      INCLUDE 'beagle.inc'
-C
-C* particle properties (BAMJET index convention)
-C      CHARACTER*8  ANAME
-C      COMMON /DTPART/ ANAME(210),AAM(210),GA(210),TAU(210),
-C     &                IICH(210),IIBAR(210),K1(210),K2(210)
-C
-C* properties of interacting particles
-C      COMMON /DTPRTA/ IT,ITZ,IP,IPZ,IJPROJ,IBPROJ,IJTARG,IBTARG,ITMODE,
-C     &     ITMMOD,MODHYP,NHYPER,IDHYP(5)
-C
-C      PARAMETER (NCOMPX=20,NEB=8,NQB= 5,KSITEB=50)
-C
-C* emulsion treatment
-C      COMMON /DTCOMP/ EMUFRA(NCOMPX),IEMUMA(NCOMPX),IEMUCH(NCOMPX),
-C     &                NCOMPO,IEMUL
-C
-C* Glauber formalism: flags and parameters for statistics
-C      LOGICAL LPROD
-C      CHARACTER*8 CGLB
-C      COMMON /DTGLGP/ JSTATB,JBINSB,CGLB,IOGLB,LPROD
-C
-C* number of data sets other than protons and nuclei
-C* at the moment = 2 (pions and kaons)
-C      PARAMETER (MAXOFF=2)
-C      DIMENSION IJPINI(5),IOFFST(25)
-C      DATA IJPINI / 13, 15,  0,  0,  0/
-C* Glauber data-set to be used for hadron projectiles
-C* (0=proton, 1=pion, 2=kaon)
-C      DATA (IOFFST(K),K=1,25) /
-C     &  0, 0,-1,-1,-1,-1,-1, 0, 0,-1,-1, 2, 1, 1, 2, 2, 0, 0, 2, 0,
-C     &  0, 0, 1, 2, 2/
-C* Acceptance interval for target nucleus mass
-C      PARAMETER (KBACC = 6)
-C
-CC* flags for input different options
-CC      LOGICAL LEMCCK,LHADRO,LSEADI,LEVAPO
-CC      COMMON /DTFLG1/ IFRAG(2),IRESCO,IMSHL,IRESRJ,IOULEV(6),
-CC     &                LEMCCK,LHADRO(0:9),LSEADI,LEVAPO,IFRAME,ITRSPT
-C
-C      PARAMETER (MAXMSS = 100)
-C      DIMENSION IASAV(MAXMSS),IBSAV(MAXMSS)
-C      DIMENSION WHAT(6)
-C
-C      DATA JPEACH,JPSTEP / 18, 5 /
-C
-C* temporary patch until fix has been implemented in phojet:
-C*  maximum energy for pion projectile
-C      DATA ECMXPI / 100000.0D0 /
-C*
-C*--------------------------------------------------------------------------
-C* general initializations
-C*
-C*  steps in projectile mass number for initialization
-C      IF (WHAT(4).GT.ZERO) JPEACH = INT(WHAT(4))
-C      IF (WHAT(5).GT.ZERO) JPSTEP = INT(WHAT(5))
-C*
-C*  energy range and binning
-C      ELO  = ABS(WHAT(1))
-C      EHI  = ABS(WHAT(2))
-C      IF (ELO.GT.EHI) ELO = EHI
-C      NEBIN = MAX(INT(WHAT(3)),1)
-C      IF (ELO.EQ.EHI) NEBIN = 0
-C      LCMS = (WHAT(1).LT.ZERO).OR.(WHAT(2).LT.ZERO)
-C      IF (LCMS) THEN
-C         ECMINI = EHI
-C      ELSE
-C         ECMINI = SQRT(AAM(IJPROJ)**2+AAM(IJTARG)**2
-C     &                 +2.0D0*AAM(IJTARG)*EHI)
-C      ENDIF
-C*
-C*  default arguments for Glauber-routine
-C      XI  = ZERO
-C      Q2I = ZERO
-C*
-C*  initialize nuclear parameters, etc.
-C
-C*  initialize evaporation if the code is not used as Fluka event generator
-C      IF (ITRSPT.NE.1) THEN
-C         CALL NCDTRD
-C         CALL INCINI
-C      ENDIF
-C
-C*
-C*  open Glauber-data output file
-C      IDX = INDEX(CGLB,' ')
-C      K   = 12
-C      IF (IDX.GT.1) K = IDX-1
-C      OPEN(LDAT,FILE=CGLB(1:K)//'.glb',STATUS='UNKNOWN')
-C*
-C*--------------------------------------------------------------------------
-C* Glauber-initialization for proton and nuclei projectiles
-C*
-C*  initialize phojet for proton-proton interactions
-C      ELAB = ZERO
-C      PLAB = ZERO
-C      CALL DT_LTINI(IJPROJ,IJTARG,ELAB,PLAB,ECMINI,1)
-C      CALL DT_PHOINI
-C*
-C*  record projectile masses
-C      NASAV = 0
-C      NPROJ = MIN(IP,JPEACH)
-C      DO 10 KPROJ=1,NPROJ
-C         NASAV = NASAV+1
-C         IF (NASAV.GT.MAXMSS) STOP ' GLBINI: NASAV > MAXMSS ! '
-C         IASAV(NASAV) = KPROJ
-C   10 CONTINUE
-C      IF (IP.GT.JPEACH) THEN
-C         NPROJ = DBLE(IP-JPEACH)/DBLE(JPSTEP)
-C         IF (NPROJ.EQ.0) THEN
-C            NASAV = NASAV+1
-C            IF (NASAV.GT.MAXMSS) STOP ' GLBINI: NASAV > MAXMSS ! '
-C            IASAV(NASAV) = IP
-C         ELSE
-C            DO 11 IPROJ=1,NPROJ
-C               KPROJ = JPEACH+IPROJ*JPSTEP
-C               NASAV = NASAV+1
-C               IF (NASAV.GT.MAXMSS) STOP ' GLBINI: NASAV > MAXMSS ! '
-C               IASAV(NASAV) = KPROJ
-C   11       CONTINUE
-C            IF (KPROJ.LT.IP) THEN
-C               NASAV = NASAV+1
-C               IF (NASAV.GT.MAXMSS) STOP ' GLBINI: NASAV > MAXMSS ! '
-C               IASAV(NASAV) = IP
-C            ENDIF
-C         ENDIF
-C      ENDIF
-C*
-C*  record target masses
-C      NBSAV = 0
-C      NTARG = 1
-C      IF (NCOMPO.GT.0) NTARG = NCOMPO
-C      DO 12 ITARG=1,NTARG
-C         NBSAV = NBSAV+1
-C         IF (NBSAV.GT.MAXMSS) STOP ' GLBINI: NBSAV > MAXMSS ! '
-C         IF (NCOMPO.GT.0) THEN
-C            IBSAV(NBSAV) = IEMUMA(ITARG)
-C         ELSE
-C            IBSAV(NBSAV) = IT
-C         ENDIF
-C   12 CONTINUE
-C*
-C*  print masses
-C      WRITE(LDAT,1000) NEBIN,': ',SIGN(ELO,WHAT(1)),SIGN(EHI,WHAT(2))
-C 1000 FORMAT(I4,A,1P,2E13.5)
-C      NLINES = DBLE(NASAV)/18.0D0
-C      IF (NLINES.GT.0) THEN
-C         DO 13 I=1,NLINES
-C            IF (I.EQ.1) THEN
-C               WRITE(LDAT,'(I4,A,18I4)')NASAV,': ',(IASAV(J),J=1,18)
-C            ELSE
-C               WRITE(LDAT,'(6X,18I4)') (IASAV(J),J=18*I-17,18*I)
-C            ENDIF
-C   13    CONTINUE
-C      ENDIF
-C      I0 = 18*NLINES+1
-C      IF (I0.LE.NASAV) THEN
-C         IF (I0.EQ.1) THEN
-C            WRITE(LDAT,'(I4,A,18I4)')NASAV,': ',(IASAV(J),J=I0,NASAV)
-C         ELSE
-C            WRITE(LDAT,'(6X,18I4)') (IASAV(J),J=I0,NASAV)
-C         ENDIF
-C      ENDIF
-C      NLINES = DBLE(NBSAV)/18.0D0
-C      IF (NLINES.GT.0) THEN
-C         DO 14 I=1,NLINES
-C            IF (I.EQ.1) THEN
-C               WRITE(LDAT,'(I4,A,18I4)')NBSAV,': ',(IBSAV(J),J=1,18)
-C            ELSE
-C               WRITE(LDAT,'(6X,18I4)') (IBSAV(J),J=18*I-17,18*I)
-C            ENDIF
-C   14    CONTINUE
-C      ENDIF
-C      I0 = 18*NLINES+1
-C      IF (I0.LE.NBSAV) THEN
-C         IF (I0.EQ.1) THEN
-C            WRITE(LDAT,'(I4,A,18I4)')NBSAV,': ',(IBSAV(J),J=I0,NBSAV)
-C         ELSE
-C            WRITE(LDAT,'(6X,18I4)') (IBSAV(J),J=I0,NBSAV)
-C         ENDIF
-C      ENDIF
-C*
-C*  calculate Glauber-data for each energy and mass combination
-C*
-C*   loop over energy bins
-C      ELO = LOG10(ELO)
-C      EHI = LOG10(EHI)
-C      DEBIN = (EHI-ELO)/MAX(DBLE(NEBIN),ONE)
-C      DO 1 IE=1,NEBIN+1
-C         E = ELO+DBLE(IE-1)*DEBIN
-C         E = 10**E
-C         IF (LCMS) THEN
-C            E   = MAX(2.0D0*AAM(IJPROJ)+0.1D0,E)
-C            ECM = E
-C         ELSE
-C            PLAB = ZERO
-C            ECM  = ZERO
-C            E    = MAX(AAM(IJPROJ)+0.1D0,E)
-C            CALL DT_LTINI(IJPROJ,IJTARG,E,PLAB,ECM,0)
-C         ENDIF
-C*
-C*   loop over projectile and target masses
-C         DO 2 ITARG=1,NBSAV
-C            DO 3 IPROJ=1,NASAV
-C               CALL DT_XSGLAU(IASAV(IPROJ),IBSAV(ITARG),IJPROJ,
-C     &                                       XI,Q2I,ECM,1,1,-1)
-C    3       CONTINUE
-C    2    CONTINUE
-C*
-C    1 CONTINUE
-C*
-C*--------------------------------------------------------------------------
-C* Glauber-initialization for pion, kaon, ... projectiles
-C* 
-C      DO 6 IJ=1,MAXOFF
-C*
-C*  initialize phojet for this interaction
-C         ELAB = ZERO
-C         PLAB = ZERO
-C         IJPROJ = IJPINI(IJ)
-C         IP     = 1
-C         IPZ    = 1
-C*
-C*   temporary patch until fix has been implemented in phojet:
-C         IF (ECMINI.GT.ECMXPI) THEN
-C            CALL DT_LTINI(IJPROJ,IJTARG,ELAB,PLAB,ECMXPI,1)
-C         ELSE
-C            CALL DT_LTINI(IJPROJ,IJTARG,ELAB,PLAB,ECMINI,1)
-C         ENDIF
-C         CALL DT_PHOINI
-C*
-C*  calculate Glauber-data for each energy and mass combination
-C*
-C*   loop over energy bins
-C         DO 4 IE=1,NEBIN+1
-C            E = ELO+DBLE(IE-1)*DEBIN
-C            E = 10**E
-C            IF (LCMS) THEN
-C               E   = MAX(2.0D0*AAM(IJPROJ)+TINY14,E)
-C               ECM = E
-C            ELSE
-C               PLAB = ZERO
-C               ECM  = ZERO
-C               E    = MAX(AAM(IJPROJ)+TINY14,E)
-C               CALL DT_LTINI(IJPROJ,IJTARG,E,PLAB,ECM,0)
-C            ENDIF
-C*
-C*   loop over projectile and target masses
-C            DO 5 ITARG=1,NBSAV
-C               CALL DT_XSGLAU(1,IBSAV(ITARG),IJPROJ,XI,Q2I,ECM,1,1,-1)
-C    5       CONTINUE
-C*
-C    4    CONTINUE
-C*
-C    6 CONTINUE
-C
-C*--------------------------------------------------------------------------
-C* close output unit(s), etc.
-C*
-C      CLOSE(LDAT)
-C
-C      RETURN
-C      END
-C
-C*$ CREATE DT_GLBSET.FOR
-C*COPY DT_GLBSET
-C*
-C*===glbset=============================================================*
-C*
-C      SUBROUTINE DT_GLBSET(IDPROJ,NA,NB,ELAB,MODE)
-C************************************************************************
-C* Interpolation of pre-initialized profile functions                   *
-C* This version dated 28.11.00 is written by S. Roesler.                *
-C************************************************************************
-C
-C      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
-C      SAVE
-C
-C      PARAMETER ( LINP = 5 ,
-C     &            LOUT = 6 ,
-C     &            LDAT = 9 )
-C
-C      PARAMETER (ZERO=0.0D0,ONE=1.0D0)
-C
-C      LOGICAL LCMS,LREAD,LFRST1,LFRST2
-C
-C* particle properties (BAMJET index convention)
-C      CHARACTER*8  ANAME
-C      COMMON /DTPART/ ANAME(210),AAM(210),GA(210),TAU(210),
-C     &                IICH(210),IIBAR(210),K1(210),K2(210)
-C
-C* Glauber formalism: flags and parameters for statistics
-C      LOGICAL LPROD
-C      CHARACTER*8 CGLB
-C      COMMON /DTGLGP/ JSTATB,JBINSB,CGLB,IOGLB,LPROD
-C
-C      PARAMETER (NCOMPX=20,NEB=8,NQB= 5,KSITEB=50)
-C
-C* Glauber formalism: parameters
-C      COMMON /DTGLAM/ RASH(NCOMPX),RBSH(NCOMPX),
-C     &                BMAX(NCOMPX),BSTEP(NCOMPX),
-C     &                SIGSH,ROSH,GSH,BSITE(0:NEB,NQB,NCOMPX,KSITEB),
-C     &                NSITEB,NSTATB
-C
-C* Glauber formalism: cross sections
-C      COMMON /DTGLXS/ ECMNN(NEB),Q2G(NQB),ECMNOW,Q2,
-C     &                XSTOT(NEB,NQB,NCOMPX),XSELA(NEB,NQB,NCOMPX),
-C     &                XSQEP(NEB,NQB,NCOMPX),XSQET(NEB,NQB,NCOMPX),
-C     &                XSQE2(NEB,NQB,NCOMPX),XSPRO(NEB,NQB,NCOMPX),
-C     &                XSDEL(NEB,NQB,NCOMPX),XSDQE(NEB,NQB,NCOMPX),
-C     &                XETOT(NEB,NQB,NCOMPX),XEELA(NEB,NQB,NCOMPX),
-C     &                XEQEP(NEB,NQB,NCOMPX),XEQET(NEB,NQB,NCOMPX),
-C     &                XEQE2(NEB,NQB,NCOMPX),XEPRO(NEB,NQB,NCOMPX),
-C     &                XEDEL(NEB,NQB,NCOMPX),XEDQE(NEB,NQB,NCOMPX),
-C     &                BSLOPE,NEBINI,NQBINI
-C
-C* number of data sets other than protons and nuclei
-C* at the moment = 2 (pions and kaons)
-C      PARAMETER (MAXOFF=2)
-C      DIMENSION IJPINI(5),IOFFST(25)
-C      DATA IJPINI / 13, 15,  0,  0,  0/
-C* Glauber data-set to be used for hadron projectiles
-C* (0=proton, 1=pion, 2=kaon)
-C      DATA (IOFFST(K),K=1,25) /
-C     &  0, 0,-1,-1,-1,-1,-1, 0, 0,-1,-1, 2, 1, 1, 2, 2, 0, 0, 2, 0,
-C     &  0, 0, 1, 2, 2/
-C* Acceptance interval for target nucleus mass
-C      PARAMETER (KBACC = 6)
-C
-C* emulsion treatment
-C      COMMON /DTCOMP/ EMUFRA(NCOMPX),IEMUMA(NCOMPX),IEMUCH(NCOMPX),
-C     &                NCOMPO,IEMUL
-C
-C      PARAMETER (MAXSET=5000,
-C     &           MAXBIN=100)
-C      DIMENSION XSIG(MAXSET,6),XERR(MAXSET,6),BPROFL(MAXSET,KSITEB)
-C      DIMENSION IABIN(MAXBIN),IBBIN(MAXBIN),XS(6),XE(6),
-C     &          BPRO0(KSITEB),BPRO1(KSITEB),BPRO(KSITEB),
-C     &          IAIDX(10)
-C
-C      DATA LREAD,LFRST1,LFRST2 /.FALSE.,.TRUE.,.TRUE./
-C*
-C* read data from file
-C*
-C      IF (MODE.EQ.0) THEN
-C
-C         IF (LREAD) RETURN
-C
-C         DO 1 I=1,MAXSET
-C            DO 2 J=1,6
-C               XSIG(I,J) = ZERO
-C               XERR(I,J) = ZERO
-C    2       CONTINUE
-C            DO 3 J=1,KSITEB
-C               BPROFL(I,J) = ZERO
-C    3       CONTINUE
-C    1    CONTINUE
-C         DO 4 I=1,MAXBIN
-C            IABIN(I) = 0
-C            IBBIN(I) = 0
-C    4    CONTINUE
-C         DO 5 I=1,KSITEB
-C            BPRO0(I) = ZERO
-C            BPRO1(I) = ZERO
-C            BPRO(I)  = ZERO
-C    5    CONTINUE
-C
-C         IDX = INDEX(CGLB,' ')
-C         K   = 12
-C         IF (IDX.GT.1) K = IDX-1
-C         OPEN(LDAT,FILE=CGLB(1:K)//'.glb',STATUS='UNKNOWN')
-C         WRITE(LOUT,1000) CGLB(1:K)//'.glb'
-C 1000    FORMAT(/,' GLBSET: impact parameter distributions read from ',
-C     &          'file ',A12,/)
-C*
-C*  read binning information
-C         READ(LDAT,'(I4,2X,2E13.5)') NEBIN,ELO,EHI
-C*  return lower energy threshold to Fluka-interface
-C         ELAB = ELO
-C         LCMS = ELO.LT.ZERO
-C         WRITE(LOUT,'(1X,A)') ' equidistant logarithmic energy binning:'
-C         IF (LCMS) THEN
-C            WRITE(LOUT,1001) '(cms)',ABS(ELO),ABS(EHI),NEBIN
-C         ELSE
-C            WRITE(LOUT,1001) '(lab)',ABS(ELO),ABS(EHI),NEBIN
-C         ENDIF
-C 1001    FORMAT(2X,A5,'  E_lo = ',1P,E9.3,'  E_hi = ',1P,E9.3,4X,
-C     &          'No. of bins:',I5,/)
-C         ELO  = LOG10(ABS(ELO))
-C         EHI  = LOG10(ABS(EHI))
-C         DEBIN = (EHI-ELO)/ABS(DBLE(NEBIN))
-C         WRITE(LOUT,'(/,1X,A)') ' projectiles: (mass number)'
-C         READ(LDAT,'(I4,2X,18I4)') NABIN,(IABIN(J),J=1,18)
-C         IF (NABIN.LT.18) THEN
-C            WRITE(LOUT,'(6X,18I4)') (IABIN(J),J=1,NABIN)
-C         ELSE
-C            WRITE(LOUT,'(6X,18I4)') (IABIN(J),J=1,18)
-C         ENDIF
-C         IF (NABIN.GT.MAXBIN) STOP ' GLBSET: NABIN > MAXBIN !'
-C         IF (NABIN.GT.18) THEN
-C            NLINES = DBLE(NABIN-18)/18.0D0
-C            IF (NLINES.GT.0) THEN
-C               DO 7 I=1,NLINES
-C                  I0 = 18*(I+1)-17
-C                  READ(LDAT,'(6X,18I4)') (IABIN(J),J=I0,I0+17)
-C                  WRITE(LOUT,'(6X,18I4)') (IABIN(J),J=I0,I0+17)
-C    7          CONTINUE
-C            ENDIF
-C            I0 = 18*(NLINES+1)+1
-C            IF (I0.LE.NABIN) THEN
-C               READ(LDAT,'(6X,18I4)') (IABIN(J),J=I0,NABIN)
-C               WRITE(LOUT,'(6X,18I4)') (IABIN(J),J=I0,NABIN)
-C            ENDIF
-C         ENDIF
-C         WRITE(LOUT,'(/,1X,A)') ' targets: (mass number)'
-C         READ(LDAT,'(I4,2X,18I4)') NBBIN,(IBBIN(J),J=1,18)
-C         IF (NBBIN.LT.18) THEN
-C            WRITE(LOUT,'(6X,18I4)') (IBBIN(J),J=1,NBBIN)
-C         ELSE
-C            WRITE(LOUT,'(6X,18I4)') (IBBIN(J),J=1,18)
-C         ENDIF
-C         IF (NBBIN.GT.MAXBIN) STOP ' GLBSET: NBBIN > MAXBIN !'
-C         IF (NBBIN.GT.18) THEN
-C            NLINES = DBLE(NBBIN-18)/18.0D0
-C            IF (NLINES.GT.0) THEN
-C               DO 8 I=1,NLINES
-C                  I0 = 18*(I+1)-17
-C                  READ(LDAT,'(6X,18I4)') (IBBIN(J),J=I0,I0+17)
-C                  WRITE(LOUT,'(6X,18I4)') (IBBIN(J),J=I0,I0+17)
-C    8          CONTINUE
-C            ENDIF
-C            I0 = 18*(NLINES+1)+1
-C            IF (I0.LE.NBBIN) THEN
-C               READ(LDAT,'(6X,18I4)') (IBBIN(J),J=I0,NBBIN)
-C               WRITE(LOUT,'(6X,18I4)') (IBBIN(J),J=I0,NBBIN)
-C            ENDIF
-C         ENDIF
-C*  number of data sets to follow in the Glauber data file
-C*   this variable is used for checks of consistency of projectile
-C*   and target mass configurations given in header of Glauber data
-C*   file and the data-sets which follow in this file
-C         NSET0 = (NEBIN+1)*(NABIN+MAXOFF)*NBBIN
-C*
-C*  read profile function data
-C         NSET  = 0
-C         NAIDX = 0
-C         IPOLD = 0
-C   10    CONTINUE
-C         NSET = NSET+1
-C         IF (NSET.GT.MAXSET) STOP ' GLBSET: NSET > MAXSET ! '
-C         READ(LDAT,1002,END=100) IP,IA,IB,ISTATB,ISITEB,ECM
-C 1002    FORMAT(5I10,E15.5)
-C         IF ((IP.NE.1).AND.(IP.NE.IPOLD)) THEN
-C            NAIDX = NAIDX+1
-C            IF (NAIDX.GT.10) STOP ' GLBSET: NAIDX > 10 !'
-C            IAIDX(NAIDX) = IP
-C            IPOLD = IP
-C         ENDIF
-C         READ(LDAT,'(6E12.5)') (XSIG(NSET,I),I=1,6)
-C         READ(LDAT,'(6E12.5)') (XERR(NSET,I),I=1,6)
-C         NLINES = INT(DBLE(ISITEB)/7.0D0)
-C         IF (NLINES.GT.0) THEN
-C            DO 11 I=1,NLINES
-C               READ(LDAT,'(7E11.4)') (BPROFL(NSET,J),J=7*I-6,7*I)
-C   11       CONTINUE
-C         ENDIF
-C         I0 = 7*NLINES+1
-C         IF (I0.LE.ISITEB)
-C     &      READ(LDAT,'(7E11.4)') (BPROFL(NSET,J),J=I0,ISITEB)
-C         GOTO 10
-C  100    CONTINUE
-C         NSET = NSET-1
-C         IF (NSET.NE.NSET0) STOP ' GLBSET: NSET.NE.NSET0 !'
-C         WRITE(LOUT,'(/,1X,A)')
-C     &   ' projectiles other than protons and nuclei: (particle index)'
-C         IF (NAIDX.GT.0) THEN
-C            WRITE(LOUT,'(6X,18I4)') (IAIDX(J),J=1,NAIDX)
-C         ELSE
-C            WRITE(LOUT,'(6X,A)') 'none'
-C         ENDIF
-C*
-C         CLOSE(LDAT)
-C         WRITE(LOUT,*)
-C         LREAD = .TRUE.
-C
-C         IF (NCOMPO.EQ.0) THEN
-C            DO 12 J=1,NBBIN
-C               NCOMPO = NCOMPO+1
-C               IEMUMA(NCOMPO) = IBBIN(J)
-C               IEMUCH(NCOMPO) = IEMUMA(NCOMPO)/2
-C               EMUFRA(NCOMPO) = 1.0D0
-C   12       CONTINUE
-C            IEMUL = 1
-C         ENDIF
-C*
-C* calculate profile function for certain set of parameters
-C*
-C      ELSE
-C
-Cc        write(*,*) 'glbset called for ',IDPROJ,NA,NB,ELAB,MODE
-C*
-C* check for type of projectile and set index-offset to entry in
-C* Glauber data array correspondingly
-C         IF (IDPROJ.GT.25) STOP ' GLBSET: IDPROJ > 25 !'
-C         IF (IOFFST(IDPROJ).EQ.-1) THEN
-C            STOP ' GLBSET: no data for this projectile !'
-C         ELSEIF (IOFFST(IDPROJ).GT.0) THEN
-C            IDXOFF = (NEBIN+1)*(NABIN+IOFFST(IDPROJ)-1)*NBBIN
-C         ELSE
-C            IDXOFF = 0
-C         ENDIF
-C*
-C* get energy bin and interpolation factor
-C         IF (LCMS) THEN
-C            E = SQRT(AAM(IDPROJ)**2+AAM(1)**2+2.0D0*AAM(1)*ELAB)
-C         ELSE
-C            E = ELAB
-C         ENDIF
-C         E = LOG10(E)
-C         IF (E.LT.ELO) THEN
-C            IF (LFRST1) THEN
-C               WRITE(LOUT,*) ' GLBSET: Too low energy! (E_lo,E) ',ELO,E
-C               LFRST1 = .FALSE.
-C            ENDIF
-C            E = ELO
-C         ENDIF
-C         IF (E.GT.EHI) THEN
-C            IF (LFRST2) THEN
-C               WRITE(LOUT,*) ' GLBSET: Too high energy! (E_hi,E) ',EHI,E
-C               LFRST2 = .FALSE.
-C            ENDIF
-C            E = EHI
-C         ENDIF
-C         IE0  = (E-ELO)/DEBIN+1
-C         IE1  = IE0+1
-C         FACE = (E-(ELO+DBLE(IE0-1)*DEBIN))/DEBIN
-C*
-C* get target nucleus index
-C         KB = 0
-C         NBACC = KBACC
-C         DO 20 I=1,NBBIN
-C            NBDIFF = ABS(NB-IBBIN(I))
-C            IF (NB.EQ.IBBIN(I)) THEN
-C               KB = I
-C               GOTO 21
-C            ELSEIF (NBDIFF.LE.NBACC) THEN
-C               KB = I
-C               NBACC = NBDIFF
-C            ENDIF
-C   20    CONTINUE
-C         IF (KB.NE.0) GOTO 21
-C         WRITE(LOUT,*) ' GLBSET: data not found for target ',NB
-C         STOP
-C   21    CONTINUE
-C*
-C* get projectile nucleus bin and interpolation factor
-C         KA0 = 0
-C         KA1 = 0
-C         FACNA = 0
-C         IF (IDXOFF.GT.0) THEN
-C            KA0 = 1
-C            KA1 = 1
-C            KABIN = 1
-C         ELSE
-C            IF (NA.GT.IABIN(NABIN)) STOP ' GLBSET: NA > IABIN(NABIN) !'
-C            DO 22 I=1,NABIN
-C               IF (NA.EQ.IABIN(I)) THEN
-C                  KA0 = I
-C                  KA1 = I
-C                  GOTO 23
-C               ELSEIF (NA.LT.IABIN(I)) THEN
-C                  KA0 = I-1
-C                  KA1 = I
-C                  GOTO 23
-C               ENDIF
-C   22       CONTINUE
-C            WRITE(LOUT,*) ' GLBSET: data not found for projectile ',NA
-C            STOP
-C   23       CONTINUE
-C            IF (KA0.NE.KA1)
-C     &         FACNA = DBLE(NA-IABIN(KA0))/DBLE(IABIN(KA1)-IABIN(KA0))
-C            KABIN = NABIN
-C         ENDIF
-C*
-C* interpolate profile functions for interactions ka0-kb and ka1-kb
-C* for energy E separately
-C         IDX0 = IDXOFF+1+(IE0-1)*KABIN*NBBIN+(KB-1)*KABIN+(KA0-1)
-C         IDX1 = IDXOFF+1+(IE1-1)*KABIN*NBBIN+(KB-1)*KABIN+(KA0-1)
-C         IDY0 = IDXOFF+1+(IE0-1)*KABIN*NBBIN+(KB-1)*KABIN+(KA1-1)
-C         IDY1 = IDXOFF+1+(IE1-1)*KABIN*NBBIN+(KB-1)*KABIN+(KA1-1)
-C         DO 30 I=1,ISITEB
-C            BPRO0(I) = BPROFL(IDX0,I)
-C     &                 +FACE*(BPROFL(IDX1,I)-BPROFL(IDX0,I))
-C            BPRO1(I) = BPROFL(IDY0,I)
-C     &                 +FACE*(BPROFL(IDY1,I)-BPROFL(IDY0,I))
-C   30    CONTINUE
-C         RADB  = DT_RNCLUS(NB)
-C         BSTP0 = 2.0D0*(DT_RNCLUS(IABIN(KA0))+RADB)/DBLE(ISITEB-1)
-C         BSTP1 = 2.0D0*(DT_RNCLUS(IABIN(KA1))+RADB)/DBLE(ISITEB-1)
-C*
-C* interpolate cross sections for energy E and projectile mass
-C         DO 31 I=1,6
-C            XS0   = XSIG(IDX0,I)+FACE*(XSIG(IDX1,I)-XSIG(IDX0,I))
-C            XS1   = XSIG(IDY0,I)+FACE*(XSIG(IDY1,I)-XSIG(IDY0,I))
-C            XS(I) = XS0+FACNA*(XS1-XS0)
-C            XE0   = XERR(IDX0,I)+FACE*(XERR(IDX1,I)-XERR(IDX0,I))
-C            XE1   = XERR(IDY0,I)+FACE*(XERR(IDY1,I)-XERR(IDY0,I))
-C            XE(I) = XE0+FACNA*(XE1-XE0)
-C   31    CONTINUE
-C*
-C* interpolate between ka0 and ka1
-C         RADA = DT_RNCLUS(NA)
-C         BMX  = 2.0D0*(RADA+RADB)
-C         BSTP = BMX/DBLE(ISITEB-1)
-C         BPRO(1) = ZERO
-C         DO 32 I=1,ISITEB-1
-C            B = DBLE(I)*BSTP
-C*
-C*   calculate values of profile functions at B
-C            IDX0 = B/BSTP0+1
-C            IF (IDX0.GT.ISITEB) IDX0 = ISITEB
-C            IDX1 = MIN(IDX0+1,ISITEB)
-C            FACB = (B-DBLE(IDX0-1)*BSTP0)/BSTP0
-C            BPR0 = BPRO0(IDX0)+FACB*(BPRO0(IDX1)-BPRO0(IDX0))
-C            IDX0 = B/BSTP1+1
-C            IF (IDX0.GT.ISITEB) IDX0 = ISITEB
-C            IDX1 = MIN(IDX0+1,ISITEB)
-C            FACB = (B-DBLE(IDX0-1)*BSTP1)/BSTP1
-C            BPR1 = BPRO1(IDX0)+FACB*(BPRO1(IDX1)-BPRO1(IDX0))
-C*
-C            BPRO(I+1) = BPR0+FACNA*(BPR1-BPR0)
-C   32    CONTINUE
-C*
-C* fill common dtglam
-C         NSITEB   = ISITEB
-C         RASH(1)  = RADA
-C         RBSH(1)  = RADB
-C         BMAX(1)  = BMX
-C         BSTEP(1) = BSTP
-C         DO 33 I=1,KSITEB
-C            BSITE(0,1,1,I) = BPRO(I)
-C   33    CONTINUE
-C*
-C* fill common dtglxs
-C         XSTOT(1,1,1) = XS(1)
-C         XSELA(1,1,1) = XS(2)
-C         XSQEP(1,1,1) = XS(3)
-C         XSQET(1,1,1) = XS(4)
-C         XSQE2(1,1,1) = XS(5)
-C         XSPRO(1,1,1) = XS(6)
-C         XETOT(1,1,1) = XE(1)
-C         XEELA(1,1,1) = XE(2)
-C         XEQEP(1,1,1) = XE(3)
-C         XEQET(1,1,1) = XE(4)
-C         XEQE2(1,1,1) = XE(5)
-C         XEPRO(1,1,1) = XE(6)
-C
-C      ENDIF
-C
-C      RETURN
-C      END
 *$ CREATE DT_LMKINE.FOR
 *COPY DT_LMKINE
 *
@@ -8900,11 +8182,6 @@ C      END
       PARAMETER (ZERO=0.0D0,OHALF=0.5D0,ONE=1.0D0)
 
       INCLUDE 'beagle.inc'
-
-C* flags for input different options
-C      LOGICAL LEMCCK,LHADRO,LSEADI,LEVAPO
-C      COMMON /DTFLG1/ IFRAG(2),IRESCO,IMSHL,IRESRJ,IOULEV(6),
-C     &                LEMCCK,LHADRO(0:9),LSEADI,LEVAPO,IFRAME,ITRSPT
 
 * kinematics of diffractive interactions (DTUNUC 1.x)
       COMMON /DTDIKI/ XPH(2),XPPO(2),XTH(2),XTPO(2),PPOM(4),PSC(4),
@@ -9066,11 +8343,6 @@ C     &                LEMCCK,LHADRO(0:9),LSEADI,LEVAPO,IFRAME,ITRSPT
       CHARACTER*8  ANAME
       COMMON /DTPART/ ANAME(210),AAM(210),GA(210),TAU(210),
      &                IICH(210),IIBAR(210),K1(210),K2(210)
-
-C* flags for input different options
-C      LOGICAL LEMCCK,LHADRO,LSEADI,LEVAPO
-C      COMMON /DTFLG1/ IFRAG(2),IRESCO,IMSHL,IRESRJ,IOULEV(6),
-C     &                LEMCCK,LHADRO(0:9),LSEADI,LEVAPO,IFRAME,ITRSPT
 
       DIMENSION PIN(4),PI(20,4),POUT(20,4),IDXOUT(20),
      &          EF(3),PF(3),PFF(3),IDXSTK(20),IDX(3),
@@ -9306,11 +8578,6 @@ c     &                               POUT(N,3),POUT(N,4),0,0,0)
       PARAMETER (MAXLND=4000)
       COMMON/PYJETS/N,NPAD,K(MAXLND,5),P(MAXLND,5),V(MAXLND,5)
 
-C* flags for input different options
-C      LOGICAL LEMCCK,LHADRO,LSEADI,LEVAPO
-C      COMMON /DTFLG1/ IFRAG(2),IRESCO,IMSHL,IRESRJ,IOULEV(6),
-C     &                LEMCCK,LHADRO(0:9),LSEADI,LEVAPO,IFRAME,ITRSPT
-
       INTEGER PYCOMP,PYK
 
       DIMENSION IHISMO(NMXHKK),P1(4)
@@ -9531,11 +8798,6 @@ c      MDCY(KC,1) = 0
       INCLUDE 'beagle.inc'
 
       COMMON /HNGAMR/ REDU,AMO,AMM(15)
-
-C* flags for input different options
-C      LOGICAL LEMCCK,LHADRO,LSEADI,LEVAPO
-C      COMMON /DTFLG1/ IFRAG(2),IRESCO,IMSHL,IRESRJ,IOULEV(6),
-C     &                LEMCCK,LHADRO(0:9),LSEADI,LEVAPO,IFRAME,ITRSPT
 
       DIMENSION F(5),XX(5)
       DATA EPS /AZRZRZ/
@@ -9940,320 +9202,9 @@ C     STOP
             IA10(I,J) = IAA(L)
     3    CONTINUE
     4 CONTINUE
-C     A1  = 0.88D0
-C     B1  = 3.0D0
-C     B2  = 3.0D0
-C     B3  = 8.0D0
-C     LT  = 0
-C     LB  = 0
-C     BET = 12.0D0
-C     AS  = 0.25D0
-C     B8  = 0.33D0
-C     AME = 0.95D0
-C     DIQ = 0.375D0
-C     ISU = 4
 
       RETURN
       END
-
-C*$ CREATE DT_INITJS.FOR
-C*COPY DT_INITJS
-C*
-C*===initjs=============================================================*
-C*
-C      SUBROUTINE DT_INITJS(MODE)
-C
-C************************************************************************
-C* Initialize JETSET paramters.                                         *
-C*           MODE = 0 default settings                                  *
-C*                = 1 PHOJET settings                                   *
-C*                = 2 DTUNUC settings                                   *
-C* This version dated 16.02.96 is written by S. Roesler                 *
-C*                                                                      *
-C* Note from Liang: Obsolete routine, not used to set jetset parameters *
-C*     in BeAGLE.                                                       *
-C*                                                                      *
-C* Last change 27.12.2006 by S. Roesler.                                *
-C************************************************************************
-C
-C      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
-C      SAVE
-C
-C      PARAMETER ( LINP = 5 ,
-C     &            LOUT = 6 ,
-C     &            LDAT = 9 )
-C
-C      PARAMETER (TINY10=1.0D-10,ONE=1.0D0,ZERO=0.0D0)
-C
-C      LOGICAL LFIRST,LFIRDT,LFIRPH
-C
-C      INCLUDE '(DIMPAR)'
-C      INCLUDE '(PART)'
-C      INCLUDE 'beagle.inc'
-C      COMMON/PYDAT1/MSTU(200),PARU(200),MSTJ(200),PARJ(200)
-C      COMMON/PYDAT2/KCHG(500,4),PMAS(500,4),PARF(2000),VCKM(4,4)
-C      COMMON/PYDAT3/MDCY(500,3),MDME(4000,2),BRAT(4000),KFDP(4000,5)
-CC
-C* flags for particle decays
-C      COMMON /DTFRPA/ MSTUX(20),PARUX(20),MSTJX(20),PARJX(20),
-C     &                IMSTU(20),IPARU(20),IMSTJ(20),IPARJ(20),
-C     &                NMSTU,NPARU,NMSTJ,NPARJ,PDB,PDBSEA(3),ISIG0,IPI0
-C
-CC* flags for input different options
-CC      LOGICAL LEMCCK,LHADRO,LSEADI,LEVAPO
-CC      COMMON /DTFLG1/ IFRAG(2),IRESCO,IMSHL,IRESRJ,IOULEV(6),
-CC     &                LEMCCK,LHADRO(0:9),LSEADI,LEVAPO,IFRAME,ITRSPT
-C
-C      INTEGER PYCOMP
-C
-C      DIMENSION IDXSTA(40)
-C      DATA IDXSTA
-C*          K0s   pi0  lam   alam  sig+  asig+ sig-  asig- tet0  atet0
-C     &  /  310,  111, 3122,-3122, 3222,-3222, 3112,-3112, 3322,-3322,
-C*          tet- atet-  om-  aom-   D+    D-    D0    aD0   Ds+   aDs+
-C     &    3312,-3312, 3334,-3334,  411, -411,  421, -421,  431, -431,
-C*          etac lamc+alamc+sigc++ sigc+ sigc0asigc++asigc+asigc0 Ksic+
-C     &     441, 4122,-4122, 4222, 4212, 4112,-4222,-4212,-4112, 4232,
-C*         Ksic0 aKsic+aKsic0 sig0 asig0 jpsi phi
-C     &    4132,-4232,-4132, 3212,-3212, 443, 333, 3*0/
-C
-C      DATA LFIRST,LFIRDT,LFIRPH /.TRUE.,.TRUE.,.TRUE./
-C
-C      IF (LFIRST) THEN
-C* save default settings
-C         PDEF1  = PARJ(1)
-C         PDEF2  = PARJ(2)
-C         PDEF3  = PARJ(3)
-C         PDEF5  = PARJ(5)
-C         PDEF6  = PARJ(6)
-C         PDEF7  = PARJ(7)
-C         PDEF18 = PARJ(18)
-C         PDEF19 = PARJ(19)
-C         PDEF21 = PARJ(21)
-C         PDEF42 = PARJ(42)
-C         MDEF12 = MSTJ(12)
-C* LUJETS / PYJETS array-dimensions
-C
-C         MSTU(4) = 4000
-C
-C* increase maximum number of JETSET-error prints
-C         MSTU(22) = 50000
-C* prevent particles decaying
-C
-Ccc...added by liang to undecay rho/omega/phi meson         
-Cc         MDCY(PYCOMP(113),1) = 0
-Cc         MDCY(PYCOMP(223),1) = 0
-Cc         MDCY(PYCOMP(333),1) = 0
-C
-C         DO 1 I=1,37
-C            IF (I.LT.34) THEN
-C
-C               KC = PYCOMP(IDXSTA(I))
-C               IF (KC.GT.0) MDCY(KC,1) = 0
-C            ELSEIF (((I.GE.34).AND.(I.LE.37)).AND.(ISIG0.EQ.0)) THEN
-C
-C               KC = PYCOMP(IDXSTA(I))
-C
-C               IF (KC.GT.0) THEN
-C                  MDCY(KC,1) = 0
-C               ENDIF
-C            ENDIF
-C    1    CONTINUE
-C*
-C
-C* as Fluka event-generator: allow only paprop particles to be stable
-C* and let all other particles decay (i.e. those with strong decays)
-C         IF (ITRSPT.EQ.1) THEN
-C            DO 5 I=1,IDMAXP
-C               IF (KPTOIP(I).NE.0) THEN
-C                  IDPDG = MPDGHA(I)
-C
-C                  KC    = PYCOMP(IDPDG)
-C
-C                  IF (KC.GT.0) THEN
-C                     IF (MDCY(KC,1).EQ.1) THEN
-C                        WRITE(LOUT,*)
-C     &                     ' DT_INITJS: Decay flag for FLUKA-',
-C     &                     'transport : particle should not ',
-C     &                     'decay : ',IDPDG,'  ',ANAME(I)
-C                        MDCY(KC,1) = 0
-C                     ENDIF
-C                  ENDIF
-C               ENDIF
-C    5       CONTINUE
-C            DO 6 KC=1,500
-C               IDPDG = KCHG(KC,4)
-C               KP    = MCIHAD(IDPDG)
-C               IF (KP.GT.0) THEN
-C                  IF ((MDCY(KC,1).EQ.0).AND.(KPTOIP(KP).EQ.0).AND.
-C     &                (ANAME(KP).NE.'BLANK   ').AND.
-C     &                (ANAME(KP).NE.'RNDFLV  ')) THEN
-C                     WRITE(LOUT,*) ' DT_INITJS: Decay flag for FLUKA-',
-C     &                             'transport: particle should decay ',
-C     &                             ': ',IDPDG,' ',ANAME(KP)
-C                     MDCY(KC,1) = 1
-C                  ENDIF
-C               ENDIF
-C    6       CONTINUE
-C         ENDIF
-C
-C*
-C* popcorn:
-C         IF (PDB.LE.ZERO) THEN
-C*   no popcorn-mechanism
-C            MSTJ(12) = 1
-C         ELSE
-C            MSTJ(12) = 3
-C            PARJ(5)  = PDB
-C         ENDIF
-C* set JETSET-parameter requested by input cards
-C         IF (NMSTU.GT.0) THEN
-C            DO 2 I=1,NMSTU
-C               MSTU(IMSTU(I)) = MSTUX(I)
-C    2       CONTINUE
-C         ENDIF
-C         IF (NMSTJ.GT.0) THEN
-C            DO 3 I=1,NMSTJ
-C               MSTJ(IMSTJ(I)) = MSTJX(I)
-C    3       CONTINUE
-C         ENDIF
-C         IF (NPARU.GT.0) THEN
-C            DO 4 I=1,NPARU
-C               PARU(IPARU(I)) = PARUX(I)
-C    4       CONTINUE
-C         ENDIF
-C         LFIRST = .FALSE.
-C      ENDIF
-C*
-C* PARJ(1)  suppression of qq-aqaq pair prod. compared to
-C*          q-aq pair prod.                      (default: 0.1)
-C* PARJ(2)  strangeness suppression               (default: 0.3)
-C* PARJ(3)  extra suppression of strange diquarks (default: 0.4)
-C* PARJ(6)  extra suppression of sas-pair shared by B and
-C*          aB in BMaB                           (default: 0.5)
-C* PARJ(7)  extra suppression of strange meson M in BMaB
-C*          configuration                        (default: 0.5)
-C* PARJ(18) spin 3/2 baryon suppression           (default: 1.0)
-C* PARJ(21) width sigma in Gaussian p_x, p_y transverse
-C*          momentum distrib. for prim. hadrons  (default: 0.35)
-C* PARJ(42) b-parameter for symmetric Lund-fragmentation
-C*          function                             (default: 0.9 GeV^-2)
-C*
-C* PHOJET settings
-C      IF (MODE.EQ.1) THEN
-C*   JETSET default
-CC        PARJ(1)  = PDEF1
-CC        PARJ(2)  = PDEF2
-CC        PARJ(3)  = PDEF3
-CC        PARJ(6)  = PDEF6
-CC        PARJ(7)  = PDEF7
-CC        PARJ(18) = PDEF18
-CC        PARJ(21) = PDEF21
-CC        PARJ(42) = PDEF42
-C**sr 18.11.98 parameter tuning
-CC        PARJ(1)  = 0.092D0
-CC        PARJ(2)  = 0.25D0
-CC        PARJ(3)  = 0.45D0
-CC        PARJ(19) = 0.3D0
-CC        PARJ(21) = 0.45D0
-CC        PARJ(42) = 1.0D0
-C**sr 28.04.99 parameter tuning (May 99 minor modifications)
-C         PARJ(1)  = 0.085D0
-C         PARJ(2)  = 0.26D0
-C         PARJ(3)  = 0.8D0
-C         PARJ(11) = 0.38D0
-C         PARJ(18) = 0.3D0
-C         PARJ(19) = 0.4D0
-C         PARJ(21) = 0.36D0
-C         PARJ(41) = 0.3D0
-C         PARJ(42) = 0.86D0
-C         IF (NPARJ.GT.0) THEN
-C            DO 10 I=1,NPARJ
-C               IF (IPARJ(I).GT.0) PARJ(IPARJ(I)) = PARJX(I)
-C   10       CONTINUE
-C         ENDIF
-C         IF (LFIRPH) THEN
-C            WRITE(LOUT,'(1X,A)')
-C     &         'DT_INITJS: JETSET-parameter for PHOJET'
-C            CALL DT_JSPARA(0)
-C            LFIRPH = .FALSE.
-C         ENDIF
-C* DTUNUC settings
-C      ELSEIF (MODE.EQ.2) THEN
-C         IF (IFRAG(2).EQ.1) THEN
-C**sr parameters before 9.3.96
-CC           PARJ(2)  = 0.27D0
-CC           PARJ(3)  = 0.6D0
-CC           PARJ(6)  = 0.75D0
-CC           PARJ(7)  = 0.75D0
-CC           PARJ(21) = 0.55D0
-CC           PARJ(42) = 1.3D0
-C**sr 18.11.98 parameter tuning
-CC           PARJ(1)  = 0.05D0
-CC           PARJ(2)  = 0.27D0
-CC           PARJ(3)  = 0.4D0
-CC           PARJ(19) = 0.2D0
-CC           PARJ(21) = 0.45D0
-CC           PARJ(42) = 1.0D0
-C**sr 28.04.99 parameter tuning
-C            PARJ(1)  = 0.11D0
-C            PARJ(2)  = 0.36D0
-C            PARJ(3)  = 0.8D0
-C            PARJ(19) = 0.2D0
-C            PARJ(21) = 0.3D0
-C            PARJ(41) = 0.3D0
-C            PARJ(42) = 0.58D0
-C            IF (NPARJ.GT.0) THEN
-C               DO 20 I=1,NPARJ
-C                  IF (IPARJ(I).LT.0) THEN
-C                     IDX = ABS(IPARJ(I))
-C                     PARJ(IDX) = PARJX(I)
-C                  ENDIF
-C   20          CONTINUE
-C            ENDIF
-C            IF (LFIRDT) THEN
-C               WRITE(LOUT,'(1X,A)')
-C     &           'DT_INITJS: JETSET-parameter for DTUNUC'
-C               CALL DT_JSPARA(0)
-C               LFIRDT = .FALSE.
-C            ENDIF
-C         ELSEIF (IFRAG(2).EQ.2) THEN
-C            PARJ(1)  = 0.11D0
-C            PARJ(2)  = 0.27D0
-C            PARJ(3)  = 0.3D0
-C            PARJ(6)  = 0.35D0
-C            PARJ(7)  = 0.45D0
-C            PARJ(18) = 0.66D0
-CC           PARJ(21) = 0.55D0
-CC           PARJ(42) = 1.0D0
-C            PARJ(21) = 0.60D0
-C            PARJ(42) = 1.3D0
-C         ELSE
-C            PARJ(1)  = PDEF1
-C            PARJ(2)  = PDEF2
-C            PARJ(3)  = PDEF3
-C            PARJ(6)  = PDEF6
-C            PARJ(7)  = PDEF7
-C            PARJ(18) = PDEF18
-C            PARJ(21) = PDEF21
-C            PARJ(42) = PDEF42
-C         ENDIF
-C      ELSE
-C         PARJ(1)  = PDEF1
-C         PARJ(2)  = PDEF2
-C         PARJ(3)  = PDEF3
-C         PARJ(5)  = PDEF5
-C         PARJ(6)  = PDEF6
-C         PARJ(7)  = PDEF7
-C         PARJ(18) = PDEF18
-C         PARJ(19) = PDEF19
-C         PARJ(21) = PDEF21
-C         PARJ(42) = PDEF42
-C         MSTJ(12) = MDEF12
-C      ENDIF
-C
-C      RETURN
-C      END
 
 *$ CREATE DT_JSPARA.FOR
 *COPY DT_JSPARA
@@ -10378,11 +9329,6 @@ C           QARJ(I) = PARJ(I)
 * Glauber formalism: collision properties
       COMMON /DTGLCP/ RPROJ,RTARG,BIMPAC,
      &                NWTSAM,NWASAM,NWBSAM,NWTACC,NWAACC,NWBACC
-
-C* flags for input different options
-C      LOGICAL LEMCCK,LHADRO,LSEADI,LEVAPO
-C      COMMON /DTFLG1/ IFRAG(2),IRESCO,IMSHL,IRESRJ,IOULEV(6),
-C     &                LEMCCK,LHADRO(0:9),LSEADI,LEVAPO,IFRAME,ITRSPT
 
 * final state after intranuclear cascade step
       COMMON /DTPAUL/ EWOUND(2,300),NWOUND(2),IDXINC(2000),NOINC
@@ -10570,11 +9516,6 @@ C9990 CONTINUE
 * final state after inc step
       PARAMETER (MAXFSP=10)
       COMMON /DTCAPA/ PFSP(5,MAXFSP),IDFSP(MAXFSP),NFSP
-
-C* flags for input different options
-C      LOGICAL LEMCCK,LHADRO,LSEADI,LEVAPO
-C      COMMON /DTFLG1/ IFRAG(2),IRESCO,IMSHL,IRESRJ,IOULEV(6),
-C     &                LEMCCK,LHADRO(0:9),LSEADI,LEVAPO,IFRAME,ITRSPT
 
 * particle properties (BAMJET index convention)
       CHARACTER*8  ANAME
@@ -11346,11 +10287,6 @@ C9998 CONTINUE
      &                IDBAM(NMXHKK),IDCH(NMXHKK),NPOINT(10),
      &                IHIST(2,NMXHKK)
 
-C* flags for input different options
-C      LOGICAL LEMCCK,LHADRO,LSEADI,LEVAPO
-C      COMMON /DTFLG1/ IFRAG(2),IRESCO,IMSHL,IRESRJ,IOULEV(6),
-C     &                LEMCCK,LHADRO(0:9),LSEADI,LEVAPO,IFRAME,ITRSPT
-
 * final state after inc step
       PARAMETER (MAXFSP=10)
       COMMON /DTCAPA/ PFSP(5,MAXFSP),IDFSP(MAXFSP),NFSP
@@ -11562,11 +10498,6 @@ C     &                LEMCCK,LHADRO(0:9),LSEADI,LEVAPO,IFRAME,ITRSPT
       INCLUDE 'beagle.inc'
 
       LOGICAL LCORR,LMSSG
-
-C* flags for input different options
-C      LOGICAL LEMCCK,LHADRO,LSEADI,LEVAPO
-C      COMMON /DTFLG1/ IFRAG(2),IRESCO,IMSHL,IRESRJ,IOULEV(6),
-C     &                LEMCCK,LHADRO(0:9),LSEADI,LEVAPO,IFRAME,ITRSPT
 
 * final state after inc step
       PARAMETER (MAXFSP=10)
@@ -12087,11 +11018,6 @@ C    &                                             -ENERGY(AIT,AITZ))
       CHARACTER*8  ANAME
       COMMON /DTPART/ ANAME(210),AAM(210),GA(210),TAU(210),
      &                IICH(210),IIBAR(210),K1(210),K2(210)
-
-C* flags for input different options
-C      LOGICAL LEMCCK,LHADRO,LSEADI,LEVAPO
-C      COMMON /DTFLG1/ IFRAG(2),IRESCO,IMSHL,IRESRJ,IOULEV(6),
-C     &                LEMCCK,LHADRO(0:9),LSEADI,LEVAPO,IFRAME,ITRSPT
 
 * nuclear potential
       LOGICAL LFERMI
@@ -13081,11 +12007,6 @@ C     IF (AFERT.GT.0.85D0) AFERT = 0.85D0
      &                EBINDP(2),EBINDN(2),EPOT(2,210),
      &                ETACOU(2),EUNBIND,ICOUL,LFERMI
 
-C* flags for input different options
-C      LOGICAL LEMCCK,LHADRO,LSEADI,LEVAPO
-C      COMMON /DTFLG1/ IFRAG(2),IRESCO,IMSHL,IRESRJ,IOULEV(6),
-C     &                LEMCCK,LHADRO(0:9),LSEADI,LEVAPO,IFRAME,ITRSPT
-
       INCLUDE 'beagle.inc'
       INCLUDE '(DIMPAR)'
       INCLUDE '(GENSTK)'
@@ -13692,11 +12613,6 @@ C9998 IREXCI(1) = IREXCI(1)+1
       CHARACTER*8  ANAME
       COMMON /DTPART/ ANAME(210),AAM(210),GA(210),TAU(210),
      &                IICH(210),IIBAR(210),K1(210),K2(210)
-
-C* flags for input different options
-C      LOGICAL LEMCCK,LHADRO,LSEADI,LEVAPO
-C      COMMON /DTFLG1/ IFRAG(2),IRESCO,IMSHL,IRESRJ,IOULEV(6),
-C     &                LEMCCK,LHADRO(0:9),LSEADI,LEVAPO,IFRAME,ITRSPT
 
 * statistics: residual nuclei
       COMMON /DTSTA2/ EXCDPM(4),EXCEVA(2),
@@ -18976,11 +17892,6 @@ C    &    0,  0,  0,   2,  2,  3,   1,  1,  3,
      &                JMOHKK(2,NMXHKK),JDAHKK(2,NMXHKK),
      &                PHKK(5,NMXHKK),VHKK(4,NMXHKK),WHKK(4,NMXHKK)
 
-C* flags for input different options
-C      LOGICAL LEMCCK,LHADRO,LSEADI,LEVAPO
-C      COMMON /DTFLG1/ IFRAG(2),IRESCO,IMSHL,IRESRJ,IOULEV(6),
-C     &                LEMCCK,LHADRO(0:9),LSEADI,LEVAPO,IFRAME,ITRSPT
-
       IREJ = 0
 
       MODE = IMODE
@@ -19267,11 +18178,6 @@ C     ENDIF
       CHARACTER*8  ANAME
       COMMON /DTPART/ ANAME(210),AAM(210),GA(210),TAU(210),
      &                IICH(210),IIBAR(210),K1(210),K2(210)
-
-C* flags for input different options
-C      LOGICAL LEMCCK,LHADRO,LSEADI,LEVAPO
-C      COMMON /DTFLG1/ IFRAG(2),IRESCO,IMSHL,IRESRJ,IOULEV(6),
-C     &                LEMCCK,LHADRO(0:9),LSEADI,LEVAPO,IFRAME,ITRSPT
 
       Q2   = VIRT
       IDP  = IDPR
@@ -21733,11 +20639,6 @@ C
      &                IDBAM(NMXHKK),IDCH(NMXHKK),NPOINT(10),
      &                IHIST(2,NMXHKK)
 
-C* flags for input different options
-C      LOGICAL LEMCCK,LHADRO,LSEADI,LEVAPO
-C      COMMON /DTFLG1/ IFRAG(2),IRESCO,IMSHL,IRESRJ,IOULEV(6),
-C     &                LEMCCK,LHADRO(0:9),LSEADI,LEVAPO,IFRAME,ITRSPT
-
 * properties of photon/lepton projectiles
       COMMON /DTGPRO/ VIRT,PGAMM(4),PLEPT0(4),PLEPT1(4),PNUCL(4),IDIREC
 
@@ -21928,11 +20829,6 @@ C     NEVHKK = NEVHEP
 * Lorentz-parameters of the current interaction
       COMMON /DTLTRA/ GACMS(2),BGCMS(2),GALAB,BGLAB,BLAB,
      &                UMO,PPCM,EPROJ,PPROJ
-
-C* flags for input different options
-C      LOGICAL LEMCCK,LHADRO,LSEADI,LEVAPO
-C      COMMON /DTFLG1/ IFRAG(2),IRESCO,IMSHL,IRESRJ,IOULEV(6),
-C     &                LEMCCK,LHADRO(0:9),LSEADI,LEVAPO,IFRAME,ITRSPT
 
       INCLUDE '(DIMPAR)'
       INCLUDE '(PAREVT)'
@@ -24055,11 +22951,6 @@ C      END
 * 07-Mar-2018 MDB Control Pythia vector mesons
       INTEGER IDXVECBP
       COMMON /BPYVEC/ IDXVECBP
-
-C* flags for input different options
-C      LOGICAL LEMCCK,LHADRO,LSEADI,LEVAPO
-C      COMMON /DTFLG1/ IFRAG(2),IRESCO,IMSHL,IRESRJ,IOULEV(6),
-C     &                LEMCCK,LHADRO(0:9),LSEADI,LEVAPO,IFRAME,ITRSPT
 
       PARAMETER (NCOMPX=20,NEB=8,NQB= 5,KSITEB=50)
 
@@ -30618,11 +29509,6 @@ C     ENDIF
       COMMON /DTEVT2/ IDRES(NMXHKK),IDXRES(NMXHKK),NOBAM(NMXHKK),
      &                IDBAM(NMXHKK),IDCH(NMXHKK),NPOINT(10),
      &                IHIST(2,NMXHKK)
-
-C* flags for input different options
-C      LOGICAL LEMCCK,LHADRO,LSEADI,LEVAPO
-C      COMMON /DTFLG1/ IFRAG(2),IRESCO,IMSHL,IRESRJ,IOULEV(6),
-C     &                LEMCCK,LHADRO(0:9),LSEADI,LEVAPO,IFRAME,ITRSPT
 
 * pointer to chains in hkkevt common (used by qq-breaking mechanisms)
       PARAMETER (MAXCHN=10000)

@@ -241,11 +241,6 @@ C      include "phiout.inc"
       INTEGER IDT_ICIHAD
       DOUBLE PRECISION DCALC, SCLFAC, DT_RNDM
 
-C* flags for input different options
-C      LOGICAL LEMCCK,LHADRO,LSEADI,LEVAPO
-C      COMMON /DTFLG1/ IFRAG(2),IRESCO,IMSHL,IRESRJ,IOULEV(6),
-C     &                LEMCCK,LHADRO(0:9),LSEADI,LEVAPO,IFRAME,ITRSPT
-
 * event flag
       COMMON /DTEVNO/ NEVENT,ICASCA 
       INTEGER NEVENT, ICASCA
@@ -1041,11 +1036,6 @@ c...target/proj mass, charge and projectile internal ID
       COMMON /FLCHK/ PFXCHK
       DOUBLE PRECISION PFXCHK
 
-C* flags for input different options
-C      LOGICAL LEMCCK,LHADRO,LSEADI,LEVAPO
-C      COMMON /DTFLG1/ IFRAG(2),IRESCO,IMSHL,IRESRJ,IOULEV(6),
-C     &                LEMCCK,LHADRO(0:9),LSEADI,LEVAPO,IFRAME,ITRSPT
-
 C...output file name definition
       COMMON /OUNAME/ outname
 
@@ -1680,11 +1670,6 @@ c     Shortened some fields
      &                NRESPB(2),NRESCH(2),NRESEV(4),
      &                NEVA(2,6),NEVAGA(2),NEVAHT(2),NEVAHY(2,2,240),
      &                NEVAFI(2,2)
-
-C* flags for input different options
-C      LOGICAL LEMCCK,LHADRO,LSEADI,LEVAPO
-C      COMMON /DTFLG1/ IFRAG(2),IRESCO,IMSHL,IRESRJ,IOULEV(6),
-C     &                LEMCCK,LHADRO(0:9),LSEADI,LEVAPO,IFRAME,ITRSPT
 
       INCLUDE 'beagle.inc'
       INCLUDE '(DIMPAR)'

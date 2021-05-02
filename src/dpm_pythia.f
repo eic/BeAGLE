@@ -532,11 +532,6 @@ C         MDCY(PYCOMP(IDXSTA(I)),1) = 1
       include "beagle.inc"
       include "bea_pyqm.inc"
 
-C* flags for input different options
-C      LOGICAL LEMCCK,LHADRO,LSEADI,LEVAPO
-C      COMMON /DTFLG1/ IFRAG(2),IRESCO,IMSHL,IRESRJ,IOULEV(6),
-C     &                LEMCCK,LHADRO(0:9),LSEADI,LEVAPO,IFRAME,ITRSPT
-
 * event flag
       COMMON /DTEVNO/ NEVENT,ICASCA 
 
@@ -1623,11 +1618,6 @@ c...target/proj mass, charge and projectile internal ID
 * added by liang to check the photon flux 12/28/11
       COMMON /FLCHK/ PFXCHK
       DOUBLE PRECISION PFXCHK
-
-C* flags for input different options
-C      LOGICAL LEMCCK,LHADRO,LSEADI,LEVAPO
-C      COMMON /DTFLG1/ IFRAG(2),IRESCO,IMSHL,IRESRJ,IOULEV(6),
-C     &                LEMCCK,LHADRO(0:9),LSEADI,LEVAPO,IFRAME,ITRSPT
 
 C...output file name definition
       COMMON /OUNAME/ outname
