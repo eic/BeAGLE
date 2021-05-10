@@ -603,7 +603,7 @@ Cc...added by liang & Mark to include pythia energy loss datas
 
 C      DOUBLE PRECISION USEAP1000, USEAP1001, USEAP1690
 
-      INTEGER MODE
+      INTEGER MODE, IREJ
 
       DOUBLE PRECISION Q2, YY, XX, XXALT
 
@@ -636,7 +636,7 @@ C...Pythia eA shadowing common block from Mark 2017-06-30
 C  Local
 
       LOGICAL LFIRST
-      INTEGER IREJ, IIMAIN, IIMAINN
+      INTEGER IIMAIN, IIMAINN
       DOUBLE PRECISION PDEUT(5), PSPEC(5), MNUCL
 
       SAVE LFIRST
@@ -783,8 +783,6 @@ c...NPOINT(4), the position where final particle starts is very important!!
          WRITE(*,*) 'Start of DT_PYEVNTEP(mode=2)'
          CALL PYLIST(2) 
       ENDIF
-
-c      IF(LFIRST) GOTO 9999
 
 C     MDB 2017-02-22
 C     DT_FOZOCA, DT_SCN4BA need NPOINT(1) pointing to the last nucleon
@@ -996,8 +994,6 @@ C      CALL DT_PYOUTEP(4)
         IINTER(NINTS)=IIMAINN
       ENDIF
 
-      IF (IOULEV(1).GE.1) WRITE(*,*) 'REJECTION FLAG 1 ~ ', IREJ
-  
 C... Note: DPF(mu) = P(mu)_true - P(mu)_naive is a 4-momentum too.   
 C    DPF is the name in the HCMS
 C    PXF,PYF,PZF,EKF in the TRF
@@ -1086,7 +1082,7 @@ C     Not used unless IFERPY>2
          ENDDO
          if (IFERPY.EQ.2) then
             CALL PFSHIFT(VINT(1),VINT(2),VINT(307),VALNU,MNUCL,PDEUT,
-     &           PSPEC,1)
+     &           PSPEC,1,IREJ)
          elseif (IFERPY.EQ.3) then
             if (IIMAINN.NE.-1) then
 C     Here MNUCL is the SPECTATOR (not struck) nucleon mass from D or SRC-pair:
@@ -1100,15 +1096,16 @@ C     Here MNUCL is the SPECTATOR (not struck) nucleon mass from D or SRC-pair:
                PDEUT(4)=SQRT(PDEUT(1)*PDEUT(1)+PDEUT(2)*PDEUT(2)+
      &              PDEUT(3)*PDEUT(3)+PDEUT(5)*PDEUT(5))
                CALL PFSHIFT(VINT(1),VINT(2),VINT(307),VALNU,MNUCL,PDEUT,
-     &              PSPEC,2)
+     &              PSPEC,2,IREJ)
             else
                CALL PFSHIFT(VINT(1),VINT(2),VINT(307),VALNU,MNUCL,PDEUT,
-     &              PSEPC,1)
+     &              PSEPC,1,IREJ)
             endif
          else
             CALL PFSHIFT(VINT(1),VINT(2),VINT(307),VALNU,MNUCL,PDEUT,
-     &           PSPEC,0)
+     &           PSPEC,0,IREJ)
          endif
+         if (IREJ.NE.0) goto 9999
          if(IOULEV(4).GE.2 .AND. NEVENT.LE.IOULEV(5)) THEN
             write(*,*) "DT_PYEVNTEP: TRF g*=z, after pf post-fix"
             CALL PYLIST(2)
@@ -1521,11 +1518,9 @@ C MDB 2017-02-28 This method can't be used for genShd>1
       endif
 
       LFIRST=.TRUE.
-      IF (IOULEV(1).GE.1) WRITE(*,*) 'REJECTION FLAG 2 ~ ', IREJ
-      RETURN
-
 9999  CONTINUE
-      IREJ=1
+      IF (IOULEV(1).GE.1) WRITE(*,*) 'DT_PYEVNTEP IREJ= ', IREJ
+      RETURN
 
       END
 

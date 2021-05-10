@@ -55,6 +55,9 @@ C...
      &          26.981539, 27.976927, 55.934938, 62.929598, 106.90510, 
      &          108.90475, 130.90508, 196.96657, 207.97665, 238.05079/
 
+      LOGICAL FIRSTERR
+      DATA FIRSTERR /.TRUE./
+
       INTEGER I
 C     Start with a guess that the mass is A amu
       IF (IMETH.EQ.3 .OR. IMETH.EQ.0) THEN
@@ -82,11 +85,12 @@ C         WRITE(*,*)'Calc. A*AMUC12+EMVGEV*EXMSAZ:',AZMASS
                   AZMASS = AZMASS + 322187.9637D-09
                ELSEIF (Z.EQ.82 .AND. A.EQ.208) THEN
                   AZMASS = AZMASS + 355823.5114D-09
-               ELSE
+               ELSEIF (FIRSTERR) THEN
                   WRITE(*,*) 'AZMASS Warning. Method 2 not allowed'
      &                 //"w/ this A,Z:",A," ",Z,". Using method 3."
                   EXRESU=EXMSAZ(DBLE(A),DBLE(Z),.TRUE.,IZDUM)
                   AZMASS = A*AMUC12+EMVGEV*EXRESU
+                  FIRSTERR = .FALSE.
                ENDIF
             ENDIF
          ENDIF

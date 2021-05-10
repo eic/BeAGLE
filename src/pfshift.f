@@ -1,4 +1,4 @@
-      SUBROUTINE PFSHIFT(WRAW,W2RAW,Q2,NU,MNUCL,PDEUT,PSPEC,IKIN)
+      SUBROUTINE PFSHIFT(WRAW,W2RAW,Q2,NU,MNUCL,PDEUT,PSPEC,IKIN,IREJ)
 C
 C     2018-07-13 Mark D. Baker - Initial Version
 C
@@ -18,6 +18,10 @@ C            PSPEC - Irrelevant for IKIN=1
 C                    Spectator "5"-momentum, for IKIN=2
 C                    "5"-momentum of sum of spec1+spec2 for IKIN=3
 C            IKIN - model for correct Pythia subsystem Wmu   
+C
+C     I/O: IREJ = error flag.
+C          Input: Expect IREJ=0. Otherwise skip.
+C          Output: 0=OK. 1=Kill event: bad kinematics
 C
 C     Common block input: P(mu)_true-P(mu)_naive OR use k
 C                         PXF,PYF,PZF,EKF = k & E(k)-m in the TRF
@@ -52,7 +56,10 @@ C     correct momentum in the HCMS (and ultimately TRF)
 C
       IMPLICIT NONE
       DOUBLE PRECISION WRAW, W2RAW, Q2, NU, MNUCL, PDEUT(5), PSPEC(5)
-      INTEGER IKIN
+      INTEGER IKIN, IREJ
+
+      DOUBLE PRECISION W2MIN
+      PARAMETER (W2MIN=4.0D0)
 
       include 'beagle.inc'
 C      include "py6strf.inc"   ! Temporary! Just use for debug output
@@ -95,9 +102,18 @@ C Local
       DOUBLE PRECISION WZIRF,W0IRF,WZHCMS,W0HCMS
 
       IF (IOULEV(4).GE.2 .AND. NEVENT.LE.IOULEV(5)) then
-         WRITE(*,*)"PFSHIFT(WRAW,W2RAW,Q2,NU,MNUCL,PDEUT,IKIN)"
+         WRITE(*,*)
+     &        "PFSHIFT(WRAW,W2RAW,Q2,NU,MNUCL,PDEUT,PSPEC,IKIN,IREJ)"
          WRITE(*,*)WRAW,W2RAW,Q2,NU,MNUCL
-         WRITE(*,*)PDEUT(1),PDEUT(2),PDEUT(3),PDEUT(4),PDEUT(5),IKIN
+         WRITE(*,*)PDEUT(1),PDEUT(2),PDEUT(3),PDEUT(4),PDEUT(5)
+         WRITE(*,*)PSPEC(1),PSPEC(2),PSPEC(3),PSPEC(4),PSPEC(5)
+         WRITE(*,*) IKIN,IREJ
+      ENDIF
+
+C     Skip event if it is already flagged as bad (shouldn't happen!)
+      IF (IREJ.NE.0) THEN
+         WRITE(*,*)"PHSHIFT WARNING: IREJ non-zero on input. Skipping."
+         GOTO 9999
       ENDIF
 
       IF (WRAW.LT.1.0 .OR. ABS(W2RAW-WRAW*WRAW).GT.0.001 .OR.
@@ -126,6 +142,19 @@ C     Boost into naive HCMS  (assumes nucleon at rest in A-TRF)
          write(*,*) "W2 corrected: ", W2F
          write(*,*) "gamma*beta, gamma, beta:",BGCMS(2),GACMS(2),
      &        BGCMS(2)/GACMS(2)
+      ENDIF
+
+C     Don't allow illegal kinematics (usually spec. kz<<0)
+      IF (W2F.LT.W2MIN) THEN
+         IF (IOULEV(1).GT.0 .OR. 
+     &        (IOULEV(4).GE.1 .AND. NEVENT.LE.IOULEV(5))) THEN
+            WRITE(*,*) 'PFSHIFT: Illegal kinematics. W2RAW, W2F= ',
+     &           W2RAW, W2F
+            WRITE(*,*) 'PSPEC(5)=',
+     &           PSPEC(1),PSPEC(2),PSPEC(3),PSPEC(4),PSPEC(5)
+         ENDIF
+         IREJ=1
+         GOTO 9999
       ENDIF
       
       IF (IOULEV(4).GE.2 .AND. NEVENT.LE.IOULEV(5)) THEN
@@ -377,5 +406,5 @@ C     Note: Wmu transverse quantities are PXF,PYF=DPF(1,2). WZ,W0:
 C     Boost back into the TRF
       CALL PYROBO(0,0,0.0D0,0.0D0,0.0D0,0.0D0,BGCMS(2)/GACMS(2))
       
-      RETURN
+ 9999 RETURN
       END
