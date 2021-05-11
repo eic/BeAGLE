@@ -2318,16 +2318,16 @@ C        WRITE(LOUT,*) 'CMENER = ',CMENER
 *                       output unit:                                *
 *       added by liang to make different out for multi input        *
 *              what (1) = output unit number      default: 89       *
-*              what (2) = output format     -1 = old                *
-*                                           +1 = DPMJET for nuclei  *
-*                                           +2 = GEANT for nuclei   *
+*              what (2) = output format  -1 = old                   *
+*                                        +1 = DPMJET for nuclei     *
+*                                        +2 = GEANT for nuclei (D)  *
 *                                                                   *   
 *********************************************************************
 
   622 CONTINUE
       FOUT = NINT(WHAT(1))
       IOUTFMT = NINT(WHAT(2))
-      IF (IOUTFMT.EQ.0) IOUTFMT=1
+      IF (IOUTFMT.EQ.0) IOUTFMT=2
       OLDOUT= (IOUTFMT.EQ.-1)
       GOTO 10
 
@@ -19448,10 +19448,12 @@ C      END
      &  '            |',/,               
      &  ' |                                                           ',
      &  '            |',/,   
-     &  ' | Version 1.01.00    ',51X,'|',/,1X,'|',71X,'|',/,
-     &  ' | Authors: Elke Aschenauer, Mark D. Baker, J.H. Lee, Liang Z',
-     &  'heng        |',/,
-     &  ' | Contact: liangzhphy@gmail.com or mdbaker@mdbpads.com',18X,
+     &  ' | BeAGLE Version 1.01.01    ',44X,'|',/,1X,'|',71X,'|',/,
+     &  ' | Authors: Elke Aschenauer, Mark D. Baker, J.H. Lee, Zhoudun',
+     &  'ming Tu,    |',/,
+     &  ' |          Liang Zheng                                      ',
+     &  '            |',/,
+     &  ' | Contact: mdbaker@mdbpads.com or zhoudunming@bnl.gov ',18X,
      &  '|',/,1X,'|',71X,'|',/,
      &  ' | This program (previously called DPMJetHybrid) links to:',
      &     15X,'|',/,
