@@ -19450,7 +19450,7 @@ C      END
      &  '            |',/,               
      &  ' |                                                           ',
      &  '            |',/,   
-     &  ' | BeAGLE Version 1.01.02    ',44X,'|',/,1X,'|',71X,'|',/,
+     &  ' | BeAGLE Version 1.01.03    ',44X,'|',/,1X,'|',71X,'|',/,
      &  ' | Authors: Elke Aschenauer, Mark D. Baker, J.H. Lee, Zhoudun',
      &  'ming Tu,    |',/,
      &  ' |          Liang Zheng                                      ',
