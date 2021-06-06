@@ -527,7 +527,7 @@ ccc Init for qweight
       else if(abs(id).lt.7) then
         ipart = 1
       else
-        write(*,*) 'Unknown parton with id =',id
+C        write(*,*) 'Unknown parton with id =',id
       endif
       irw = 0
       nb_step = 200
