@@ -11187,18 +11187,20 @@ C     WRITE(LOUT,*) 'event ',NEVHKK,NLOOP,SCPOT
                   IPOT   = 2
                   IF (IP.GT.1) IOTHER = 1
 *       there is no target nucleus --> skip
-*       Include diproton or dineutron as "no target nucleus"
+*       Include diproton or dineutron as "no target nucleus" for A=3
                   IF ((IT.LE.1).OR.((IT-NTW).LE.1) .OR.
-     &                 (((IT-NTW).EQ.2).AND.((ITZ-NTCW).NE.1))) GOTO 900
+     &              (IT.EQ.3.AND.((IT-NTW).EQ.2).AND.((ITZ-NTCW).NE.1))) 
+     &                 GOTO 900
                ENDIF
 * particle moving into backward direction
             ELSE
 *   most likely to be effected by target potential
                IPOT = 2
 *     there is no target nucleus, try projectile
-*     Include diproton or dineutron as "no target nucleus"
+*     Include diproton or dineutron as "no target nucleus" for A=3
                IF ((IT.LE.1).OR.((IT-NTW).LE.1) .OR.
-     &              (((IT-NTW).EQ.2).AND.((ITZ-NTCW).NE.1))) THEN
+     &              (IT.EQ.3.AND.((IT-NTW).EQ.2).AND.((ITZ-NTCW).NE.1)))
+     &              THEN
                   IPOT   = 1
                   IF (IT.GT.1) IOTHER = 1
 *       there is no projectile nucleus --> skip
@@ -11802,7 +11804,7 @@ C           ENDIF
             TRCLTA(K) = TRCLTA(K)-PHKK(K,ISGLTA)
    22    CONTINUE
 *     Handle the dineutron or diproton remnant similarly
-      ELSEIF ( (IREST.EQ.2) .AND. (ITZ-NTCW.NE.1)) THEN
+      ELSEIF ( (IT.EQ.3) .AND. (IREST.EQ.2) .AND. (ITZ-NTCW.NE.1)) THEN
          IREMNUC = 0
          DO II=2,NPOINT(1)
             IF (ISTHKK(II).EQ.14) THEN
@@ -11810,16 +11812,16 @@ C           ENDIF
                IF (IICH(IDBAM(II)).NE.0) NTCW = NTCW + 1
                NTW = NTW + 1
                CALL DT_LTRANS(PHKK(1,II),PHKK(2,II),PHKK(3,II),
-     &               PHKK(4,II),PCMS(1),PCMS(2),PCMS(3),PCMS(4),
+     &              PHKK(4,II),PCMS(1),PCMS(2),PCMS(3),PCMS(4),
      &              IDBAM(II),3)
                ISTHKK(II)=12
                CALL DT_EVTPUT(1,IDHKK(II),II,0,
-     &               PCMS(1),PCMS(2),PCMS(3),PCMS(4),
-     &               IDRES(II),IDXRES(II),IDCH(II))
+     &              PCMS(1),PCMS(2),PCMS(3),PCMS(4),
+     &              IDRES(II),IDXRES(II),IDCH(II))
                NOBAM(NHKK) = NOBAM(II)
                ISTHKK(NHKK) = 1
                JDAHKK(I,II) = NHKK
-*              Copied from above. Doesn't make sense to me (MDB).
+*     Copied from above. Doesn't make sense to me (MDB).
                DO K=1,4
                   TRCLTA(K) = TRCLTA(K)-PHKK(K,II)
                ENDDO
