@@ -2956,7 +2956,9 @@ C     IF (NEVHKK.EQ.5) CALL DT_EVTOUT(4)
 c         WRITE(*,*) 'before call decay in DT_KKINC:'
 c         CALL DT_PYOUTEP(4)
 c         CALL DT_DECAY1
-         CALL DT_DECPI0
+          !liang-2021-10 move long-lifetime decay to the event 
+          !output routine to avoid lorentz transform the decay vertex
+c         CALL DT_DECPI0
 
 C-TEMP-TEMP-TEMP
 c         WRITE(*,*) 'End of DT_KKINC:'
@@ -8647,11 +8649,15 @@ c         IF ((ISTHKK(I).EQ.1).AND.(IDHKK(I).EQ.111)) THEN
 
      &         PHI  = SIGN(TWOPI/2.0D0-ABS(PHI),PHI)
 
+
             ENER    = PHKK(4,I)
             NN      = NN+1
             KTEMP   = MSTU(10)
             MSTU(10)= 1
             P(NN,5) = PHKK(5,I)
+
+            K(NN,1)=2
+            K(NN,2)=IDHKK(I)
 
             !changed by liang to fit with the decay after INC
             CALL PY1ENT(NN,IDHKK(I),ENER,THETA,PHI)
@@ -8663,6 +8669,7 @@ c         IF ((ISTHKK(I).EQ.1).AND.(IDHKK(I).EQ.111)) THEN
     1 CONTINUE
       IF (NN.GT.0) THEN
 
+         N=NN
          CALL PYEXEC
 
          NLINES = PYK(0,1)
@@ -8691,6 +8698,7 @@ c               CALL DT_EVTPUT(1,ID,MO,0,P1(1),P1(2),P1(3),P1(4),0,0,0)
 C               ISTHKK(MO) = -2
 C mdb: Change to +2 to agree with usual (Pythia) convention
                ISTHKK(MO) = 2
+
             ENDIF
     2    CONTINUE
          IF (LEMCCK) CALL DT_EVTEMC(DUM,DUM,DUM,DUM,4,7000,IREJ1)
@@ -11829,7 +11837,7 @@ C           ENDIF
          ENDDO
          IREST = 0
          IF (IREMNUC.NE.2) 
-     &        STOP("FATAL in DT_SCN4BA: Expected 2 spectator nucleons.")
+     &        STOP 'FATAL in DT_SCN4BA: Expected 2 spectator nucleons.' 
       ENDIF
 
 * get nuclear potential corresp. to the residual nucleus
@@ -19450,7 +19458,7 @@ C      END
      &  '            |',/,               
      &  ' |                                                           ',
      &  '            |',/,   
-     &  ' | BeAGLE Version 1.01.03    ',44X,'|',/,1X,'|',71X,'|',/,
+     &  ' | BeAGLE Version 1.01.04    ',44X,'|',/,1X,'|',71X,'|',/,
      &  ' | Authors: Elke Aschenauer, Mark D. Baker, J.H. Lee, Zhoudun',
      &  'ming Tu,    |',/,
      &  ' |          Liang Zheng                                      ',

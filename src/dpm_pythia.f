@@ -504,6 +504,140 @@ C         MDCY(PYCOMP(IDXSTA(I)),1) = 1
 
       END
 
+*=====dt_decall=====================================================
+*used to perform all long time decay in pythia at the end of run
+*liang-2021-10 
+*
+      SUBROUTINE DT_DECALL
+      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
+      SAVE
+* event history
+
+      PARAMETER (NMXHKK=200000)
+
+      COMMON /DTEVT1/ NHKK,NEVHKK,ISTHKK(NMXHKK),IDHKK(NMXHKK),
+     &                JMOHKK(2,NMXHKK),JDAHKK(2,NMXHKK),
+     &                PHKK(5,NMXHKK),VHKK(4,NMXHKK),WHKK(4,NMXHKK)
+
+* extended event history
+      COMMON /DTEVT2/ IDRES(NMXHKK),IDXRES(NMXHKK),NOBAM(NMXHKK),
+     &                IDBAM(NMXHKK),IDCH(NMXHKK),NPOINT(10),
+     &                IHIST(2,NMXHKK)
+
+      COMMON/PYDAT3/MDCY(500,3),MDME(4000,2),BRAT(4000),KFDP(4000,5)
+      COMMON/PYDAT1/MSTU(200),PARU(200),MSTJ(200),PARJ(200)
+      PARAMETER (MAXLND=4000)
+      COMMON/PYJETS/N,NPAD,K(MAXLND,5),P(MAXLND,5),V(MAXLND,5)
+
+      INTEGER PYCOMP,PYK
+
+      DIMENSION IHISMO(NMXHKK),P1(4)
+
+*c...data array added by liang to do test whether 1 particle is supposed
+*c...decay. Extended to allow jpsi, phi to decay outside nuclei
+      DIMENSION IDXSTA(40)
+      DATA IDXSTA
+*          K0s   pi0  lam   alam  sig+  asig+ sig-  asig- tet0  atet0
+     &  /  310,  111, 3122,-3122, 3222,-3222, 3112,-3112, 3322,-3322,
+*          tet- atet-  om-  aom-   D+    D-    D0    aD0   Ds+   aDs+
+     &    3312,-3312, 3334,-3334,  411, -411,  421, -421,  431, -431,
+*          etac lamc+alamc+sigc++ sigc+ sigc0asigc++asigc+asigc0 Ksic+
+     &     441, 4122,-4122, 4222, 4212, 4112,-4222,-4212,-4112, 4232,
+*         Ksic0 aKsic+aKsic0 sig0 asig0 jpsi phi
+     &    4132,-4232,-4132, 3212,-3212, 443, 333, 3*0/
+
+      !allow long life-time particle decay
+      CALL DT_PYDECY(2)
+
+      NN  = 0
+      DO 1 I=1,NHKK
+        ISTAB = 1 ! status to label a stable particle, 1-stable,0-decay
+        DO J=1,37
+           IF(IDHKK(I).EQ.IDXSTA(J)) ISTAB=0
+        ENDDO
+
+        IF ( (ISTHKK(I).EQ.1).AND.ISTAB.EQ.0 ) THEN
+           NN = NN+1
+
+           !liang-test-2021-10
+c           print*,'id=',IDHKK(I),' px=',PHKK(1,I),' py=',PHKK(2,I),
+c     &  ' pz=',PHKK(3,I),' x=',VHKK(1,I),' y=',VHKK(2,I),' z=',VHKK(3,I)
+
+           !copy wanted decay hadrons to PYJETS
+           K(NN,1)=2
+           K(NN,2)=IDHKK(I)
+           K(NN,3)=0
+           P(NN,5)=PHKK(5,I)
+           DO JDX=1,4
+           P(NN,JDX)=PHKK(JDX,I)
+           V(NN,JDX)=VHKK(JDX,I)
+           ENDDO
+          
+           IHISMO(NN)= I
+
+        ENDIF
+
+    1 CONTINUE
+
+      IF (NN.GT.0) THEN
+      !found NN number of particles to be decayed
+         N=NN !need to set the PYJETS size
+         CALL PYEXEC
+         !liang-test-2021-10
+c         call pylist(3)
+
+         NHKOLD=NHKK !record DTEVT size before add decay
+
+         !start from the first decay daughter
+         DO 2 II=1,N
+           IF(II.le.NN) THEN
+           !decay mothers
+             IDX=IHISMO(II)
+             ISTHKK(IDX)=2
+             !NN must be subtracted converting PYJETS index to 
+             !DTEVT line index
+             JDAHKK(1,IDX)=K(II,4)-NN+NHKOLD
+             JDAHKK(2,IDX)=K(II,5)-NN+NHKOLD
+           ELSE
+           !decay daughters
+             NHKK=NHKK+1
+             PHKK(5,NHKK)=P(II,5)
+             IDHKK(NHKK)=K(II,2)
+             ISTHKK(NHKK)=K(II,1)
+             !unstable daughter
+             IF(ISTHKK(NHKK).ne.1) THEN
+               ISTHKK(NHKK)=2
+               JDAHKK(1,NHKK)=K(II,4)-NN+NHKOLD
+               JDAHKK(2,NHKK)=K(II,5)-NN+NHKOLD
+             ENDIF
+             IF(K(II,3).le.NN) THEN
+               !primary decay
+               JMOHKK(1,NHKK)=IHISMO(K(II,3))
+             ELSE
+               !secondary decay
+               JMOHKK(1,NHKK)=K(II,3)-NN+NHKOLD
+             ENDIF
+             DO JDX=1,4
+               PHKK(JDX,NHKK)=P(II,JDX)
+               VHKK(JDX,NHKK)=V(II,JDX)
+             ENDDO
+             !inherit mother nobam
+             !as mother-daughter already sorted in JMOHKK, can easily
+             !use the JMOHKK nobam value
+             NOBAM(NHKK)=NOBAM(JMOHKK(1,NHKK))
+           ENDIF
+    2    CONTINUE
+
+      ENDIF
+
+      !get back to INC particle status
+      CALL DT_PYDECY(1)
+
+
+      RETURN
+      END
+
+
 *=====dt_pyevnt========================================================
 *used to the sample a pythia event and dump this event to DTEVT1
 *Some important thing to be mentioned here is the output of pyhia
@@ -1729,6 +1863,8 @@ c...2017-01-02 MDB Fill some new event variables
          ENDIF ! (J.GT.(NPOINT(1)+1))
       ENDDO ! J=1,NHKK
 *************check HKKEVT end***************************      
+      !liang-2021-10 perform long-lifetime decay
+      CALL DT_DECALL
 
       genevent=MYNGEN-lastgenevent
       tracknr = NHKK
