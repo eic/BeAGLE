@@ -22,64 +22,112 @@
       double precision iptot,ipl,ptg,plg, cr
       double precision cutoff,sca
 
-      double precision ptot,pt,pt2,mmmm
-      double precision N_const, w_n, w_high, w_mean
-      double precision w_sum, w_hard, w_soft
+      double precision ptot,pt,pt2,mmmm,mass_p
+      double precision N_const, w_n, w_high, w_mean, n_w_gluons
+      double precision N_const_2, N_const_3
+      double precision w_sum, w_hard, w_soft,w_soft_remain
+      double precision w_hard_2,w_triplet
       integer n_w, list, ij, i_w
       double precision w_gluon(50)
       integer ijoin(50)
       double precision pgx, pgy, pgz, phe, phi
       double precision phi_final, theta, theta_final, mag
-
+      double precision soft_cut
+      double precision E_quark,E_gluon,E_antiq,x_1,x_3
+      double precision E_p
       integer j
+      integer k_cut_up,k_cut_down
 
-      alphas = 1d0/3d0
-      iqw = 1
-      scor = 1
-      ncor = 0
-      sfthrd = 1
-
-      cutoff = pyq_iet !energy cut off
-C      iEg = 0
-C      iPtF = 3
-      iEg = PYQ_IEG
-      iPtF = PYQ_IPTF
-      iet = PYQ_IET
-      iqg = 1
-      SupFac = 1
-      ehat = 0
-      cr=0
+      alphas   = 1d0/3d0
+      iqw      = 1
+      scor     = 1
+      ncor     = 0
+      sfthrd   = 1
+      soft_cut = 5       !energy cut on soft gluons(GeV)
+      cutoff   = pyq_iet !energy cut off (GeV)
+      iEg      = PYQ_IEG !option gluon model
+      iPtF     = PYQ_IPTF!option pt model
+      iet      = PYQ_IET !energy cut(GeV)
+      iqg      = 1
+      ipt      = 0       !transverse momentum
+      
+      ehat     = 0
+      cr       = 0
 
       iloop = N
       ip = 1
-      ij=0
+      ij =0
+      k_cut_up=0
+      k_cut_down=0
+c     print*,'Starting PYQM'
+      iet           = 0.25
+      w_gluon(1)    = 0.0
+      w_gluon(2)    = 0.0
+      w_gluon(3)    = 0.0
+      w_hard        = 0.0
+      w_soft        = 0.0
+      w_soft_remain = 0.0
+      w_triplet     = 0.0
+      E_p           = 0.0
+      
+
 
       do while (ip.le.iloop)
-
-        if((K(ip,1).eq.2).or.((K(ip,1).eq.1).and.(ij.ge.1)).and.
+        mass_p =P(ip,5)
+       
+c        print*,'ip           --> ',ip
+c        print*,'iloop        --> ',iloop
+c        print*,'particle ID  --> ',K(ip,2)
+c        print*,'just before the IF'
+        
+c        print*,'MASS=',mass_p
+        if((K(ip,1).eq.2).or.((K(ip,1).eq.1)).and.
      & ((abs(K(ip,2)).le.5).or.(K(ip,2).eq.21))) then
-
-
+c          print*,'after sekection id= ',K(ip,2)
+        
           mmmm = P(ip,5)/P(ip,4)
+c          print*,'mmmm =',mmmm
           call QWComput(qhat,P(ip,1),P(ip,2),P(ip,3),P(ip,4),mmmm,
      & K(ip,2))
+c         print*,'QWComput -> Was called'
+c Define cr for a quark or gluon
 
           if(abs(K(ip,2)).le.5) then
             cr = 4d0/3d0
           else if(K(ip,2).eq.21) then
             cr=3d0
           endif
-
-          N_const=(2d0*alphas*cr*sqrt(2d0*QW_wc))/(pi)
-
-          if(((P(ip,4)-QW_w).lt.PYQ_IET).and.(QW_w.gt.0)) then
-            QW_w=P(ip,4)-PYQ_IET
+c Calculate transverse momentum of final parton IPtf
+          if (iPtf.eq.0) then
+          ipt=0
+          else if(iPtf.eq.1) then
+          ipt=qhat*QW_L
+          else if(iPtf.eq.2) then
+          ipt = ((8d0/3)*QW_w/alphas)/(QW_L**2) !BDMPS mean
+          else if(iPtf.eq.3) then
+          ipt = (QW_w*sin(QW_th))**2
           endif
+c          print*,'Transverse momentum=',ipt
+         
+c Calculate constant for hard energy gluon
+          N_const = 4d0*alphas*alphas*qhat
+c         print*,'N_const =',N_const
 
-        endif
+c          print*, 'QW_w Not recalculated = ', QW_w
+         if(((P(ip,4)-QW_w).lt.iet).and.(QW_w.gt.0)) then
+            QW_w=P(ip,4)-iet
+           
+c            print*,'Particle E     = ', P(ip,4)
+c            print*,'iet            = ', iet
+c            print*,'QW_w = E - iet = ', QW_w
+          endif
+c        print*,'w_gluon(1)         = ',w_gluon(1)
 
-
-
+       
+       endif
+c           print*,'Energy Threshold:',iet
+c           print*,'Starting GLUON SELECTION'
+           
 
 ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 c             no gluons                                               c
@@ -87,39 +135,39 @@ ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
           if(iEg.eq.0) then
 
-
             w_gluon(1)=QW_w
+c            Select quarks,antiquarks and gluons in an intermidiate state.
 
             if((K(ip,1).eq.2).and.((abs(K(ip,2)).le.5).or.
      &  (K(ip,2).eq.21)).and.(P(ip,4).gt.PYQ_IET).and.(QW_w.gt.0)) then
-
-
+              
+c             counter partons  
               ij=ij+1
-
+cccccccccc    calculating gluon properties
               call GluonEmission(ip,w_gluon(1),theta_final,phi_final)
 
               n=n+1
               ij=ij+1
 
               call PY1ENT(N,21,w_gluon(1),theta_final,phi_final)
-
+ccccccccc     P(N,*) gluon 4-mom
+ccccccccc     P(ip,*) new parton 4-mom
               P(ip,1)=P(ip,1)-P(N,1)
               P(ip,2)=P(ip,2)-P(N,2)
               P(ip,3)=P(ip,3)-P(N,3)
 
-              n=n-1
-
-
             else if((K(ip,1).eq.1).and.(ij.gt.1).and.
      & ((abs(K(ip,2)).le.5).and.(P(ip,4).gt.(PYQ_IET))).and.(QW_w.gt.
      & 0 )) then
-
               n=n+1
               ij=ij+1
 
               call GluonEmission(ip,w_gluon(1),theta_final,phi_final)
 
+c             Pythia function adding 1 hard-gluon (not apply to this option)
+
               call PY1ENT(N,21,w_gluon(1),theta_final,phi_final)
+c             Momentum of the partons less gluon momentum 
 
               P(ip,1)=P(ip,1)-P(N,1)
               P(ip,2)=P(ip,2)-P(N,2)
@@ -134,25 +182,28 @@ ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
               ij=0
 
             endif
+              
 
 ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-c             1 gluon                                                 c
+c             1 hard gluon                                            c
 ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
 
           else if(iEg.eq.1) then
 
-
             w_gluon(1)=QW_w
+cccccccc  E_p is the new parton energy
+            E_p = P(ip,4)-w_gluon(1)
 
             if(K(ip,1).eq.2) then
-
+ccccccc   partons counter
               ij = ij+1
               ijoin(ij)=ip
-
+cccccccc Select quarks,antiquarks and gluons in an intermidiate state.
               if(((abs(K(ip,2)).le.5)
      & .or.((K(ip,2).eq.21).and.(ij.gt.0)))
-     & .and.(((P(ip,4).ge.PYQ_IET).and.(QW_w.gt.0)))) then
+     & .and.(((P(ip,4).ge.iet).and.(QW_w.gt.0))
+     & .and.(E_p.gt.(2d0*iet)))) then
 
                   call GluonEmission(ip,w_gluon(1),theta_final,
      & phi_final)
@@ -162,11 +213,21 @@ ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
                   call PY1ENT(N,21,w_gluon(1),theta_final,phi_final)
                   ij=ij+1
 
+c                 printing energy info
                   P(ip,1)=P(ip,1)-P(N,1)
                   P(ip,2)=P(ip,2)-P(N,2)
                   P(ip,3)=P(ip,3)-P(N,3)
+c                  print*,'Px =',P(ip,1)
+c                 print*,'Py =',P(ip,2)
+c                  print*,'Pz =',P(ip,3)
+c                  print*,'Ep =',P(ip,4)
 
+c                  print*,'Px gluon=',P(N,1)
+c                  print*,'Py gluon=',P(N,2)
+c                  print*,'Pz gluon=',P(N,3)
+c                  print*,'E gluon=',P(N,4)
                   ijoin(ij)=n
+
 
               endif
 
@@ -174,7 +235,8 @@ ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
 
               if((abs(K(ip,2)).le.5)
-     & .and.(((P(ip,4).ge.PYQ_IET).and.(QW_w.gt.0)))) then
+     & .and.(((P(ip,4).ge.iet).and.(QW_w.gt.0))
+     & .and.(E_p.gt.(2d0*iet)))) then
 
 
                   call GluonEmission(ip,w_gluon(1),theta_final,
@@ -182,22 +244,43 @@ ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
                   n=n+1
                   ij=ij+1
+                 
 
+c                 Adding one gluon 
                   call PY1ENT(N,21,w_gluon(1),theta_final,phi_final)
-
+c                 momentum of the parton less gluon momenta
                   P(ip,1)=P(ip,1)-P(N,1)
                   P(ip,2)=P(ip,2)-P(N,2)
                   P(ip,3)=P(ip,3)-P(N,3)
+c                 printing energy info
+c                  print*,'Px =',P(ip,1)
+c                  print*,'Py =',P(ip,2)
+c                  print*,'Pz =',P(ip,3)
+c                  print*,'Ep =',P(ip,4)
+
+c                  print*,'Px gluon=',P(N,1)
+c                  print*,'Py gluon=',P(N,2)
+c                  print*,'Pz gluon=',P(N,3)
+c                  print*,'E gluon=',P(N,4)
 
                   ijoin(ij)=n
 
               endif
+            
 
             ij=ij+1
             ijoin(ij)=ip
+ccccc       ijoin purpuse to be used in PYJOIN
+ccccc       Connecting a number of previously defined partons into
+ccccc       a string configuration
+ccccc       ij:number of entries making up the string formed by PYJOIN
+ccccc       ijoin: one dimension array of size at least ij
+ccccc       if we find more than 3 partons they will be join with this routine, after
+ccccc       that all the partons will have KS=3
 
             if(ij.ge.3) then
                 call PYJOIN(ij,ijoin)
+c                
             endif
 
             ij=0
@@ -212,229 +295,505 @@ ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
           else if(iEg.eq.2) then
 
+
+c          print*,'Reading 1 hard + soft GLUON'
+
             if ((QW_w.gt.0).and.((K(ip,1).eq.1).or.(K(ip,1).eq.2))
      & .and.((abs(K(ip,2)).le.5).or.(K(ip,2).eq.21))) then
 
-              w_hard = (sqrt(QW_w)-(1/(4d0*N_const)))**2
+ccccccccccc   Calculate energy HARD gluon
+              
+c               print*,'Calculating energies'
 
-              if(w_hard.lt.PYQ_IET) then
+               w_hard = N_const*(QW_L**2)
+c               print*,'STAR -> w_hard =', w_hard
 
-                w_hard = QW_w-PYQ_IET
+ccccccccccc   Calculate energy Softs gluons and Triplet
+ccccccccccc   The energy of the soft gluons can't be greater than soft_cut =5 GeV,
+ccccccccccc   if there is energy left between the soft gluons and the cut
+ccccccccccc   we create  a triplet.
 
-                if(w_hard.lt.PYQ_IET) then
-                  QW_w = 0
-                  w_hard = 0
+              if(w_hard.gt.(2d0*iet))then 
+                 if (((P(ip,4)-(2d0*iet))).gt.w_hard)then
+                    w_gluon(1)= w_hard
+c                    print*,'w_hard > 2eit, w_hard =',w_hard
+c                    print*, 'w_gluon(1) =',w_gluon(1)
+                 else if (((P(ip,4)-iet).lt.w_hard)
+     & .and.(P(ip,4).gt.(iet)))then
+                    w_hard=P(ip,4)-iet
+                    w_gluon(1)=w_hard
+c                    print*,'w_hard < Ep-iet, w_hard =',w_hard
+c                    print*, 'w_gluon(1) =',w_gluon(1)
+                 endif
+
+              else if ((w_hard.lt.(2d0*iet)).and.(w_hard.gt.iet))then
+                  w_hard=w_soft_remain
+c                  print*, 'w_hard < 2eit & w_hard > iet, w_hard='
+c     &, w_hard
+c                  print*, 'w_gluon(2) =',w_gluon(2)
+c                  print*, 'w_soft     =',w_soft_remain
+
+                  if((P(ip,4)-iet).gt.w_soft)then
+                     w_gluon(2)=w_soft_remain
+c                     print*, 'First loop soft gluons'
+c                     print*,'we have a soft g = ',w_soft_remain,'GeV'
+                  endif
+               
+               
+              else if(w_hard.lt.iet)then
+c                  print*,'Gluon energy under the threshold'
+c                  print*,'Not created'
+              endif
+              
+              if (w_hard.lt.QW_w) then
+                 w_soft= (QW_w - w_hard)+w_soft_remain
+                 w_gluon(2)=w_soft
+c                 print*, 'Second loop soft gluons'
+c                 print*, 'w_gluon(1)    =',w_gluon(1)
+c                 print*, 'w_gluon(2)    =',w_gluon(2)
+c                 print*, 'w_soft        =',w_soft
+c                 print*, 'w_soft_remain =',w_soft_remain
+                 if (w_soft.gt.soft_cut) then
+                    w_triplet= w_soft-soft_cut
+                    w_gluon(3)=w_triplet
+c                   print*,'w_triplet --> ',w_triplet
+                    if((w_soft.lt.0).and.(w_triplet.lt.0)) then
+                       w_soft = 0
+                       w_triplet = 0
+c                       print*,'no soft gluons'
+                    endif
+                  endif
+                endif
+ccccccccccc   Printing Energies information
+c              print*,'Energy Info'             
+c              print*,'iet        =', iet
+c              print*,'Ep         =', P(ip,4)
+c              print*,'w_hard     =', w_hard
+c              print*,'QW_L       =', QW_L
+c              print*,'QW_w       =', QW_w
+c              print*,'w_gluon(1) =', w_gluon(1)
+c              print*,'w_gluon(2) =', w_gluon(2)
+c              print*,'w_gluon(3) =', w_gluon(3)
+              
+            endif
+cccccccccccc left energy of the parton
+             E_p = P(ip,4)-w_hard
+c             print*, 'Energy parton =', E_p
+c             open(10, FILE='output_variables.txt',status='new')
+c             write(10,*) E_p
+c             close(10)
+c             print*,'End Calculating Energies'
+             
+c             open(11, FILE='output_variables.txt',status='old')
+c             write(10,*) iet
+c             close(10)
+cccccccccccc  Counting            
+             if(w_soft.gt.soft_cut) then
+                k_cut_up = k_cut_up+1
+             else if(w_soft.lt.soft_cut) then 
+                k_cut_down =k_cut_down +1
+             endif 
+            
+cccccccccccc   Starting Selection of partons 
+            if(K(ip,1).eq.2) then
+
+              ij = ij+1
+              ijoin(ij)=ip
+
+
+              if(((abs(K(ip,2)).le.5)
+     & .or.((K(ip,2).eq.21).and.(ij.gt.0)))
+     & .and.(((P(ip,4).ge.iet).and.(QW_w.gt.0)
+     & .and.(w_soft.le.soft_cut).and.(w_hard.gt.0.0001)
+     & .and.(E_p.gt.(2d0*iet))))) then
+
+                  call GluonEmission(ip,w_gluon(1),theta_final,
+     & phi_final)
+        
+                  n=n+1
+                  ij=ij+1
+                                    
+                  
+                   call PY1ENT(N,21,w_gluon(1),theta_final,phi_final)
+                  
+
+cccccccccccccc    Calculating PYQREC: 4-momentum going to the nuclei remnant
+cccccccccccccc    Energy of SOFT Gluons and QW left
+                  
+                  PYQREC(1)=PYQREC(1)
+     & +QW_w*sin(theta_final)*cos(phi_final)-P(N,1)
+                  PYQREC(2)=PYQREC(2)
+     & +QW_w*sin(theta_final)*sin(phi_final)-P(N,2)
+                  PYQREC(3)=PYQREC(3)+QW_w*cos(theta_final)-P(N,3)
+                  PYQREC(4)=PYQREC(4)+w_soft
+ccccccccccccccc   Calculating new parton momentum
+ccccccccccccccc   P(ip,4) is being calculated in Gluon emission
+
+                  P(ip,1)=P(ip,1)-P(N,1)
+                  P(ip,2)=P(ip,2)-P(N,2)
+                  P(ip,3)=P(ip,3)-P(N,3)
+       
+
+                ijoin(ij)=n
+        
+              endif
+
+            else if(K(ip,1).eq.1) then
+
+              if((abs(K(ip,2)).le.5)
+     & .and.(((P(ip,4).ge.iet).and.(QW_w.gt.0)
+     & .and.(w_soft.le.soft_cut).and.(w_hard.gt.0.0001)
+     & .and.(E_p.gt.(2d0*iet))))) then
+
+                  call GluonEmission(ip,w_gluon(1),theta_final,
+     & phi_final)
+                  
+                  n=n+1
+                  ij=ij+1
+
+                   call PY1ENT(N,21,w_gluon(1),theta_final,phi_final)
+                  
+cccccccccccc    Calculating PYQREC: 4-momentum going back the nuclei remnant
+cccccccccccc    Energy of SOFT Gluons and QW left
+
+                  PYQREC(1)=PYQREC(1)     
+     & +QW_w*sin(theta_final)*cos(phi_final)-P(N,1)
+                  PYQREC(2)=PYQREC(2)
+     & +QW_w*sin(theta_final)*sin(phi_final)-P(N,2)
+                  PYQREC(3)=PYQREC(3)+QW_w*cos(theta_final)-P(N,3)
+                  PYQREC(4)=PYQREC(4)+w_soft
+ccccccccccc   Calculating new parton momentum                  
+                  P(ip,1)=P(ip,1)-P(N,1)
+                  P(ip,2)=P(ip,2)-P(N,2)
+                  P(ip,3)=P(ip,3)-P(N,3)
+                 
+                  ijoin(ij)=n
+
+              endif
+ccccccccccc   Creating the triplet
+
+              call TripletEnergies(N,w_triplet,E_quark,E_gluon,
+     & E_antiq,x_1,x_3)
+
+              if (w_triplet.gt.0) then
+              call PY3ENT(N+1,2,21,-2,w_triplet,x_1,x_3)
+c              print*,'CROSS - Energy triplet  -->', w_triplet
+              endif
+
+              ij=ij+1
+              ijoin(ij)=ip
+         
+ccccccccccc   Joining partons when we add a hard gluon
+ccccccccccc   KS = 1 or 2 change to 3
+ccccccccccc   In the cases when we don't add a gluon we only change the status
+
+            if(ij.ge.3) then
+
+                call PYJOIN(ij,ijoin)
+            endif
+
+            ij=0
+            
+c           print*,'End Gluon Selection'
+
+          endif
+ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+c            softs gluons                                             c
+ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+           else if(iEg.eq.3) then
+
+c        print*,'Reading Only soft Gluons'
+           
+             if ((QW_w.gt.0).and.((K(ip,1).eq.1).or.(K(ip,1).eq.2))
+     & .and.((abs(K(ip,2)).le.5).or.(K(ip,2).eq.21))) then
+
+ccccccccccc   Calculate energies
+
+c                print*,'Calculating energies'
+
+                w_hard     = N_const*(QW_L**2)
+                w_gluon(1) = w_hard
+
+
+                if (w_hard.lt.QW_w) then
+                  w_soft= (QW_w - w_hard)
+                  w_gluon(2)=w_soft
+                   
+                  if (w_soft.gt.soft_cut) then
+                      w_triplet= w_soft-soft_cut
+                      w_gluon(3)=w_triplet
+                      
+                      if((w_soft.lt.0).and.(w_triplet.lt.0)) then
+                         w_soft = 0
+                        w_triplet = 0
+c                      print*,'no soft gluons'
+                      endif
+                   endif
                 endif
 
-              endif
+c                print*,'QW_w             ->', QW_w
+c                print*,'STAR  w_hard     ->', w_hard
+c                print*, 'w_gluon(1)      = ', w_gluon(1)
+c               if (w_soft.gt.0.0001)then
+c                  print*,'TESLA w_soft   ->', w_soft
+c                endif
+c                print*,'w_gluon(2)       = ', w_gluon(2)
+c                print*,'FALKOR w_triplet ->', w_triplet
 
-              w_gluon(1)=w_hard
-              w_soft=QW_w - w_hard
+cccccccccccc   Starting Selection of partons 
+              if(K(ip,1).eq.2) then
 
-            endif
+                 ij       = ij+1
+                 ijoin(ij)= ip
+                
 
-            if(K(ip,1).eq.2) then
 
-              ij = ij+1
-              ijoin(ij)=ip
-
-              if(((abs(K(ip,2)).le.5)
+                 if(((abs(K(ip,2)).le.5)
      & .or.((K(ip,2).eq.21).and.(ij.gt.0)))
-     & .and.(((P(ip,4).ge.PYQ_IET).and.(QW_w.gt.0)))) then
-
+     & .and.(((P(ip,4).ge.iet).and.(QW_w.gt.0)
+     & .and.(w_soft.le.soft_cut).and.(w_hard.gt.0.0001)
+     & .and.(E_p.gt.(2d0*iet))))) then
+                
                   call GluonEmission(ip,w_gluon(1),theta_final,
      & phi_final)
 
-                  n=n+1
-                  ij=ij+1
-
+                  n  = n+1
+                  ij = ij+1
+                 
                   call PY1ENT(N,21,w_gluon(1),theta_final,phi_final)
 
+cccccccccccc    Calculating PYQREC: 4-momentum going back to BeAGLE
+cccccccccccc    Energy of SOFT Gluons
                   PYQREC(1)=PYQREC(1)
      & +QW_w*sin(theta_final)*cos(phi_final)-P(N,1)
                   PYQREC(2)=PYQREC(2)
-     & +QW_w*sin(theta_final)*sin(theta_final)-P(N,2)
+     & +QW_w*sin(theta_final)*sin(phi_final)-P(N,2)
                   PYQREC(3)=PYQREC(3)+QW_w*cos(theta_final)-P(N,3)
                   PYQREC(4)=PYQREC(4)+w_soft
-
+ccccccccccc   Calculating new parton momentum 
                   P(ip,1)=P(ip,1)-P(N,1)
                   P(ip,2)=P(ip,2)-P(N,2)
                   P(ip,3)=P(ip,3)-P(N,3)
-
+                
                   ijoin(ij)=n
-
               endif
-
             else if(K(ip,1).eq.1) then
-
-              if((abs(K(ip,2)).le.5)
-     & .and.(((P(ip,4).ge.PYQ_IET).and.(QW_w.gt.0)))) then
-
-                  call GluonEmission(ip,w_gluon(1),theta_final,
+               
+                if((abs(K(ip,2)).le.5)
+     & .and.(((P(ip,4).ge.iet).and.(QW_w.gt.0)
+     & .and.(w_soft.le.soft_cut).and.(w_hard.gt.0.0001)
+     & .and.(E_p.gt.(2d0*iet))))) then
+                
+                   call GluonEmission(ip,w_gluon(1),theta_final,
      & phi_final)
+                   n  = n+1
+                   ij = ij+1
+                   
+                   call PY1ENT(N,21,w_gluon(1),theta_final,phi_final)
 
-                  n=n+1
-                  ij=ij+1
-                  call PY1ENT(N,21,w_gluon(1),theta_final,phi_final)
-
-                  PYQREC(1)=PYQREC(1)
+cccccccccccc    Calculating PYQREC: 4-momentum going back to BeAGLE
+cccccccccccc    Energy of SOFT Gluons
+                   PYQREC(1)=PYQREC(1)
      & +QW_w*sin(theta_final)*cos(phi_final)-P(N,1)
-                  PYQREC(2)=PYQREC(2)
-     & +QW_w*sin(theta_final)*sin(theta_final)-P(N,2)
-                  PYQREC(3)=PYQREC(3)+QW_w*cos(theta_final)-P(N,3)
-                  PYQREC(4)=PYQREC(4)+w_soft
+                   PYQREC(2)=PYQREC(2)
+     & +QW_w*sin(theta_final)*sin(phi_final)-P(N,2)
+                   PYQREC(3)=PYQREC(3)+QW_w*cos(theta_final)-P(N,3)
+                   PYQREC(4)=PYQREC(4)+w_soft
+ccccccccccc   Calculating new parton momentum
+                   P(ip,1)=P(ip,1)-P(N,1)
+                   P(ip,2)=P(ip,2)-P(N,2)
+                   P(ip,3)=P(ip,3)-P(N,3)
+                  
+                   ijoin(ij)= n
+               endif
 
-                  P(ip,1)=P(ip,1)-P(N,1)
-                  P(ip,2)=P(ip,2)-P(N,2)
-                  P(ip,3)=P(ip,3)-P(N,3)
+                call TripletEnergies(N,w_triplet,E_quark,E_gluon,
+     & E_antiq,x_1,x_3)
+               if (w_triplet.gt.0) then
+                    call PY3ENT(N+1,2,21,-2,w_triplet,x_1,x_3)
+                   
+               endif
 
-                  ijoin(ij)=n
+                if(ij.ge.3) then
+                  
+c                   call PYJOIN(ij,ijoin)
+                endif
+                ij       = ij+1
+                ijoin(ij)= ip
+               
 
-              endif
-
-            ij=ij+1
-            ijoin(ij)=ip
-
-            if(ij.ge.3) then
-                call PYJOIN(ij,ijoin)
+                ij = 0
+      
             endif
 
-            ij=0
-
-          endif
-
-
+         
 ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-c            n gluons + soft                                          c
+c            n hard gluons + soft                                     c
 ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
-          else if(iEg.eq.3) then
+c          else if(iEg.eq.3) then
 
-            if ((QW_w.gt.0).and.((K(ip,1).eq.1).or.(K(ip,1).eq.2))
-     & .and.((abs(K(ip,2)).le.5).or.(K(ip,2).eq.21))) then
+c            if ((QW_w.gt.0).and.((K(ip,1).eq.1).or.(K(ip,1).eq.2))
+c     & .and.((abs(K(ip,2)).le.5).or.(K(ip,2).eq.21))) then
 
 
-              n_w=0
-              w_mean = (sqrt(QW_w)-(1/(4*N_const)))**2
-              w_sum = w_mean
-              w_high = QW_w
+c              n_w=0
+c              w_mean = (sqrt(QW_w)-(1/(4*N_const)))**2
+c              n_w_gluons=2d0*alphas*cr*sqrt((2d0*QW_wc)/(QW_w))
+c              print*,n_w_gluons !,n_w_gluons 
+cc              w_mean = N_const*QW_wc 
+c              w_sum = w_mean
+c              w_high = QW_w
 
-              do while(w_mean>iet)
-                n_w = n_w + 1
+c              do while(w_mean>iet)
+c                n_w = n_w + 1
 c                print*, n_w, w_mean !, w_high 
-                w_gluon(n_w)=w_mean
-                w_high = w_high-w_mean
-                w_mean = (sqrt(w_high)-(1/(4*N_const)))**2
-                w_sum = w_sum + w_mean
-              enddo
+c                w_gluon(n_w)=w_mean
+c                w_high = w_high-w_mean
+cc                w_mean = (sqrt(w_high)-(1/(4*N_const)))**2
+c                w_mean = N_const*QW_w
+c                w_sum = w_sum + w_mean
+c              enddo
 
-              w_soft = QW_w - w_sum
+c              w_soft = QW_w - w_sum
 
-           endif
+c           endif
 
-            if(K(ip,1).eq.2) then
+c            if(K(ip,1).eq.2) then
 
-              ij = ij+1
-              ijoin(ij)=ip
-              i_w = 1
+c              ij = ij+1
+c              ijoin(ij)=ip
+c              i_w = 1
 
-              if(((abs(K(ip,2)).le.5)
-     & .or.((K(ip,2).eq.21).and.(ij.gt.0)))
-     & .and.(((P(ip,4).ge.PYQ_IET).and.(QW_w.gt.0)))) then
+c              if(((abs(K(ip,2)).le.5)
+c     & .or.((K(ip,2).eq.21).and.(ij.gt.0)))
+c     & .and.(((P(ip,4).ge.PYQ_IET).and.(QW_w.gt.0)))) then
 
-                  mag = QW_w
+c                  mag = QW_w
 
-                  do while(i_w.le.n_w)
+c                  do while(i_w.le.n_w)
 
-                    call GluonEmission(ip,w_gluon(i_w),theta_final,
-     & phi_final)
+c                    call GluonEmission(ip,w_gluon(i_w),theta_final,
+c     & phi_final)
+c                    n=n+1
+c                    ij=ij+1
 
-                    n=n+1
-                    ij=ij+1
+c                    call PY1ENT(N,21,w_gluon(i_w),theta_final,phi_final)
 
-                    call PY1ENT(N,21,w_gluon(i_w),theta_final,phi_final)
+c                    PYQREC(1)=PYQREC(1)
+c     & +mag*sin(theta_final)*cos(phi_final)-P(N,1)
+c                    PYQREC(2)=PYQREC(2)
+c     & +mag*sin(theta_final)*sin(theta_final)-P(N,2)
+c                    PYQREC(3)=PYQREC(3)+mag*cos(theta_final)-P(N,3)
 
-                    PYQREC(1)=PYQREC(1)
-     & +mag*sin(theta_final)*cos(phi_final)-P(N,1)
-                    PYQREC(2)=PYQREC(2)
-     & +mag*sin(theta_final)*sin(theta_final)-P(N,2)
-                    PYQREC(3)=PYQREC(3)+mag*cos(theta_final)-P(N,3)
+c                    P(ip,1)=P(ip,1)-P(N,1)
+c                    P(ip,2)=P(ip,2)-P(N,2)
+c                    P(ip,3)=P(ip,3)-P(N,3)
 
-                    P(ip,1)=P(ip,1)-P(N,1)
-                    P(ip,2)=P(ip,2)-P(N,2)
-                    P(ip,3)=P(ip,3)-P(N,3)
+c                    ijoin(ij)=n
 
-                    ijoin(ij)=n
+c                   mag=mag-w_gluon(i_w)
+c                    i_w = i_w+1
 
-                    mag=mag-w_gluon(i_w)
-                    i_w = i_w+1
+c                  enddo
 
-                  enddo
+c                  mag = 0
+c                  PYQREC(4)=PYQREC(4)+w_soft
 
-                  mag = 0
-                  PYQREC(4)=PYQREC(4)+w_soft
+c              endif
 
-              endif
+c            else if(K(ip,1).eq.1) then
 
-            else if(K(ip,1).eq.1) then
+c              i_w=1
 
-              i_w=1
+c              if((abs(K(ip,2)).le.5)
+c     & .and.(((P(ip,4).ge.PYQ_IET).and.(QW_w.gt.0)))) then
 
-              if((abs(K(ip,2)).le.5)
-     & .and.(((P(ip,4).ge.PYQ_IET).and.(QW_w.gt.0)))) then
+c                  mag = QW_w
 
-                  mag = QW_w
+c                  do while(i_w.le.n_w)
 
-                  do while(i_w.le.n_w)
+c                    call GluonEmission(ip,w_gluon(i_w),theta_final,
+c     & phi_final)
 
-                    call GluonEmission(ip,w_gluon(i_w),theta_final,
-     & phi_final)
+c                    n=n+1
+c                    ij=ij+1
+c                    call PY1ENT(N,21,w_gluon(i_w),theta_final,phi_final)
 
-                    n=n+1
-                    ij=ij+1
-                    call PY1ENT(N,21,w_gluon(i_w),theta_final,phi_final)
+c                    PYQREC(1)=PYQREC(1)
+c     & +mag*sin(theta_final)*cos(phi_final)-P(N,1)
+c                    PYQREC(2)=PYQREC(2)
+c     & +mag*sin(theta_final)*sin(phi_final)-P(N,2)
+c                    PYQREC(3)=PYQREC(3)+mag*cos(theta_final)-P(N,3)
 
-                    PYQREC(1)=PYQREC(1)
-     & +mag*sin(theta_final)*cos(phi_final)-P(N,1)
-                    PYQREC(2)=PYQREC(2)
-     & +mag*sin(theta_final)*sin(theta_final)-P(N,2)
-                    PYQREC(3)=PYQREC(3)+mag*cos(theta_final)-P(N,3)
+c                    P(ip,1)=P(ip,1)-P(N,1)
+c                    P(ip,2)=P(ip,2)-P(N,2)
+c                    P(ip,3)=P(ip,3)-P(N,3)
 
-                    P(ip,1)=P(ip,1)-P(N,1)
-                    P(ip,2)=P(ip,2)-P(N,2)
-                    P(ip,3)=P(ip,3)-P(N,3)
+c                    ijoin(ij)=n
 
-                    ijoin(ij)=n
+c                    mag=mag-w_gluon(i_w)
 
-                    mag=mag-w_gluon(i_w)
+c                    i_w = i_w+1
+c                  enddo
 
-                    i_w = i_w+1
-                  enddo
+c                  PYQREC(4)=PYQREC(4)+w_soft
+c                  mag = 0
 
-                  PYQREC(4)=PYQREC(4)+w_soft
-                  mag = 0
+c              endif
 
-              endif
+c            ij=ij+1
+c            ijoin(ij)=ip
 
-            ij=ij+1
-            ijoin(ij)=ip
+c            if(ij.ge.3) then
+c                call PYJOIN(ij,ijoin)
+c            endif
 
-            if(ij.ge.3) then
-                call PYJOIN(ij,ijoin)
-            endif
-
-            ij=0
+c            ij=0
 
           endif
-
-        endif
+        
+        endif 
+        print*,'got here - closing selection'
 
         ip=ip+1
 
+        print*, 'got here - end of loop'
+
+       
       enddo
 
       end
 
+      subroutine RotationZ(ip,ppx,ppy,ppz)
+       include 'common.f'
+       include 'bea_pyqm.inc'
+       double precision ppx, ppy, ppz, pp
+       double precision theta, phi
+       integer ip
+      
+      
+cccccc Calculating the momemtum of a particle where z axis is along gamma*
+cccccc theta is the angle between gamma* and z axis in the lab frame
+cccccc phi is the angle between gamma* and y axis in the lab frame
+cccccc QW_th quenching weights angle
+cccccc phe is an azimuthal random number characterizing "phi" for the final states particles
+      phi = atan2(P(ip,2),P(ip,1))
+      theta =acos(P(ip,3)/(sqrt(P(ip,1)**2+P(ip,2)**2+P(ip,3)**2)))
+      pp=sqrt(P(ip,1)**2+P(ip,2)**2+P(ip,3)**2)
+      
+      ppx=pp*(cos(phe)*sin(QW_th)*cos(phi)*cos(theta)+sin(phe)*
+     & sin(theta)*sin(phi)+cos(QW_th)*cos(phi)*sin(theta))
+      ppy=pp*(-cos(phe)*sin(QW_th)*sin(phi)*cos(theta)+sin(phe)*
+     & sin(QW_th)*cos(phi)-cos(phe)*sin(phi)*cos(theta))
+      ppz=pp*(-cos(phe)*sin(QW_th)*sin(theta)+cos(QW_th)*cos(theta))
+      
+      print*,'Ppx=',ppx
+      print*,'Ppy=',ppy
+      print*,'Ppz=',ppz
+      print*,'Pp=',pp
+      end
+      
 
       subroutine GluonEmission(ip,w_gluon,theta_final,phi_final)
 
@@ -445,17 +804,18 @@ c                print*, n_w, w_mean !, w_high
         double precision w_gluon, theta_final, phi_final
         double precision theta, phi, phe, pgx, pgy, pgz
         integer ip
-
+        print*,'inside GluonEmission:'
 c        print*, 'ip = ', ip
 c        print*, 'w_gluon = ', w_gluon
 
 
         P(ip,4)=P(ip,4)-w_gluon
+c        print*,'New Ep ->',P(ip,4)
 
         theta = acos(P(ip,3)/(sqrt(P(ip,1)**2+P(ip,2)**2+P(ip,3)**2)))
         phi = atan2(P(ip,2),P(ip,1))
 
-c        print*, 'thata parton = ', theta
+c        print*, 'theta parton = ', theta
 c        print*, 'phi parton = ', phi
 
         phe = 4*asin(1.)*ranf(0)
@@ -463,7 +823,7 @@ c        print*, 'phi parton = ', phi
 c        print*, 'phe = ', phe
 c        print*, 'QW_th = ', QW_th
 
-
+c  Emitted Gluon momentum
         pgx = (cos(theta)*cos(phi)*sin(QW_th)*cos(phe)-sin(phi)*
      & sin(QW_th)*sin(phe)+sin(theta)*cos(phi)*cos(QW_th))
         pgy = (cos(theta)*sin(phi)*sin(QW_th)*cos(phe)+cos(phi)*
@@ -479,8 +839,42 @@ c        print*, 'phi_final = ', phi_final
 
       end
 
+      subroutine TripletEnergies(ip,w_triplet,E_quark,E_gluon,E_antiq,
+     & x_1,x_3)
+       include 'common.f'
+       include 'bea_pyqm.inc'
+
+       double precision w_triplet
+       double precision E_quark,E_gluon,E_antiq,E_total
+       double precision x_1,x_3
+       integer ip
+c       double precision test_1
+c       w_triplet=3.0
+
+c       if (w_triplet.eq.0) then 
+c        print*,'Warning w_triplet is zero'
+c       endif
+c       print*,'w_triplet inside subroutine==',w_triplet 
+       E_quark=(4d0/10d0)*w_triplet
+       E_antiq=(4d0/10d0)*w_triplet
+       E_gluon=(2d0/10d0)*w_triplet
 
 
+       E_total=E_quark+E_antiq+E_gluon
+c       print*,'E_total=',E_total
+       
+c       print*,'E_quark=',E_quark
+c       print*,'E_antiq=',E_antiq
+c       print*,'E_gluon=',E_gluon
+       
+       x_1=(2d0/w_triplet)*E_quark
+       x_3=(2d0/w_triplet)*E_antiq
+
+c       print*,'x_1=',x_1
+c       print*,'x_3=',x_3
+
+
+      end
 
       subroutine QWComput(qhat,ipx,ipy,ipz,E,mmmm,id)
       implicit none
@@ -509,25 +903,30 @@ c        print*, 'phi_final = ', phi_final
 
       double precision mmmm !mass/energy of the incoming parton
       integer irej !used for test
-
-      QW_w = 0.
-      QW_L = 0.
-      QW_wc = 0.
-      QW_R  = 0.
-      d = 0.
-      ehat = 0.
+      double precision QW_wc_2
+      double precision I_QW_wc,I_QW_R
+      QW_wc_2 = 0.
+      QW_w    = 0.
+      QW_L    = 0.
+      QW_wc   = 0.
+      QW_R    = 0.
+      I_QW_wc = 0.
+      I_QW_R  = 0.
+      d       = 0.
+      ehat    = 0.
       qhateff = qhat + ehat
+      ChiR    = 0.
 
       cont=0d+0
       disc=0d+0
-
+      print*,'Initialization of QWComput --> inside subroutine'
 ccc Init for qweight
       if (id.eq.21) then
         ipart = 0
       else if(abs(id).lt.7) then
         ipart = 1
       else
-C        write(*,*) 'Unknown parton with id =',id
+        write(*,*) 'Unknown parton with id =',id
       endif
       irw = 0
       nb_step = 200
@@ -542,33 +941,76 @@ ccc normalize momentum
       y = y_inter
       z = z_inter
 
+c      open(10, FILE='interaction_point_pyqm.txt',status='new')
+c      write(10,*)'x=', x
+c      write(10,*)'y=', y
+c      write(10,*)'z=', z
+c      close(10)
+cc      print*,'Integration to calculate QW_wc and R'
 ccc integration to calculate wc and R
       radius = sqrt(x**2+y**2+z**2)
+c      open(10,FILE='length_pyqm.txt')
+c      write(10,*)'radius_1= ', radius
+c      write(10,*)'x_1= ', x
+c      write(10,*)'y_1= ', y
+c      write(10,*)'z_1= ', z
+c      write(10,*)'d_1= ', d
+      
       do while (radius.lt.20)
-        QW_wc = QW_wc + integral_step * d *
+        I_QW_wc = I_QW_wc + integral_step * d *
      &          density_table(INT(radius/step_size_dens))
-        QW_R = QW_R + integral_step *
+        I_QW_R = I_QW_R + integral_step *
      &          density_table(INT(radius/step_size_dens))
         d = d + integral_step
         x = x + px
         y = y + py
         z = z + pz
         radius = sqrt(x**2+y**2+z**2)
+c      write(10,*)'d_22 =', d
+c      write(10,*)'r_22 =', radius
+c      write(10,*)'density=', density_table(INT(radius/step_size_dens))
+c      write(10,*)'I_QW_wc=',I_QW_wc
+c      write(10,*),'I_QW_R'
       enddo
+c       write(10,*)'Average values'
+c       write(10,*)'I_QW_wc =', I_QW_wc
+c       write(10,*)'I_QW_R =', I_QW_R
+       
+       print*,'id particle =',id
+       QW_L =(2d0* I_QW_wc) / I_QW_R
+c      QW_wc_2 = (1d0/2d0)*qhateff*(QW_L**2)
 
-      QW_L = QW_wc / QW_R
-      QW_wc = qhateff/density_table(1) * QW_wc
-      QW_R = 2 * density_table(1) * QW_wc**2 / QW_R / qhateff
+      
+c      QW_wc = qhateff/density_table(1) * QW_wc
+       QW_R = 2 * density_table(1) * I_QW_wc**2 / I_QW_R / qhateff
+       QW_wc = (qhateff/density_table(1)) * I_QW_wc
+c       QW_R_2 = (2 * density_table(1) * QW_wc**2) / (QW_R * qhateff)
+ 
 
 ccccc Convert the units fm -> GeV-1
 c      QW_L = QW_L/.1973269
 ccccc Convert the units GeV2.fm -> GeV
       QW_wc = QW_wc/.1973269
+c      QW_wc_2 = QW_wc_2/.1973269 
 ccccc Convert the units GeV2.fm2 -> no unit
-      QW_R = QW_R / .1973269**2
+      QW_R = QW_R /.1973269**2
 
-c      print*,'QW_wc=',QW_wc
+      print*,' QW_L =',QW_L
+      
+c      write(10,*)'After integration'
+c      write(10,*)'QW_L= ', QW_L
+c      write(10,*)'QW_wc =',QW_wc,'QW_R =',QW_R
+c      write(10,*)'radius =', radius
+c      write(10,*)'x_2 = ', x
+c      write(10,*)'y_2 = ', y
+c      write(10,*)'z_2 = ', z
+c      write(10,*)'d_2 = ', d
+c      write(10,*)'integral param: integral step ', integral_step
+c      write(10,*)'step_size_dens', step_size_dens
+c      write(10,*)'density= ', density_table(INT(radius/step_size_dens))
+c      close(10)
 
+c      WRITE(*,*) 'AV DISTANCE=',QW_L
 ccccc Calculate the energy loss probability
       if(sfthrd.eq.1) step_QW = 2.5/nb_step
       if(sfthrd.eq.2) step_QW = 9.8/nb_step
@@ -580,20 +1022,18 @@ ccccc Calculate the energy loss probability
         call qweight(ipart,id,mmmm,dble(QW_R),xx,yy,cont(i),disc)
         total = total + cont(i)*step_QW
       enddo
+      
 
       total = total + disc
       disc = disc/total
 
-c      print*,'total=',total
-c      print*,'disc=',disc
       do i=1,nb_step
         cont(i) = cont(i) / total
       enddo
-
+c      print*,'Picking randomely a quenching from the table'
 ccccc Pick randomely a quenching in the table
       if(disc .lt. 1.) then
         randnum = ranf(0)
-c        print*, 'total < 1'
         if(randnum.gt.disc) then
           total = disc
           i = 1
@@ -602,47 +1042,54 @@ c        print*, 'total < 1'
             i = i + 1
           enddo
           QW_w = i * step_QW * QW_wc 
+
         endif
       endif
 
+c      goto 56378 
 ccccc Calculate the angle probability
-c      if(QW_w .gt. 0) then
-c        step_QW = 1./nb_step
-c        yy = E/QW_wc
-c        xx = QW_w/QW_wc 
-c       
-c        total = 0.
-c        do i=1,nb_step
-c          ChiR = (step_QW * i)**2 * QW_R
-c          call qweight(ipart,ChiR,xx,yy,cont(i),disc)
-cc Do not keep negative probabilities
-c          if (cont(i).lt.0) cont(i) = 0
-c          total = total + cont(i)*step_QW
-c        enddo
-c        irej=1
-c        if(total.lt.1e-5) irej=0
-c        if(irej.eq.0) print*,'total=',total,'QW_w/c=',QW_w,' ',QW_wc
-c        do i=1,nb_step
-c          cont(i) = cont(i) / total
-c        enddo
-c        randnum = ranf(0)
-c        total = 0.
-c        i = 1
-c        do while (randnum.gt.total)
-c          total = total + cont(i)*step_QW
-c          i = i + 1
-c        enddo
-c        QW_chi = i * step_QW
-c        QW_th = asin(QW_chi)
-c        if(irej.eq.0) print*,' i=',i
-c        if(irej.eq.0) print*,'QW_chi=',QW_chi,' QW_th=',QW_th
-c      endif
-c      if(isnan(QW_th)) QW_th = pi/2
- 
-ccccc Scattering angle set to 0
+      print*, 'Angle Probability'
       if(QW_w .gt. 0) then
-         QW_th=0.  ! collinear gluon radiation assumption
+        step_QW = 1./nb_step
+        yy = E/QW_wc
+        xx = QW_w/QW_wc 
+       
+        total = 0.
+        do i=1,nb_step
+          ChiR = (step_QW * i)**2 * QW_R
+          call qweight(ipart,ChiR,xx,yy,cont(i),disc)
+cc Do not keep negative probabilities
+          if (cont(i).lt.0) cont(i) = 0
+          total = total + cont(i)*step_QW
+        enddo
+        irej=1
+        if(total.lt.1e-5) irej=0
+        if(irej.eq.0) print*,'total=',total,'QW_w/c=',QW_w,' ',QW_wc
+        do i=1,nb_step
+          cont(i) = cont(i) / total
+        enddo
+        randnum = ranf(0)
+        total = 0.
+        i = 1
+        do while (randnum.gt.total)
+          total = total + cont(i)*step_QW
+          i = i + 1
+        enddo
+        QW_chi = i * step_QW
+        QW_th = asin(QW_chi)
+        if(irej.eq.0) print*,' i=',i
+        if(irej.eq.0) print*,'QW_chi=',QW_chi,' QW_th=',QW_th
       endif
+      if(isnan(QW_th)) QW_th = pi/2 !if QW_Chi is 1
+c 56378 continue
+c     The continue is temporary (test)
+ccccc Scattering angle set to 0
+c      if(QW_w .gt. 0) then
+c         QW_th=0.  ! collinear gluon radiation assumption
+c      endif
+c      print*, 'QW_th = ',QW_th
+c      print*, 'QW_w =',QW_w
+      print*,'End of QWComput Subroutine'
 
       end
 
