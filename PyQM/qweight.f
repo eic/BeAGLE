@@ -287,7 +287,7 @@ ccccccccccc   Calculate energy HARD gluon
               
                w_hard = N_const*(QW_L**2)
 ccccccccccc   Calculate energy Softs gluons and Triplet
-ccccccccccc   The energy of the soft gluons can't be greater than soft_cut =5 GeV,
+ccccccccccc   The energy of the soft gluons cant be greater than soft_cut =5 GeV,
 ccccccccccc   if there is energy left between the soft gluons and the cut
 ccccccccccc   we create  a triplet.
 
@@ -434,7 +434,7 @@ ccccccc   a 3-parton system or three separate particles.
 ccccccc   IP=normally line number for the first parton/particle, with the other two in IP+1 and IP+2
 ccccccc   KF1, KF2, KF3: flavour codes for the three partons/particles.
 ccccccc   PECM : (Ecm) the total energy of the system.
-ccccccc   X1, X3 : xi = 2Ei/Ecm, i.e. twice the energy fraction taken by the i’th parton. Thus
+ccccccc   X1, X3 : xi = 2Ei/Ecm, i.e. twice the energy fraction taken by the ith parton. Thus
 ccccccc   x2 = 2 ° x1 ° x3, and need not be given. Note that not all combinations of xi
 ccccccc   are inside the physically allowed region.
 
@@ -448,7 +448,7 @@ ccccccc   are inside the physically allowed region.
          
 ccccccccccc   Joining partons when we add a hard gluon
 ccccccccccc   KS = 1 or 2 change to 3
-ccccccccccc   In the cases when we don't add a gluon we only change the status
+ccccccccccc   In the cases when we dont add a gluon we only change the status
 
             if(ij.ge.3) then
 
@@ -721,7 +721,7 @@ cccccc Calculating the momemtum of a particle where z axis is along gamma*
 cccccc theta is the angle between gamma* and z axis in the lab frame
 cccccc phi is the angle between gamma* and y axis in the lab frame
 cccccc QW_th quenching weights angle
-cccccc phe is an azimuthal random number characterizing "phi" for the final states particles
+cccccc phe is an azimuthal random number characterizing phi for the final states particles
       phi = atan2(P(ip,2),P(ip,1))
       theta =acos(P(ip,3)/(sqrt(P(ip,1)**2+P(ip,2)**2+P(ip,3)**2)))
       pp=sqrt(P(ip,1)**2+P(ip,2)**2+P(ip,3)**2)
@@ -778,9 +778,6 @@ c  Emitted Gluon momentum
         theta_final = acos((pgz)/(sqrt(pgx**2+pgy**2+pgz**2)))
         phi_final = atan2(pgy, pgx)
 
-c        print*, 'theta_final = ', theta_final
-c        print*, 'phi_final = ', phi_final
-
       end
 
       subroutine TripletEnergies(ip,w_triplet,E_quark,E_gluon,E_antiq,
@@ -792,30 +789,15 @@ c        print*, 'phi_final = ', phi_final
        double precision E_quark,E_gluon,E_antiq,E_total
        double precision x_1,x_3
        integer ip
-c       double precision test_1
-c       w_triplet=3.0
-
-c       if (w_triplet.eq.0) then 
-c        print*,'Warning w_triplet is zero'
-c       endif
-c       print*,'w_triplet inside subroutine==',w_triplet 
        E_quark=(4d0/10d0)*w_triplet
        E_antiq=(4d0/10d0)*w_triplet
        E_gluon=(2d0/10d0)*w_triplet
 
 
        E_total=E_quark+E_antiq+E_gluon
-c       print*,'E_total=',E_total
-       
-c       print*,'E_quark=',E_quark
-c       print*,'E_antiq=',E_antiq
-c       print*,'E_gluon=',E_gluon
        
        x_1=(2d0/w_triplet)*E_quark
        x_3=(2d0/w_triplet)*E_antiq
-
-c       print*,'x_1=',x_1
-c       print*,'x_3=',x_3
 
 
       end
@@ -880,26 +862,14 @@ ccc normalize momentum
       px = ipx/pp * integral_step
       py = ipy/pp * integral_step
       pz = ipz/pp * integral_step
-
+ccc  interaction point give by pythia 
       x = x_inter
       y = y_inter
       z = z_inter
 
-c      open(10, FILE='interaction_point_pyqm.txt',status='new')
-c      write(10,*)'x=', x
-c      write(10,*)'y=', y
-c      write(10,*)'z=', z
-c      close(10)
-cc      print*,'Integration to calculate QW_wc and R'
+
 ccc integration to calculate wc and R
       radius = sqrt(x**2+y**2+z**2)
-c      open(10,FILE='length_pyqm.txt')
-c      write(10,*)'radius_1= ', radius
-c      write(10,*)'x_1= ', x
-c      write(10,*)'y_1= ', y
-c      write(10,*)'z_1= ', z
-c      write(10,*)'d_1= ', d
-      
       do while (radius.lt.20)
         I_QW_wc = I_QW_wc + integral_step * d *
      &          density_table(INT(radius/step_size_dens))
@@ -910,25 +880,12 @@ c      write(10,*)'d_1= ', d
         y = y + py
         z = z + pz
         radius = sqrt(x**2+y**2+z**2)
-c      write(10,*)'d_22 =', d
-c      write(10,*)'r_22 =', radius
-c      write(10,*)'density=', density_table(INT(radius/step_size_dens))
-c      write(10,*)'I_QW_wc=',I_QW_wc
-c      write(10,*),'I_QW_R'
       enddo
-c       write(10,*)'Average values'
-c       write(10,*)'I_QW_wc =', I_QW_wc
-c       write(10,*)'I_QW_R =', I_QW_R
-       
+ccc    calculate average of L,R an wc       
        print*,'id particle =',id
        QW_L =(2d0* I_QW_wc) / I_QW_R
-c      QW_wc_2 = (1d0/2d0)*qhateff*(QW_L**2)
-
-      
-c      QW_wc = qhateff/density_table(1) * QW_wc
        QW_R = 2 * density_table(1) * I_QW_wc**2 / I_QW_R / qhateff
        QW_wc = (qhateff/density_table(1)) * I_QW_wc
-c       QW_R_2 = (2 * density_table(1) * QW_wc**2) / (QW_R * qhateff)
  
 
 ccccc Convert the units fm -> GeV-1
@@ -939,22 +896,7 @@ c      QW_wc_2 = QW_wc_2/.1973269
 ccccc Convert the units GeV2.fm2 -> no unit
       QW_R = QW_R /.1973269**2
 
-      print*,' QW_L =',QW_L
       
-c      write(10,*)'After integration'
-c      write(10,*)'QW_L= ', QW_L
-c      write(10,*)'QW_wc =',QW_wc,'QW_R =',QW_R
-c      write(10,*)'radius =', radius
-c      write(10,*)'x_2 = ', x
-c      write(10,*)'y_2 = ', y
-c      write(10,*)'z_2 = ', z
-c      write(10,*)'d_2 = ', d
-c      write(10,*)'integral param: integral step ', integral_step
-c      write(10,*)'step_size_dens', step_size_dens
-c      write(10,*)'density= ', density_table(INT(radius/step_size_dens))
-c      close(10)
-
-c      WRITE(*,*) 'AV DISTANCE=',QW_L
 ccccc Calculate the energy loss probability
       if(sfthrd.eq.1) step_QW = 2.5/nb_step
       if(sfthrd.eq.2) step_QW = 9.8/nb_step
