@@ -8,11 +8,11 @@
       integer iloop !current entry number
       integer iEg,iPtF,iqg
 
-      double precision qhat,SupFac,ehat,iet
+      double precision qhat,SupFac,iet
 
       double precision th,ph
 
-      double precision inix,iniy,iniz !initial parton momentum
+      double precision inix,iniy,iniz,iniE !initial parton 4-momentum
       double precision ipx,ipy,ipz    !final parton momentum
       double precision ipg,ipgx,ipgy,ipgz !emitted gluon mom
       double precision tot,ipix,ipiy,ipiz !direction parton momentum 
@@ -48,13 +48,11 @@
       sfthrd   = 1       !multiple soft scattering
       pyq_hq   = PYQ_HQ  !New SW calculation for heavy quarks (0(no) or 1(yes))
       soft_cut = 5       !energy cut on soft gluons(GeV)
-      cutoff   = pyq_iet !energy cut off (GeV)
       iEg      = PYQ_IEG !option gluon model
       iPtF     = PYQ_IPTF!option pt model
-      iet      = PYQ_IET !energy cut(GeV)
+      iet      = PYQ_IET !energy cut off(GeV)
       iqg      = 1
       ipt      = 0       !transverse momentum
-      ehat     = 0
       cr       = 0
       iloop    = N       !number of partons, given by pythia
       ip       = 1
@@ -69,38 +67,34 @@
         mass_p =P(ip,5)
         ij = 0
 cccccc   Select partons
-
-        if((K(ip,1).eq.2).or.((K(ip,1).eq.1))
-     & .and.((abs(K(ip,2)).le.5).or.(K(ip,2).eq.21))) then
+        if(((abs(K(ip,2)).eq.21).or.(abs(K(ip,2)).le.5))
+     &.and.((K(ip,1).eq.2).or.(K(ip,1).eq.1))) then
+c        if(((K(ip,1).eq.2).or.((K(ip,1).eq.1)))
+c     &.and.((abs(K(ip,2)).le.5).or.(K(ip,2).eq.21))) then
 cccccc      Initialize energies
-             w_gluon(1)    = 0.0
-             w_gluon(2)    = 0.0
-             w_gluon(3)    = 0.0
-             w_hard        = 0.0
-             w_soft        = 0.0
-             w_soft_remain = 0.0
-             w_triplet     = 0.0
-             E_p           = 0.0
-cccccc       Stock init mom values
-            inix = P(ip,1)
-            iniy = P(ip,2)
-            iniz = P(ip,3)
-cccccc       Normalized init mom values
-            tot = sqrt(inix**2+iniy**2+iniz**2)
-            ipix = inix/tot
-            ipiy = iniy/tot
-            ipiz = iniz/tot
+            w_gluon(1)    = 0.0
+            w_gluon(2)    = 0.0
+            w_gluon(3)    = 0.0
+            w_hard        = 0.0
+            w_soft        = 0.0
+            w_soft_remain = 0.0
+            w_triplet     = 0.0
+            E_p           = 0.0
         
           mmmm = P(ip,5)/P(ip,4)
 ccccc   calculate QW with a given qhat          
         call QWComput(qhat,P(ip,1),P(ip,2),P(ip,3),P(ip,4),mmmm,
      & K(ip,2))
         if(QW_w.gt.0.00001)then
-
+ccccc  Calculate transverse momentum
+           call PTF(ip,iPtf,QW_w,ipt)
+           
+           call newPartonKinematics(ip,iet,ipt,QW_w,inix,iniy,iniz
+     &,ipx,ipy,ipz,iEnew) 
 ccccc    re-calculate QW_w if is less than iet
-           if(((P(ip,4)-QW_w).lt.iet).and.(QW_w.gt.0)) then
-              QW_w=P(ip,4)-iet
-           endif
+c           if(((P(ip,4)-QW_w).lt.iet)) then
+c              QW_w=P(ip,4)-iet
+c           endif
 ccccc    Define cr for a quark or gluon
            if(abs(K(ip,2)).le.5) then
              cr = 4d0/3d0
@@ -109,34 +103,18 @@ ccccc    Define cr for a quark or gluon
            endif
            N_const = 4d0*alphas*alphas*qhat   
 
-
+cccccccccccccccccc  testing purpusesccccccccccccccccccccccccccccccccccc 
+c          call GluonKinematics(ip,inix,iniy,iniz,iniE,ipx,ipy,ipz
+c     &,iEnew,iEgluon,theta_gluon,phi_gluon)
 ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 c             no gluons radiation                                     c
 ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
           if(iEg.eq.0) then
-            print*, 'start option 0'
 
-ccccc   Calculate Energies
+ccccc     In this option you only loss energy from the partons. 
  
-            w_gluon(1)=QW_w
-ccccc  Calculate transverse momentum
-           call PTF(ip,iPtf,w_gluon(1),ipt)
-ccccc  Calculate Parton Kinematics of old an new parton
-           call newPartonKinematics(ip,iet,ipt,w_gluon(1),inix,iniy,iniz
-     &,ipx,ipy,ipz,iEnew)
-ccccc  Fill Pythia array
-ccccc  new parton 4-mom
-            endif
-            print*,'Fill Pythia array'
-            P(ip,1) = ipx
-            P(ip,2) = ipy
-            P(ip,3) = ipz
-            P(ip,4) = iEnew
-            print*,'ending option 0'
-cccccccc Closing option 0
-c        endif
-              
+          endif
 
 ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 c             1 hard gluon                                            c
@@ -502,9 +480,9 @@ ccccc    Calculate transverse momentum of final parton IPtf
         else if(iPtf.eq.1) then
            ipt=qhat*QW_L
         else if(iPtf.eq.2) then
-           ipt = ((8d0/3)*QW_w/alphas)/(QW_L**2) !BDMPS mean
+           ipt = ((8d0/3)*Eloss/alphas)/(QW_L**2) !BDMPS mean
         else if(iPtf.eq.3) then
-           ipt = (QW_w*sin(QW_th))**2
+           ipt = (Eloss*sin(QW_th))**2
         endif
 
        end
@@ -518,24 +496,30 @@ ccccc    Calculate transverse momentum of final parton IPtf
        double precision iet
        double precision ipt,Eloss
        double precision th,ph,ipl,iptot2
-       double precision iptx,ipty,iptz
+       double precision iptx,ipty,iptz,tot
        double precision ipgx,ipgy,ipgz,ipg
-       double precision inix,iniy,iniz
-       double precision ipix,ipiy,ipiz,tot
-       double precision ipx,ipy,ipz,iEnew
-       print*,'Start newParton Kinematics'   
-cccccc Normalized init mom values
-       tot = sqrt(inix**2+iniy**2+iniz**2)
-       ipix = inix/tot
-       ipiy = iniy/tot
-       ipiz = iniz/tot    
+       double precision inix,iniy,iniz,iniE
+       double precision ipix,ipiy,ipiz,itot
+       double precision ipx,ipy,ipz,iEnew,ipnew
+       print*,'Start newParton Kinematics'
+ccccc  Stock init mom values
+       inix = P(ip,1)
+       iniy = P(ip,2)
+       iniz = P(ip,3)
+       iniE = P(ip,4)
+ccccc  Normalized init mom values
+       itot = sqrt(inix**2+iniy**2+iniz**2)
+       ipix = inix/itot
+       ipiy = iniy/itot
+       ipiz = iniz/itot    
 ccccc  mplement ELoss and Pt
        if(P(ip,4)-Eloss.lt.iet) then
+          print*,'Eparton-Eloss < iet', P(ip,4)-Eloss
           th = ranf(0)*2*3.14159265-3.14159265
           ipl = cos(th)*iet !longitudinal parton mom
           ipt = sin(th)*iet !transverse parton mon
        else if (P(ip,4)-Eloss.ge.iet) then
-          iptot2 = (P(ip,4)-Eloss)**2
+          iptot2 = ((P(ip,4)-Eloss)**2-(P(ip,5))**2)
           if(iptot2.gt.ipt) then
              ipl = iptot2-ipt
              ipt = sqrt(ipt)
@@ -558,15 +542,38 @@ ccccc  Generate new parton momenta
        ipx = ipt*iptx+ipl*ipix
        ipy = ipt*ipty+ipl*ipiy
        ipz = ipt*iptz+ipl*ipiz
+       ipnew = sqrt(ipx**2+ipy**2+ipz**2)
        iEnew = sqrt(P(ip,5)**2+ipx**2+ipy**2+ipz**2)
-       print*, 'ipx  =', ipx
-       print*, 'ipy  =', ipy
-       print*, 'ipy  =', ipz
-       print*, 'Enew =', iEnew
-
+       
+       print*, 'ID      =', K(ip,2)
+       print*, 'status  =', K(ip,1)
+       print*, 'inix    =', inix
+       print*, 'iniy    =', iniy
+       print*, 'iniz    =', iniz
+       print*, 'iniz    =', iniE
+       print*, 'ipx     =', ipx
+       print*, 'ipy     =', ipy
+       print*, 'ipy     =', ipz
+       print*, 'ipnew   =', ipnew
+       print*, 'Mparton =', P(ip,5) 
+       print*, 'Enew    =', iEnew
+       print*, 'Eloss   =', Eloss
+ccccc  Fill Pythia array
+ccccc  new parton 4-mom
+       if (iEnew.lt.iniE) then
+         P(ip,1) = ipx
+         P(ip,2) = ipy
+         P(ip,3) = ipz
+         P(ip,4) = iEnew
+       else
+          P(ip,1) = inix !initial 4-momentum NO Eloss
+          P(ip,2) = iniy
+          P(ip,3) = iniz
+          P(ip,4) = iniE
+       endif
        end
        
-        subroutine GluonKinematics(ip,inix,iniy,iniz,ipx,ipy,ipz
+        subroutine GluonKinematics(ip,inix,iniy,iniz,iniE,ipx,ipy,ipz
      & ,iEnew,iEgluon,theta_gluon,phi_gluon)
 
         include 'common.f'
@@ -574,7 +581,7 @@ ccccc  Generate new parton momenta
         double precision theta_gluon, phi_gluon
         integer ip
         double precision ipgx,ipgy,ipgz,ipg
-        double precision inix,iniy,iniz
+        double precision inix,iniy,iniz,iniE
         double precision ipx,ipy,ipz
         double precision iEnew,iEgluon
 
@@ -587,7 +594,7 @@ c        iEgluon = P(ip,4)-iEnew
         print*,'inix = ', inix
         print*,'iniy = ', iniy
         print*,'iniz = ', iniz
-        print*,'iniE = ',P(ip,4)
+        print*,'iniE = ', iniE
         print*,'ipx = ', ipx
         print*,'ipy = ', ipy
         print*,'ipz = ', ipz
@@ -649,7 +656,7 @@ ccccc   Angles
       integer id !id of the parton
       double precision ChiR !Chi sq R
       double precision qhateff
-      double precision qhat,ehat
+      double precision qhat
 
       double precision mmmm !mass/energy of the incoming parton
       integer irej !used for test
@@ -663,7 +670,6 @@ ccccc   Angles
       I_QW_wc = 0.
       I_QW_R  = 0.
       d       = 0.
-      ehat    = 0.
       qhateff = qhat
       ChiR    = 0.
 
