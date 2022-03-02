@@ -37,10 +37,8 @@
       double precision phi_final, theta, theta_final, mag
       double precision soft_cut
       double precision E_quark,E_gluon,E_antiq,x_1,x_3
-      double precision E_p
+      double precision E_p,E_loss
       integer j
-      integer k_cut_up,k_cut_down
-
       alphas   = 1d0/3d0
       iqw      = 1
       scor     = 1
@@ -57,18 +55,16 @@
       iloop    = N       !number of partons, given by pythia
       ip       = 1
       ij       = 0
-      k_cut_up   = 0
-      k_cut_down = 0
       E_p        = 0.0
       
       print*,'pyq_hq = ', pyq_hq
       print*,'ipt    = ',iPtF
       do while (ip.le.iloop)
         mass_p =P(ip,5)
-cccccc   Select partons
+cccc   Select partons
        if ((K(ip,1).eq.2).or.(K(ip,1).eq.1))then 
         if((abs(K(ip,2)).eq.21).or.(abs(K(ip,2)).le.5))then
-cccccc      Initialize energies
+cccc   Initialize energies
             w_gluon(1)    = 0.0
             w_gluon(2)    = 0.0
             w_gluon(3)    = 0.0
@@ -84,25 +80,25 @@ cccc   initial values
             iniE = P(ip,4)
         
           mmmm = P(ip,5)/P(ip,4)
-ccccc   calculate QW with a given qhat          
+cccc   calculate QW with a given qhat          
         call QWComput(qhat,P(ip,1),P(ip,2),P(ip,3),P(ip,4),mmmm,
      & K(ip,2))
         if(QW_w.gt.0.00001)then
-ccccc  Calculate transverse momentum
+cccc  Calculate transverse momentum
            call PTF(ip,iPtf,QW_w,ipt)
            
            call newPartonKinematics(ip,iet,ipt,QW_w,inix,iniy,iniz
      &,iniE,ipx,ipy,ipz,iEnew) 
-ccccc    Define cr for a quark or gluon
+cccc    Define cr for a quark or gluon
            if(abs(K(ip,2)).le.5) then
              cr = 4d0/3d0
            else if(K(ip,2).eq.21) then
              cr=3d0
            endif
            N_const = 4d0*alphas*alphas*qhat   
-ccccc  endif of QW_w>0
+cccc  endif of QW_w>0
         endif 
-ccccc  endif gluon or quark selection
+cccc  endif gluon or quark selection
       endif
 cccccccccccccccccc  testing purpusesccccccccccccccccccccccccccccccccccc 
 c          call GluonKinematics(ip,inix,iniy,iniz,iniE,ipx,ipy,ipz
@@ -113,7 +109,7 @@ ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
           if(iEg.eq.0) then
 
-ccccc     With this option you lose only the energy of the partons 
+cccc     With this option you lose only the energy of the partons 
  
 
 ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
@@ -125,55 +121,55 @@ ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
 
           else if(iEg.eq.1) then
-ccccc     Calculate gluon energy
+cccc     Calculate gluon energy
             w_gluon(1)=iniE-P(ip,4)
 
             if(K(ip,1).eq.2) then
-ccccc     parton counter 
+cccc     parton counter 
               ij = ij+1
               ijoin(ij)=ip
-ccccc     Select quarks,antiquarks and gluons
+cccc     Select quarks,antiquarks and gluons
              if((ij.gt.0).and.(QW_w.gt.0.00001).and.
      &(w_gluon(1).gt.0.00001).and.
-     &((K(ip,1).eq.2).or.(K(ip,1).eq.1)))then
-ccccc     calculate gluon kinematics
+     &(abs(K(ip,2)).eq.21).or.(abs(K(ip,2)).le.5))then
+cccc     calculate gluon kinematics
                 call GluonKinematics(ip,w_gluon(1),inix,iniy,iniz,iniE
      &,theta_gluon,phi_gluon)
-ccccc     add a gluon
+cccc     add a gluon
                 call PY1ENT(N+1,21,w_gluon(1),theta_gluon,phi_gluon)
-ccccc     parton counter                 
+cccc     parton counter                 
                 ij=ij+1
                 ijoin(ij)=N
               endif
-ccccc     Last Parton of the string
+cccc     Last Parton of the string
             else if(K(ip,1).eq.1) then
-ccccc     Select quarks,antiquarks and gluons                
+cccc     Select quarks,antiquarks and gluons                
               if((ij.gt.0).and.(QW_w.gt.0.00001).and.
      &(w_gluon(1).gt.0.0001).and.
-     &((K(ip,1).eq.2).or.(K(ip,1).eq.1)))then
+     &(abs(K(ip,2)).eq.21).or.(abs(K(ip,2)).le.5))then
                   
                  call GluonKinematics(ip,w_gluon(1),inix,iniy,iniz,iniE
      &,theta_gluon,phi_gluon)
-ccccc     add a gluon
+cccc     add a gluon
                  call PY1ENT(N+1,21,w_gluon(1),theta_gluon,phi_gluon)
-ccccc     parton counter 
+cccc     parton counter 
                  ij=ij+1
                  ijoin(ij)=N
 
               endif
-ccccc     parton counter 
+cccc     parton counter 
              ij=ij+1
              ijoin(ij)=ip
-ccccc       Connecting a number of previously defined partons into
-ccccc       a string configuration
+cccc       Connecting a number of previously defined partons into
+cccc       a string configuration
             if(ij.ge.3) then
                 call PYJOIN(ij,ijoin)
             endif
-ccccc      ij and ijoin comeback to zero because it is the last parton KS=1
-ccccc      of the string
+cccc      ij and ijoin comeback to zero because it is the last parton KS=1
+cccc      of the string
             ijoin = 0
             ij = 0
-ccccc     closing the particles selection for KS=1 or KS=2
+cccc     closing the particles selection for KS=1 or KS=2
            endif
 
 
@@ -183,28 +179,23 @@ c             1 hard gluons + soft                                    c
 ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
           else if(iEg.eq.2) then
-cccccccc    Calculate energies
-     
-           if (QW_w.gt.0) then
-
-ccccccccc   Calculate energy HARD gluon
-              
-              w_hard = N_const*(QW_L**2)
-ccccccccc   Calculate energy Softs gluons and Triplet
-ccccccccc   The energy of the soft gluons cant be greater than soft_cut =5 GeV,
-ccccccccc   if there is energy left between the soft gluons and the cut
-ccccccccc   we create  a triplet.
-
+       
+cccc    Calculate energies
+           E_loss = iniE - P(ip,4)
+           print*,'Eloss =',E_loss
+           if (E_loss.gt.0.00001) then
+               
+            w_hard = N_const*(QW_L**2)
+            if (w_hard.le.E_loss) then
+cccc   Constraints for w_hard
               if(w_hard.gt.(2d0*iet))then 
-                 if (((P(ip,4)-(2d0*iet))).gt.w_hard)then
+                 if (((iniE-(2d0*iet))).gt.w_hard)then
                     w_gluon(1)= w_hard
                 
-                 else if (((P(ip,4)-iet).lt.w_hard)
-     & .and.(P(ip,4).gt.(iet)))then
-                    w_hard=P(ip,4)-iet
+                 else if (((iniE-iet).lt.w_hard)
+     & .and.(iniE.gt.(iet)))then
+                    w_hard=iniE-iet
                     w_gluon(1)=w_hard
-c                    print*,'w_hard < Ep-iet, w_hard =',w_hard
-c                    print*, 'w_gluon(1) =',w_gluon(1)
                  endif
 
               else if ((w_hard.lt.(2d0*iet)).and.(w_hard.gt.iet))then
@@ -212,16 +203,16 @@ c                    print*, 'w_gluon(1) =',w_gluon(1)
                     w_hard=w_soft_remain
                
               else if(w_hard.lt.iet)then
-c                  print*,'Gluon energy under the threshold'
-c                  print*,'Not created'
+cccc           print*,'we lose this energy'                
               endif
-              
-              if (w_hard.lt.QW_w) then
-                 w_soft= (QW_w - w_hard)+w_soft_remain
+cccc   Calculate Energy Softs gluons and Triplet              
+              if (w_hard.lt.E_loss) then
+                 w_soft= (E_loss - w_hard)+w_soft_remain
                  w_gluon(2)=w_soft
                  if (w_soft.gt.soft_cut) then
                     w_triplet= w_soft-soft_cut
                     w_gluon(3)=w_triplet
+                    w_gluon(2)=w_gluon(2)-w_gluon(3)
                     if((w_soft.lt.0).and.(w_triplet.lt.0)) then
                        w_soft = 0
                        w_triplet = 0
@@ -229,170 +220,136 @@ c                       print*,'no soft gluons'
                     endif
                  endif
               endif
-cccccccc   closing if QW_w>0             
+cccc   closing if w_hard<=E_loss             
           endif
-cccccccc  Energy of the parton
-             E_p = P(ip,4)-w_hard
-cccccccc  Counting            
-             if(w_soft.gt.soft_cut) then
-                k_cut_up = k_cut_up+1
-             else if(w_soft.lt.soft_cut) then 
-                k_cut_down =k_cut_down +1
-             endif 
-            
-cccccccc   Starting new selection of partons for status KS=2 
+cccc    closing if E_loss>0
+         endif
+cccc   Starting new selection of partons for status KS=2 
             if(K(ip,1).eq.2) then
 
               ij = ij+1
               ijoin(ij)=ip
 
-
-              if((ij.gt.0).and.(P(ip,4).ge.iet)
-     & .and.(QW_w.gt.0).and.(w_soft.le.soft_cut)
-     & .and.(w_hard.gt.0.001).and.(E_p.gt.(2d0*iet))) then
-
-                  call PartonKinematics(ip,theta_final,phi_final)
-        
-                  n=n+1
-                  ij=ij+1
+              if((ij.gt.0).and.(E_loss.gt.0.00001)
+     & .and.(w_hard.gt.0.0001).and.
+     & ((abs(K(ip,2)).eq.21).or.(abs(K(ip,2)).le.5))
+     & .and.(w_hard.le.E_loss)) then
                                                       
-                  call PY1ENT(N,21,w_gluon(1),theta_final,phi_final)
-                  
-
-cccccccc    Calculating PYQREC: 4-momentum going to the nuclei remnant
-cccccccc    Energy of SOFT Gluons and QW left
+ccc     calculate gluon kinematics
+               call GluonKinematics(ip,w_hard,inix,iniy,iniz,iniE
+     &,theta_gluon,phi_gluon)
+               call PY1ENT(N+1,21,w_hard,theta_gluon,phi_gluon)     
+               ij=ij+1
+               ijoin(ij)=N
+cccc    Calculating PYQREC: 4-momentum going back to the remanat nuclei
                   
                   PYQREC(1)=PYQREC(1)
-     & +QW_w*sin(theta_final)*cos(phi_final)-P(N,1)
+     & +E_loss*sin(theta_gluon)*cos(phi_gluon)-P(N,1)
                   PYQREC(2)=PYQREC(2)
-     & +QW_w*sin(theta_final)*sin(phi_final)-P(N,2)
-                  PYQREC(3)=PYQREC(3)+QW_w*cos(theta_final)-P(N,3)
+     & +E_loss*sin(theta_gluon)*sin(phi_gluon)-P(N,2)
+                  PYQREC(3)=PYQREC(3)+E_loss*cos(theta_gluon)-P(N,3)
                   PYQREC(4)=PYQREC(4)+w_soft
-cccccccc   Calculating new parton momentum
-cccccccc   P(ip,4) is being calculated in PartonKinematics
-
-                  P(ip,1)=P(ip,1)-P(N,1)
-                  P(ip,2)=P(ip,2)-P(N,2)
-                  P(ip,3)=P(ip,3)-P(N,3)
-                  P(ip,4)=E_p
-       
-
-                ijoin(ij)=n
-              endif
-
-cccccccc Starting new selection of partons for status KS=1
-            else if(K(ip,1).eq.1) then
-
-              if((P(ip,4).ge.iet).and.(QW_w.gt.0)
-     & .and.(w_soft.le.soft_cut).and.(w_hard.gt.0.0001)
-     & .and.(E_p.gt.(2d0*iet))) then
-
-                  call PartonKinematics(ip,theta_final,phi_final)
-                  
-                  n=n+1
-                  ij=ij+1
-
-                   call PY1ENT(N,21,w_gluon(1),theta_final,phi_final)
-                  
-ccccccc    Calculating PYQREC: 4-momentum going back the nuclei remnant
-ccccccc    Energy of SOFT Gluons and QW left
-
-                  PYQREC(1)=PYQREC(1)     
-     & +QW_w*sin(theta_final)*cos(phi_final)-P(N,1)
-                  PYQREC(2)=PYQREC(2)
-     & +QW_w*sin(theta_final)*sin(phi_final)-P(N,2)
-                  PYQREC(3)=PYQREC(3)+QW_w*cos(theta_final)-P(N,3)
-                  PYQREC(4)=PYQREC(4)+w_soft
-ccccccc   Calculating new parton momentum                  
-                  P(ip,1)=P(ip,1)-P(N,1)
-                  P(ip,2)=P(ip,2)-P(N,2)
-                  P(ip,3)=P(ip,3)-P(N,3)
-                  P(ip,4)=E_p
-                 
-                  ijoin(ij)=n
-ccccccc    closing if P(ip,4)>iet,QW_w>0,...
-              endif
-ccccccc    closing K(ip,1)=1 and 2
-           endif
-ccccccc   Creating the triplet
-ccccccc   Calculating energies of q-qbar-g
-
-              call TripletEnergies(N,w_triplet,E_quark,E_gluon,
+cccc   Calculating energies of q-qbar-g
+              call TripletEnergies(w_triplet,E_quark,E_gluon,
      & E_antiq,x_1,x_3)
-ccccccc   CALL PY3ENT(IP,KF1,KF2,KF3,PECM,X1,X3)
-ccccccc   Purpose: to add three entries to the event record, i.e. either 
-ccccccc   a 3-parton system or three separate particles.
-ccccccc   IP=normally line number for the first parton/particle, with the other two in IP+1 and IP+2
-ccccccc   KF1, KF2, KF3: flavour codes for the three partons/particles.
-ccccccc   PECM : (Ecm) the total energy of the system.
-ccccccc   X1, X3 : xi = 2Ei/Ecm, i.e. twice the energy fraction taken by the ith parton. Thus
-ccccccc   x2 = 2 ° x1 ° x3, and need not be given. Note that not all combinations of xi
-ccccccc   are inside the physically allowed region.
+cccc   Adding a triplet
+cccc   In the cases when we dont add a gluon we only change the status
+                if (w_triplet.gt.0.00001) then
+                   call PY3ENT(N+1,2,21,-2,w_triplet,x_1,x_3)
+                endif
 
+              endif
 
-             if (w_triplet.gt.0) then
-                call PY3ENT(N+1,2,21,-2,w_triplet,x_1,x_3)
-             endif
+cccc Starting new selection of partons for status KS=1
+          else if(K(ip,1).eq.1) then
 
+            if((ij.gt.0).and.(E_loss.gt.0.0001)
+     &.and.(w_hard.gt.0.0001).and.
+     &((abs(K(ip,2)).eq.21).or.(abs(K(ip,2)).le.5))
+     &.and.(w_hard.le.E_loss)) then
+
+cc     calculate gluon kinematics
+              call GluonKinematics(ip,w_hard,inix,iniy,iniz,iniE
+     &,theta_gluon,phi_gluon)
+              call PY1ENT(N+1,21,w_hard,theta_gluon,phi_gluon)
               ij=ij+1
-              ijoin(ij)=ip
+              ijoin(ij)=N
+cccc  4-mom going back to the remnant nuclei                
+                PYQREC(1)=PYQREC(1)
+     & +E_loss*sin(theta_gluon)*cos(phi_gluon)-P(N,1)
+                PYQREC(2)=PYQREC(2)
+     & +E_loss*sin(theta_gluon)*sin(phi_gluon)-P(N,2)
+                PYQREC(3)=PYQREC(3)+QW_w*cos(theta_gluon)-P(N,3)
+                PYQREC(4)=PYQREC(4)+w_soft
+                
+cccc   Calculating energies of q-qbar-g
+              call TripletEnergies(w_triplet,E_quark,E_gluon,
+     & E_antiq,x_1,x_3)
+cccc   Adding a triplet
+cccc   In the cases when we dont add a gluon we only change the status
+               if (w_triplet.gt.0.00001) then
+                 call PY3ENT(N+1,2,21,-2,w_triplet,x_1,x_3)
+               endif
+cccc    closing endif ij>0...
+            endif
+            ij =ij+1
+            ijoin(ij)=ip
          
-ccccccccccc   Joining partons when we add a hard gluon
-ccccccccccc   KS = 1 or 2 change to 3
-ccccccccccc   In the cases when we dont add a gluon we only change the status
+cccc   Joining partons when we add a hard gluon
+cccc   KS = 1 or 2 change to 3
 
             if(ij.ge.3) then
                 call PYJOIN(ij,ijoin)
             endif
 
-ccccccccccc closing the selection of K(ip,1)=1 and 2 
-c            endif
-ccccccccc closing the option 2 
-c          endif
+cccc     ij and ijoin comeback to zero because it is the last parton KS=1
+cccc     of the string
+            ijoin = 0
+            ij = 0
+cccc closing endif KS=1 and KS=2
+       endif
 ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 c            softs gluons                                             c
 ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
            else if(iEg.eq.3) then
 
-cccccccc   Calculate energies
-              w_gluon(1)=QW_w
-              w_soft=w_gluon(1)
+cccc   Calculate energies
+             w_gluon(1)=QW_w
+             w_soft=w_gluon(1)
+            if (w_gluon(1).gt.0.0001) then
 
               if (w_soft.gt.soft_cut) then
                   
                  w_triplet= w_soft-soft_cut
-                    
+                 w_triplet=w_gluon(2)   
                  if (w_triplet.gt.0) then
                     w_soft=w_soft-w_triplet
-                 elseif (w_triplet.le.0)then
-                    w_triplet = 0
+                    w_gluon(1)=w_gluon(1)-w_gluon(2)
+
+                 else if (w_triplet.le.0)then
+                    w_gluon(2) = 0
                  endif
                     
               endif
-ccccccc    Calculating Energy new parton
 
-              E_p=P(ip,4)-w_soft
-           
-cccccccc   Starting Selection of partons of KS=2 
-                
-              call PartonKinematics(ip,theta_final,phi_final)
-
-cccccccc    Calculating PYQREC: 4-momentum going back to BeAGLE
-cccccccc    Energy of SOFT Gluons
+cccc     Calculating angles w_soft
+              call GluonKinematics(ip,w_gluon(1),inix,iniy,iniz,iniE
+     &,theta_gluon,phi_gluon)
+cccc    Calculating PYQREC: 4-momentum going back to BeAGLE
+cccc    Energy of SOFT Gluons
               PYQREC(1)=PYQREC(1)+w_soft*sin(theta_final)*cos(phi_final)
               PYQREC(2)=PYQREC(2)+w_soft*sin(theta_final)*sin(phi_final)
               PYQREC(3)=PYQREC(3)+w_soft*cos(theta_final)
-              PYQREC(4)=PYQREC(4)+w_soft  
-
-cccccccc   Calculating Energies of qqbarg (triplet)
-                call TripletEnergies(N,w_triplet,E_quark,E_gluon,
+              PYQREC(4)=PYQREC(4)+w_soft 
+cccc   Calculating Energies of qqbarg (triplet)
+                call TripletEnergies(w_triplet,E_quark,E_gluon,
      & E_antiq,x_1,x_3)
 
                if (w_triplet.gt.0) then
-                   
                    call PY3ENT(N+1,2,21,-2,w_triplet,x_1,x_3)
-                   
                endif
+cccc  closing endif w_gluon(1)>0
+           endif
 ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 cccccccccccccccc  closing the options 0,1,2 and 3cccccccccccccccccccccc
 ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
@@ -400,49 +357,19 @@ c        endif
 ccccc  closing options iEg=0 or iEg=1 or iEg=2 or iEg=3
            endif
 
-           print*,'got here - closing options'
+c           print*,'got here - closing options'
 ccccc  closing QW_w>0
 c         endif
 ccccc  closing initial partons's selection for KS=1 or KS=2
        endif
        ip=ip+1
-       print*, 'got here - end of loop'      
+c       print*, 'got here - end of loop'      
 ccccccccc closing the particle loop       
       end do
 ccccccccc closing ApplyQW
       end
 
-      
-      subroutine PartonKinematics(ip,theta_final,phi_final)
 
-        include 'common.f'
-        include 'bea_pyqm.inc'
-
-
-        double precision theta_final, phi_final
-        double precision theta, phi, phe, pgx, pgy, pgz
-        integer ip
-
-        print*,'inside Parton Kinematics'
-ccccccc parton theta and phi
-        theta = acos(P(ip,3)/(sqrt(P(ip,1)**2+P(ip,2)**2+P(ip,3)**2)))
-        phi = atan2(P(ip,2),P(ip,1))
-ccccccc phe : gluon phi
-        phe = 4*asin(1.)*ranf(0)
-ccccccc if we are in TRF gamma*=z always we shouldn't change any frame
-        pgx = (cos(theta)*cos(phi)*sin(QW_th)*cos(phe)-sin(phi)*
-     & sin(QW_th)*sin(phe)+sin(theta)*cos(phi)*cos(QW_th))
-        pgy = (cos(theta)*sin(phi)*sin(QW_th)*cos(phe)+cos(phi)*
-     & sin(QW_th)*sin(phe)+sin(theta)*sin(phi)*cos(QW_th))
-        pgz = (-sin(theta)*sin(QW_th)*cos(phe)+cos(theta)*cos(QW_th))
-        
-
-        theta_final = acos((pgz)/(sqrt(pgx**2+pgy**2+pgz**2)))
-        phi_final = atan2(pgy, pgx)
-        print*,'end PArtonKinematics'
-      end
-
-c       subroutine PTF(ip,iPtf,alphas,qhat,Eloss,QW_L,ipt)
        subroutine PTF(ip,iPtf,Eloss,ipt)
        include 'common.f'
        include 'bea_pyqm.inc'
@@ -476,7 +403,6 @@ ccccc    Calculate transverse momentum of final parton IPtf
        double precision inix,iniy,iniz,iniE
        double precision ipix,ipiy,ipiz,itot
        double precision ipx,ipy,ipz,iEnew,ipnew
-       print*,'START PARTON KINEMATICS'
 ccccc  Stock init mom values
        inix = P(ip,1)
        iniy = P(ip,2)
@@ -520,19 +446,6 @@ ccccc  Generate new parton momenta
        ipnew = sqrt(ipx**2+ipy**2+ipz**2)
        iEnew = sqrt(P(ip,5)**2+ipx**2+ipy**2+ipz**2)
        
-       print*, 'ID      =', K(ip,2)
-       print*, 'status  =', K(ip,1)
-c       print*, 'inix    =', inix
-c       print*, 'iniy    =', iniy
-c       print*, 'iniz    =', iniz
-       print*, 'iniz    =', iniE
-c       print*, 'ipx     =', ipx
-c       print*, 'ipy     =', ipy
-c       print*, 'ipy     =', ipz
-c       print*, 'ipnew   =', ipnew
-c       print*, 'Mparton =', P(ip,5) 
-       print*, 'Enew    =', iEnew
-c       print*, 'Eloss   =', Eloss
 ccccc  Fill Pythia array
 ccccc  new parton 4-mom
        if (iEnew.lt.iniE) then
@@ -545,9 +458,8 @@ ccccc  new parton 4-mom
           P(ip,2) = iniy
           P(ip,3) = iniz
           P(ip,4) = iniE
-          print*, ' NO Energy LOSS'
+c          print*, ' NO Energy LOSS'
        endif
-       print*, 'END PARTON KINEMATICS'
        end
        
         subroutine GluonKinematics(ip,Egluon,inix,iniy,iniz,iniE
@@ -566,24 +478,16 @@ ccccc   calculate gluon mom as old mom parton - new mom parton
         ipgy = iniy - P(ip,2)
         ipgz = iniz - P(ip,3)
         ipg = sqrt((ipgx)**2+(ipgy)**2+(ipgz)**2)
-c        iEgluon = P(ip,4)-iEnew
-        print*,'inside gluon kinematics'
-        print*,'inix   = ', inix
-        print*,'iniy   = ', iniy
-        print*,'iniz   = ', iniz
-        print*,'iniE   = ', iniE
-        print*,'ipgx   = ', ipgx
-        print*,'ipgy   = ', ipgy
-        print*,'ipgz   = ', ipgz
-        print*,'Egluon = ',Egluon
-        print*,'ipg    = ',ipg 
        
 ccccc   Angles
         theta_gluon = acos(ipgz/ipg)
         phi_gluon = atan2(ipgy,ipgx)
        
         end
-      subroutine TripletEnergies(ip,w_triplet,E_quark,E_gluon,E_antiq,
+
+cccc   E_total : (Ecm) the total energy of the system.
+cccc   X1, X3 : xi = 2Ei/Ecm, i.e. twice the energy fraction taken by the ith parton.
+      subroutine TripletEnergies(w_triplet,E_quark,E_gluon,E_antiq,
      & x_1,x_3)
        include 'common.f'
        include 'bea_pyqm.inc'
@@ -591,7 +495,7 @@ ccccc   Angles
        double precision w_triplet
        double precision E_quark,E_gluon,E_antiq,E_total
        double precision x_1,x_3
-       integer ip
+
        E_quark=(4d0/10d0)*w_triplet
        E_antiq=(4d0/10d0)*w_triplet
        E_gluon=(2d0/10d0)*w_triplet
