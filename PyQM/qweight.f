@@ -314,7 +314,8 @@ ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
            else if(iEg.eq.3) then
 
 cccc   Calculate energies
-             w_gluon(1)=QW_w
+             E_loss = iniE-P(ip,4)
+             w_gluon(1)=E_loss
              w_soft=w_gluon(1)
             if (w_gluon(1).gt.0.0001) then
 
