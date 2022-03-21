@@ -131,7 +131,7 @@ cccc     parton counter
 cccc     Select quarks,antiquarks and gluons
              if((ij.gt.0).and.(QW_w.gt.0.00001).and.
      &(w_gluon(1).gt.0.00001).and.
-     &(abs(K(ip,2)).eq.21).or.(abs(K(ip,2)).le.5))then
+     &((abs(K(ip,2)).eq.21).or.(abs(K(ip,2)).le.5)))then
 cccc     calculate gluon kinematics
                 call GluonKinematics(ip,w_gluon(1),inix,iniy,iniz,iniE
      &,theta_gluon,phi_gluon)
@@ -145,8 +145,8 @@ cccc     Last Parton of the string
             else if(K(ip,1).eq.1) then
 cccc     Select quarks,antiquarks and gluons                
               if((ij.gt.0).and.(QW_w.gt.0.00001).and.
-     &(w_gluon(1).gt.0.0001).and.
-     &(abs(K(ip,2)).eq.21).or.(abs(K(ip,2)).le.5))then
+     &(w_gluon(1).gt.0.00001).and.
+     &((abs(K(ip,2)).eq.21).or.(abs(K(ip,2)).le.5)))then
                   
                  call GluonKinematics(ip,w_gluon(1),inix,iniy,iniz,iniE
      &,theta_gluon,phi_gluon)
