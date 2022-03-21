@@ -13,28 +13,19 @@
       double precision th,ph
 
       double precision inix,iniy,iniz,iniE !initial parton 4-momentum
-      double precision ipx,ipy,ipz    !final parton momentum
-      double precision ipg,ipgx,ipgy,ipgz !emitted gluon mom
-      double precision tot,ipix,ipiy,ipiz !direction parton momentum 
-      double precision ipt,iptx,ipty,iptz !transverse parton mom
+      double precision ipx,ipy,ipz,ipt    !final parton momentum
       double precision iE,iEnew,iEgluon
-      double precision iptot2
 
       double precision iptot,ipl,ptg,plg, cr
-      double precision cutoff,sca
 
       double precision ptot,pt,pt2,mmmm,mass_p
       double precision N_const, w_n, w_high, w_mean, n_w_gluons
-      double precision N_const_2, N_const_3
       double precision w_sum, w_hard, w_soft,w_soft_remain
       double precision w_hard_2,w_triplet
       integer n_w, list, ij, i_w
       double precision w_gluon(50)
       integer ijoin(50)
-      double precision pgx, pgy, pgz, phe, phi
-      double precision P_pgx, P_pgy, P_pgz
       double precision theta_gluon, phi_gluon
-      double precision phi_final, theta, theta_final, mag
       double precision soft_cut
       double precision E_quark,E_gluon,E_antiq,x_1,x_3
       double precision E_p,E_loss
@@ -55,6 +46,7 @@
       iloop    = N       !number of partons, given by pythia
       ip       = 1
       ij       = 0
+      ijoin    = 0
       E_p        = 0.0
       
       print*,'pyq_hq = ', pyq_hq
@@ -63,6 +55,11 @@
         mass_p =P(ip,5)
 cccc   Select partons
        if ((K(ip,1).eq.2).or.(K(ip,1).eq.1))then 
+         if(K(ip,1).eq.2) then
+cccc     parton counter 
+           ij = ij+1
+           ijoin(ij)=ip
+          endif
         if((abs(K(ip,2)).eq.21).or.(abs(K(ip,2)).le.5))then
 cccc   Initialize energies
             w_gluon(1)    = 0.0
@@ -124,10 +121,6 @@ ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 cccc     Calculate gluon energy
             w_gluon(1)=iniE-P(ip,4)
 
-            if(K(ip,1).eq.2) then
-cccc     parton counter 
-              ij = ij+1
-              ijoin(ij)=ip
 cccc     Select quarks,antiquarks and gluons
              if((ij.gt.0).and.(QW_w.gt.0.00001).and.
      &(w_gluon(1).gt.0.00001).and.
@@ -141,45 +134,12 @@ cccc     parton counter
                 ij=ij+1
                 ijoin(ij)=N
               endif
-cccc     Last Parton of the string
-            else if(K(ip,1).eq.1) then
-cccc     Select quarks,antiquarks and gluons                
-              if((ij.gt.0).and.(QW_w.gt.0.00001).and.
-     &(w_gluon(1).gt.0.00001).and.
-     &((abs(K(ip,2)).eq.21).or.(abs(K(ip,2)).le.5)))then
-                  
-                 call GluonKinematics(ip,w_gluon(1),inix,iniy,iniz,iniE
-     &,theta_gluon,phi_gluon)
-cccc     add a gluon
-                 call PY1ENT(N+1,21,w_gluon(1),theta_gluon,phi_gluon)
-cccc     parton counter 
-                 ij=ij+1
-                 ijoin(ij)=N
-
-              endif
-cccc     parton counter 
-             ij=ij+1
-             ijoin(ij)=ip
-cccc       Connecting a number of previously defined partons into
-cccc       a string configuration
-            if(ij.ge.3) then
-                call PYJOIN(ij,ijoin)
-            endif
-cccc      ij and ijoin comeback to zero because it is the last parton KS=1
-cccc      of the string
-            ijoin = 0
-            ij = 0
-cccc     closing the particles selection for KS=1 or KS=2
-           endif
-
-
 
 ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 c             1 hard gluons + soft                                    c
 ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
           else if(iEg.eq.2) then
-       
 cccc    Calculate energies
            E_loss = iniE - P(ip,4)
            print*,'Eloss =',E_loss
@@ -224,44 +184,6 @@ cccc   closing if w_hard<=E_loss
           endif
 cccc    closing if E_loss>0
          endif
-cccc   Starting new selection of partons for status KS=2 
-            if(K(ip,1).eq.2) then
-
-              ij = ij+1
-              ijoin(ij)=ip
-
-              if((ij.gt.0).and.(E_loss.gt.0.00001)
-     & .and.(w_hard.gt.0.0001).and.
-     & ((abs(K(ip,2)).eq.21).or.(abs(K(ip,2)).le.5))
-     & .and.(w_hard.le.E_loss)) then
-                                                      
-ccc     calculate gluon kinematics
-               call GluonKinematics(ip,w_hard,inix,iniy,iniz,iniE
-     &,theta_gluon,phi_gluon)
-               call PY1ENT(N+1,21,w_hard,theta_gluon,phi_gluon)     
-               ij=ij+1
-               ijoin(ij)=N
-cccc    Calculating PYQREC: 4-momentum going back to the remanat nuclei
-                  
-                  PYQREC(1)=PYQREC(1)
-     & +E_loss*sin(theta_gluon)*cos(phi_gluon)-P(N,1)
-                  PYQREC(2)=PYQREC(2)
-     & +E_loss*sin(theta_gluon)*sin(phi_gluon)-P(N,2)
-                  PYQREC(3)=PYQREC(3)+E_loss*cos(theta_gluon)-P(N,3)
-                  PYQREC(4)=PYQREC(4)+w_soft
-cccc   Calculating energies of q-qbar-g
-              call TripletEnergies(w_triplet,E_quark,E_gluon,
-     & E_antiq,x_1,x_3)
-cccc   Adding a triplet
-cccc   In the cases when we dont add a gluon we only change the status
-                if (w_triplet.gt.0.00001) then
-                   call PY3ENT(N+1,2,21,-2,w_triplet,x_1,x_3)
-                endif
-
-              endif
-
-cccc Starting new selection of partons for status KS=1
-          else if(K(ip,1).eq.1) then
 
             if((ij.gt.0).and.(E_loss.gt.0.0001)
      &.and.(w_hard.gt.0.0001).and.
@@ -292,22 +214,7 @@ cccc   In the cases when we dont add a gluon we only change the status
                endif
 cccc    closing endif ij>0...
             endif
-            ij =ij+1
-            ijoin(ij)=ip
-         
-cccc   Joining partons when we add a hard gluon
-cccc   KS = 1 or 2 change to 3
 
-            if(ij.ge.3) then
-                call PYJOIN(ij,ijoin)
-            endif
-
-cccc     ij and ijoin comeback to zero because it is the last parton KS=1
-cccc     of the string
-            ijoin = 0
-            ij = 0
-cccc closing endif KS=1 and KS=2
-       endif
 ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 c            softs gluons                                             c
 ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
@@ -338,9 +245,9 @@ cccc     Calculating angles w_soft
      &,theta_gluon,phi_gluon)
 cccc    Calculating PYQREC: 4-momentum going back to BeAGLE
 cccc    Energy of SOFT Gluons
-              PYQREC(1)=PYQREC(1)+w_soft*sin(theta_final)*cos(phi_final)
-              PYQREC(2)=PYQREC(2)+w_soft*sin(theta_final)*sin(phi_final)
-              PYQREC(3)=PYQREC(3)+w_soft*cos(theta_final)
+              PYQREC(1)=PYQREC(1)+w_soft*sin(theta_gluon)*cos(phi_gluon)
+              PYQREC(2)=PYQREC(2)+w_soft*sin(theta_gluon)*sin(phi_gluon)
+              PYQREC(3)=PYQREC(3)+w_soft*cos(theta_gluon)
               PYQREC(4)=PYQREC(4)+w_soft 
 cccc   Calculating Energies of qqbarg (triplet)
                 call TripletEnergies(w_triplet,E_quark,E_gluon,
@@ -357,6 +264,23 @@ ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 c        endif
 ccccc  closing options iEg=0 or iEg=1 or iEg=2 or iEg=3
            endif
+cccc     Last Parton of the string
+            if(K(ip,1).eq.1) then
+cccc     parton counter 
+             ij=ij+1
+             ijoin(ij)=ip
+cccc       Connecting a number of previously defined partons into
+cccc       a string configuration
+            if(ij.ge.3) then
+                call PYJOIN(ij,ijoin)
+            endif
+cccc      ij and ijoin comeback to zero because it is the last parton KS=1
+cccc      of the string
+            ijoin = 0
+            ij = 0
+cccc     closing the particles selection for KS=1 or KS=2
+           endif
+
 
 c           print*,'got here - closing options'
 ccccc  closing QW_w>0
@@ -612,7 +536,7 @@ ccccc Calculate the energy loss probability
       total = 0.
       do i=1,nb_step
         xx = step_QW * i
-        call qweight(ipart,id,mmmm,dble(QW_R),xx,yy,cont(i),disc)
+        call qweight(ipart,id,mmmm,QW_R,xx,yy,cont(i),disc)
         total = total + cont(i)*step_QW
       enddo
       
@@ -650,7 +574,7 @@ ccccc Calculate the angle probability
         total = 0.
         do i=1,nb_step
           ChiR =(step_QW * i)**2 * QW_R
-          call qweight(ipart,ChiR,xx,yy,cont(i),disc)
+          call qweight(ipart,id,mmmm,ChiR,xx,yy,cont(i),disc)
 cc Do not keep negative probabilities
           if (cont(i).lt.0) cont(i) = 0
           total = total + cont(i)*step_QW
