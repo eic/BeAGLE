@@ -29,6 +29,7 @@
       double precision soft_cut
       double precision E_quark,E_gluon,E_antiq,x_1,x_3
       double precision E_p,E_loss
+      double precision MMx,MMy,MMz,MMe
       integer j
       alphas   = 1d0/3d0
       iqw      = 1
@@ -93,13 +94,19 @@ cccc    Define cr for a quark or gluon
              cr=3d0
            endif
            N_const = 4d0*alphas*alphas*qhat   
-cccc  endif of QW_w>0
-        endif 
-cccc  endif gluon or quark selection
-      endif
-cccccccccccccccccc  testing purpusesccccccccccccccccccccccccccccccccccc 
-c          call GluonKinematics(ip,inix,iniy,iniz,iniE,ipx,ipy,ipz
-c     &,iEnew,iEgluon,theta_gluon,phi_gluon)
+
+cccc     Calculate gluon energy
+            E_loss=iniE-P(ip,4)
+          if (E_loss.lt.0.0)then
+            print*,'ERROR w_gluon < 0'
+            exit
+          endif
+
+          MMx = inix - P(ip,1)
+          MMy = iniy - P(ip,2)
+          MMz = iniz - P(ip,3)
+          MMe = iniE - P(ip,4)
+
 ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 c             no gluons radiation                                     c
 ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
@@ -107,7 +114,6 @@ ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
           if(iEg.eq.0) then
 
 cccc     With this option you lose only the energy of the partons 
- 
 
 ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 c             1 hard gluon                                            c
@@ -116,24 +122,15 @@ c ijoin: Array with the positions of each parton in the string        c
 c                                                                     c
 ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
-
           else if(iEg.eq.1) then
-cccc     Calculate gluon energy
-            w_gluon(1)=iniE-P(ip,4)
-
-cccc     Select quarks,antiquarks and gluons
-             if((ij.gt.0).and.(QW_w.gt.0.00001).and.
-     &(w_gluon(1).gt.0.00001).and.
-     &((abs(K(ip,2)).eq.21).or.(abs(K(ip,2)).le.5)))then
 cccc     calculate gluon kinematics
-                call GluonKinematics(ip,w_gluon(1),inix,iniy,iniz,iniE
+                call GluonKinematics(ip,E_loss,inix,iniy,iniz,iniE
      &,theta_gluon,phi_gluon)
 cccc     add a gluon
-                call PY1ENT(N+1,21,w_gluon(1),theta_gluon,phi_gluon)
+                call PY1ENT(N+1,21,E_loss,theta_gluon,phi_gluon)
 cccc     parton counter                 
                 ij=ij+1
                 ijoin(ij)=N
-              endif
 
 ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 c             1 hard gluons + soft                                    c
@@ -141,129 +138,99 @@ ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
           else if(iEg.eq.2) then
 cccc    Calculate energies
-           E_loss = iniE - P(ip,4)
-           print*,'Eloss =',E_loss
-           if (E_loss.gt.0.00001) then
-               
             w_hard = N_const*(QW_L**2)
-            if (w_hard.le.E_loss) then
+            if (w_hard.gt.E_loss) w_hard=E_loss
 cccc   Constraints for w_hard
-              if(w_hard.gt.(2d0*iet))then 
-                 if (((iniE-(2d0*iet))).gt.w_hard)then
-                    w_gluon(1)= w_hard
-                
-                 else if (((iniE-iet).lt.w_hard)
-     & .and.(iniE.gt.(iet)))then
-                    w_hard=iniE-iet
-                    w_gluon(1)=w_hard
-                 endif
-
-              else if ((w_hard.lt.(2d0*iet)).and.(w_hard.gt.iet))then
-                 
-                    w_hard=w_soft_remain
-               
-              else if(w_hard.lt.iet)then
-cccc           print*,'we lose this energy'                
-              endif
+            if(w_hard.gt.iet)then 
+               if ((iniE-iet).gt.w_hard)then
+                  w_gluon(1)= w_hard
+               else 
+                  w_hard=iniE-iet
+                  w_gluon(1)=w_hard
+               endif
+            else 
+                  w_hard = 0
+            endif
 cccc   Calculate Energy Softs gluons and Triplet              
-              if (w_hard.lt.E_loss) then
-                 w_soft= (E_loss - w_hard)+w_soft_remain
-                 w_gluon(2)=w_soft
-                 if (w_soft.gt.soft_cut) then
-                    w_triplet= w_soft-soft_cut
-                    w_gluon(3)=w_triplet
-                    w_gluon(2)=w_gluon(2)-w_gluon(3)
-                    if((w_soft.lt.0).and.(w_triplet.lt.0)) then
-                       w_soft = 0
-                       w_triplet = 0
-c                       print*,'no soft gluons'
-                    endif
-                 endif
-              endif
-cccc   closing if w_hard<=E_loss             
-          endif
-cccc    closing if E_loss>0
-         endif
+            w_soft= E_loss - w_hard
+            w_gluon(2)=w_soft
 
-            if((ij.gt.0).and.(E_loss.gt.0.0001)
-     &.and.(w_hard.gt.0.0001).and.
-     &((abs(K(ip,2)).eq.21).or.(abs(K(ip,2)).le.5))
-     &.and.(w_hard.le.E_loss)) then
+            if (w_soft.gt.soft_cut) then
+              w_triplet= w_soft-soft_cut
+cccc   Calculating energies of q-qbar-g
+              call TripletEnergies(w_triplet,E_quark,E_gluon,
+     & E_antiq,x_1,x_3)
+cccc   Adding a triplet
+              call PY3ENT(N+1,2,21,-2,w_triplet,x_1,x_3)
+              MMx = MMx - P(N,1) - P(N-1,1) - P(N-2,1)
+              MMy = MMy - P(N,2) - P(N-1,2) - P(N-2,2)
+              MMz = MMz - P(N,3) - P(N-1,3) - P(N-2,3)
+              MMe = MMe - P(N,4) - P(N-1,4) - P(N-2,4)
+            endif
 
+            if((w_soft.lt.0).and.(w_triplet.lt.0)) then
+               print*,'ERROR unexpected negative values for eloss'
+               exit
+            endif
 cc     calculate gluon kinematics
+            if(w_hard.gt.0) then
               call GluonKinematics(ip,w_hard,inix,iniy,iniz,iniE
      &,theta_gluon,phi_gluon)
               call PY1ENT(N+1,21,w_hard,theta_gluon,phi_gluon)
               ij=ij+1
               ijoin(ij)=N
-cccc  4-mom going back to the remnant nuclei                
-                PYQREC(1)=PYQREC(1)
-     & +E_loss*sin(theta_gluon)*cos(phi_gluon)-P(N,1)
-                PYQREC(2)=PYQREC(2)
-     & +E_loss*sin(theta_gluon)*sin(phi_gluon)-P(N,2)
-                PYQREC(3)=PYQREC(3)+QW_w*cos(theta_gluon)-P(N,3)
-                PYQREC(4)=PYQREC(4)+w_soft
-                
-cccc   Calculating energies of q-qbar-g
-              call TripletEnergies(w_triplet,E_quark,E_gluon,
-     & E_antiq,x_1,x_3)
-cccc   Adding a triplet
-cccc   In the cases when we dont add a gluon we only change the status
-               if (w_triplet.gt.0.00001) then
-                 call PY3ENT(N+1,2,21,-2,w_triplet,x_1,x_3)
-               endif
-cccc    closing endif ij>0...
-            endif
 
+cccc  4-mom going back to the remnant nuclei                
+              MMx = MMx -P(N,1)
+              MMy = MMy -P(N,2)
+              MMz = MMz -P(N,3)
+              MMe = MMe -P(N,4)
+             endif
+               
+             if(MMe.lt.0.0) print*,'ERROR unexpected negative energy'
+
+             PYQREC(1) = PYQREC(1)+MMx
+             PYQREC(2) = PYQREC(2)+MMy
+             PYQREC(3) = PYQREC(3)+MMz
+             PYQREC(4) = PYQREC(4)+MMe
 ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 c            softs gluons                                             c
 ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
            else if(iEg.eq.3) then
 
 cccc   Calculate energies
-             E_loss = iniE-P(ip,4)
              w_gluon(1)=E_loss
-             w_soft=w_gluon(1)
-            if (w_gluon(1).gt.0.0001) then
+             w_soft=E_loss
 
               if (w_soft.gt.soft_cut) then
-                  
-                 w_triplet= w_soft-soft_cut
-                 w_triplet=w_gluon(2)   
-                 if (w_triplet.gt.0) then
-                    w_soft=w_soft-w_triplet
-                    w_gluon(1)=w_gluon(1)-w_gluon(2)
-
-                 else if (w_triplet.le.0)then
-                    w_gluon(2) = 0
-                 endif
-                    
-              endif
-
-cccc     Calculating angles w_soft
-              call GluonKinematics(ip,w_gluon(1),inix,iniy,iniz,iniE
-     &,theta_gluon,phi_gluon)
-cccc    Calculating PYQREC: 4-momentum going back to BeAGLE
-cccc    Energy of SOFT Gluons
-              PYQREC(1)=PYQREC(1)+w_soft*sin(theta_gluon)*cos(phi_gluon)
-              PYQREC(2)=PYQREC(2)+w_soft*sin(theta_gluon)*sin(phi_gluon)
-              PYQREC(3)=PYQREC(3)+w_soft*cos(theta_gluon)
-              PYQREC(4)=PYQREC(4)+w_soft 
-cccc   Calculating Energies of qqbarg (triplet)
+                w_triplet= w_soft-soft_cut
+                w_soft=w_soft-w_triplet
                 call TripletEnergies(w_triplet,E_quark,E_gluon,
      & E_antiq,x_1,x_3)
+                call PY3ENT(N+1,2,21,-2,w_triplet,x_1,x_3)
+              MMx = MMx - P(N,1) - P(N-1,1) - P(N-2,1)
+              MMy = MMy - P(N,2) - P(N-1,2) - P(N-2,2)
+              MMz = MMz - P(N,3) - P(N-1,3) - P(N-2,3)
+              MMe = MMe - P(N,4) - P(N-1,4) - P(N-2,4)
+              endif
 
-               if (w_triplet.gt.0) then
-                   call PY3ENT(N+1,2,21,-2,w_triplet,x_1,x_3)
-               endif
-cccc  closing endif w_gluon(1)>0
-           endif
+             if(MMe.lt.0.0) print*,'ERROR unexpected negative energy'
+
+             PYQREC(1) = PYQREC(1)+MMx
+             PYQREC(2) = PYQREC(2)+MMy
+             PYQREC(3) = PYQREC(3)+MMz
+             PYQREC(4) = PYQREC(4)+MMe
+
 ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 cccccccccccccccc  closing the options 0,1,2 and 3cccccccccccccccccccccc
 ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 c        endif
 ccccc  closing options iEg=0 or iEg=1 or iEg=2 or iEg=3
            endif
+cccc  endif of QW_w>0
+        endif 
+cccc  endif gluon or quark selection
+      endif
 cccc     Last Parton of the string
             if(K(ip,1).eq.1) then
 cccc     parton counter 
@@ -383,7 +350,7 @@ ccccc  new parton 4-mom
           P(ip,2) = iniy
           P(ip,3) = iniz
           P(ip,4) = iniE
-c          print*, ' NO Energy LOSS'
+          print*, ' NO Energy LOSS there is a problem'
        endif
        end
        
