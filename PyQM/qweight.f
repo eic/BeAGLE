@@ -20,7 +20,7 @@
 
       double precision ptot,pt,pt2,mmmm,mass_p
       double precision N_const, w_n, w_high, w_mean, n_w_gluons
-      double precision w_sum, w_hard, w_soft,w_soft_remain
+      double precision w_sum, w_hard, w_soft
       double precision w_hard_2,w_triplet
       integer n_w, list, ij, i_w
       double precision w_gluon(50)
@@ -68,7 +68,6 @@ cccc   Initialize energies
             w_gluon(3)    = 0.0
             w_hard        = 0.0
             w_soft        = 0.0
-            w_soft_remain = 0.0
             w_triplet     = 0.0
             E_p           = 0.0
 cccc   initial values        
@@ -81,7 +80,7 @@ cccc   initial values
 cccc   calculate QW with a given qhat          
         call QWComput(qhat,P(ip,1),P(ip,2),P(ip,3),P(ip,4),mmmm,
      & K(ip,2))
-        if(QW_w.gt.0.00001)then
+        if((QW_w.gt.0.00001).and.(iniE.gt.iet))then
 cccc  Calculate transverse momentum
            call PTF(ip,iPtf,QW_w,ipt)
            
@@ -123,6 +122,7 @@ c                                                                     c
 ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
           else if(iEg.eq.1) then
+            if(E_loss.gt.0.0)then
 cccc     calculate gluon kinematics
                 call GluonKinematics(ip,E_loss,inix,iniy,iniz,iniE
      &,theta_gluon,phi_gluon)
@@ -131,6 +131,7 @@ cccc     add a gluon
 cccc     parton counter                 
                 ij=ij+1
                 ijoin(ij)=N
+            endif
 
 ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 c             1 hard gluons + soft                                    c
