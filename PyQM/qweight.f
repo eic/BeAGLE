@@ -48,10 +48,10 @@
       ip       = 1
       ij       = 0
       ijoin    = 0
-      E_p        = 0.0
-      
-      print*,'pyq_hq = ', pyq_hq
-      print*,'ipt    = ',iPtF
+      E_p      = 0
+
+      if(qhat.lt.0.00001) return
+
       do while (ip.le.iloop)
         mass_p =P(ip,5)
 cccc   Select partons
