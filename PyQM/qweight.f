@@ -46,8 +46,8 @@
       cr       = 0
       iloop    = N       !number of partons, given by pythia
       ip       = 1
-      ij       = 0
-      ijoin    = 0
+      ij       = 0       !Parton counter of the string joined after adding a gluon
+      ijoin    = 0       !Array with the positions of each parton in the string
       E_p      = 0
 
       if(qhat.lt.0.00001) return
@@ -116,9 +116,6 @@ cccc     With this option you lose only the energy of the partons
 
 ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 c             1 hard gluon                                            c
-c ij:    Parton counter of the string joined  after adding a gluon    c
-c ijoin: Array with the positions of each parton in the string        c 
-c                                                                     c
 ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
           else if(iEg.eq.1) then
@@ -223,9 +220,9 @@ cccc   Calculate energies
              PYQREC(4) = PYQREC(4)+MMe
 
 ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-cccccccccccccccc  closing the options 0,1,2 and 3cccccccccccccccccccccc
+c             closing the options 0,1,2 and 3                         c
 ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-c        endif
+
 ccccc  closing options iEg=0 or iEg=1 or iEg=2 or iEg=3
            endif
 cccc  endif of QW_w>0
@@ -249,17 +246,12 @@ cccc      of the string
 cccc     closing the particles selection for KS=1 or KS=2
            endif
 
-
-c           print*,'got here - closing options'
-ccccc  closing QW_w>0
-c         endif
 ccccc  closing initial partons's selection for KS=1 or KS=2
        endif
        ip=ip+1
-c       print*, 'got here - end of loop'      
-ccccccccc closing the particle loop       
+ccccc closing the particle loop       
       end do
-ccccccccc closing ApplyQW
+ccccc closing ApplyQW
       end
 
 
@@ -444,7 +436,6 @@ cccc   X1, X3 : xi = 2Ei/Ecm, i.e. twice the energy fraction taken by the ith pa
 
       cont=0d+0
       disc=0d+0
-      print*,'Initialization of QWComput --> inside subroutine'
 ccc Init for qweight
       if (id.eq.21) then
         ipart = 0
@@ -481,7 +472,6 @@ ccc integration to calculate wc and R
         radius = sqrt(x**2+y**2+z**2)
       enddo
 ccc    calculate average of L,R an wc       
-       print*,'id particle =',id
        QW_L =(2d0* I_QW_wc) / I_QW_R
        QW_R = 2 * density_table(1) * I_QW_wc**2 / I_QW_R / qhateff
        QW_wc = (qhateff/density_table(1)) * I_QW_wc
@@ -491,11 +481,9 @@ ccccc Convert the units fm -> GeV-1
 c      QW_L = QW_L/.1973269
 ccccc Convert the units GeV2.fm -> GeV
       QW_wc = QW_wc/.1973269
-c      QW_wc_2 = QW_wc_2/.1973269 
 ccccc Convert the units GeV2.fm2 -> no unit
       QW_R = QW_R /.1973269**2
 
-      
 ccccc Calculate the energy loss probability
       if(sfthrd.eq.1) step_QW = 2.5/nb_step
       if(sfthrd.eq.2) step_QW = 9.8/nb_step
@@ -515,7 +503,6 @@ ccccc Calculate the energy loss probability
       do i=1,nb_step
         cont(i) = cont(i) / total
       enddo
-c      print*,'Picking randomely a quenching from the table'
 ccccc Pick randomely a quenching in the table
       if(disc .lt. 1.) then
         randnum = ranf(0)
@@ -531,9 +518,7 @@ ccccc Pick randomely a quenching in the table
         endif
       endif
 
-c      goto 56378 
 ccccc Calculate the angle probability
-      print*, 'Angle Probability'
       if(QW_w .gt. 0) then
         step_QW = 1./nb_step
         yy = E/QW_wc
@@ -574,8 +559,6 @@ c         QW_th=0.  ! collinear gluon radiation assumption
 c      endif
 c      print*, 'QW_th = ',QW_th
 c      print*, 'QW_w =',QW_w
-      print*,'QW_th = ', QW_th
-      print*,'End of QWComput Subroutine'
 
       end
 
