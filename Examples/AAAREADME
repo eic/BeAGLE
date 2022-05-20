@@ -1,4 +1,6 @@
 These are some example input files. 
+The files below are the versions used in Phys.Lett.B 811 (2020) 135877
+e-Print: 2005.14706 [nucl-ex]
 
 You need a BeAGLE/DPMJET input file such as:
 eD_18x135_Q2_1_10_y_0.01_0.95_test40k_Shd1_tau7_kt=ptfrag=0.32_shdfac=1.32.Jpsidiffnodecay.highpf.inp
