@@ -42,5 +42,5 @@ PYQM-CTRL  0.0    1.0    1.0    1.0    1.0   0.25
 
 
 qhat can be manipulated in the Pythia control card, such as S1ALL003,which is located
-in the main directory.
+under Examples folder in the main directory.
 
