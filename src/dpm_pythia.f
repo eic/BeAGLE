@@ -1939,6 +1939,7 @@ c     &  P(I,1)  P(I,2)  P(I,3)  P(I,4)  P(I,5)  V(I,1)  V(I,2)  V(I,3)'
       endif
 
 ***************standard output for event info***************************
+C Note: USERSET documented in DT_INIT printout
 C      For USERSET 0:
 C      USER1 = sigma_dipole
 C      USER2 = <Q_T>
@@ -1980,6 +1981,20 @@ C      USERSET 9-11: Particle 4-momenta sums in ion rest frame
 C      USER1 = EOUT
 C      USER2 = PZOUT (-z along e_in)
 C      USER3 = PTOUT
+C
+C      USERSET 12: USER1,2,3: Energy in IRF & ZSUM,ASUM
+C
+C      USERSET 13: USER1,2,3: NHYPER, ZSUM, IDHYP(1)
+C
+C      USERSET 14: USER1,2,3: kx, ky, P00=k  for Fermi motion
+C      USERSET 15: USER1,2,3: pxmiss, pxspec, P00
+C
+C      USERSET 16: Deut LF Wavefunction debug - 
+C                  USER1,2,3 = "gaussian","gaussian","gaussian"?
+C
+C      USERSET 17: E* fix debug. 
+C                  USER1,2,3 = E* before fix, after fix, Ncollt
+C                  USER1,2 filled in DT_FICONF, USER3 filled here.
 C
 C      MDB 2017-07-01 Count wounded nucleons, n_g, <Q_T> by hand.
 C      n_g only counted for Fixed target. 0.3 < beta < 0.7
@@ -2079,6 +2094,9 @@ C
                ELSE
                   USER3=0
                ENDIF
+            ELSEIF (USERSET.EQ.17) THEN
+C              USER1,2 filled in DT_FICONF.
+               USER3=NCOLLT
             ENDIF
             IF (VERBOSE) THEN
                WRITE(*,*)'IRF frame (e- defines -z) quantities:'

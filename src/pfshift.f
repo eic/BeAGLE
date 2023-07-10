@@ -1,6 +1,7 @@
       SUBROUTINE PFSHIFT(WRAW,W2RAW,Q2,NU,MNUCL,PDEUT,PSPEC,IKIN,IREJ)
 C
 C     2018-07-13 Mark D. Baker - Initial Version
+C     2023-06-29 Mark D. Baker - pull out some code into SCLSUBEVT
 C
 C     This subroutine adds the struck nucleon pF back to the
 C     Pythia subevent partonic skeleton after the fact.
@@ -83,25 +84,26 @@ Cc...added by liang & Mark to include pythia energy loss datas
       COMMON /DTEVNO/ NEVENT,ICASCA 
       integer NEVENT, ICASCA
 
-C Local
+C Local - note MAXTRY, MAXPRTS should match that inside SCLSUBEVT
       DOUBLE PRECISION EPSPF
       PARAMETER (EPSPF=1.0D-9)
       INTEGER MAXTRY, MAXPRTS,NDIM,NDIMM
-      PARAMETER (MAXTRY=10)
-      PARAMETER (MAXPRTS=50)
-      PARAMETER (NDIM=4)
-      PARAMETER (NDIMM=5)
-      DOUBLE PRECISION W2F, W2TRY(MAXTRY), PSUM(NDIM) 
+      PARAMETER (MAXTRY=10, MAXPRTS=1000)
+      PARAMETER (NDIM=4, NDIMM=5)
+      DOUBLE PRECISION W2F, W2OUT, PSUM(NDIM) 
       DOUBLE PRECISION ASCALE(MAXTRY), PHIGH2, SQRM1, SQRM2, ASCLFL
-      DOUBLE PRECISION ASCTMP1, W2TTMP1, S2SUM 
+      DOUBLE PRECISION ASCTMP1, W2TTMP1 
       DOUBLE PRECISION FERBX, FERBY, FERBZ, FERGAM
       INTEGER NPRTNS,NLSCAT,IDIM,NSCLTR, ITRK
       DOUBLE PRECISION PTMP(MAXPRTS,NDIMM)
       INTEGER INDXP(MAXPRTS)
-      LOGICAL W2FAIL
+      LOGICAL W2FAIL,VERB
       DOUBLE PRECISION WZIRF,W0IRF,WZHCMS,W0HCMS
 
-      IF (IOULEV(4).GE.2 .AND. NEVENT.LE.IOULEV(5)) then
+C     Verbosity flag
+      VERB = (IOULEV(4).GE.2 .AND. NEVENT.LE.IOULEV(5)) 
+
+      IF (VERB) THEN
          WRITE(*,*)
      &        "PFSHIFT(WRAW,W2RAW,Q2,NU,MNUCL,PDEUT,PSPEC,IKIN,IREJ)"
          WRITE(*,*)WRAW,W2RAW,Q2,NU,MNUCL
@@ -137,7 +139,7 @@ C     Boost into naive HCMS  (assumes nucleon at rest in A-TRF)
          W2F = W2RAW
       ENDIF
 
-      IF (IOULEV(4).GE.2 .AND. NEVENT.LE.IOULEV(5)) THEN
+      IF (VERB) THEN 
          write(*,*) "W2 ignore pF:", W2RAW
          write(*,*) "W2 corrected: ", W2F
          write(*,*) "gamma*beta, gamma, beta:",BGCMS(2),GACMS(2),
@@ -146,8 +148,7 @@ C     Boost into naive HCMS  (assumes nucleon at rest in A-TRF)
 
 C     Don't allow illegal kinematics (usually spec. kz<<0)
       IF (W2F.LT.W2MIN) THEN
-         IF (IOULEV(1).GT.0 .OR. 
-     &        (IOULEV(4).GE.1 .AND. NEVENT.LE.IOULEV(5))) THEN
+         IF (IOULEV(1).GT.0 .OR. VERB) THEN 
             WRITE(*,*) 'PFSHIFT: Illegal kinematics. W2RAW, W2F= ',
      &           W2RAW, W2F
             WRITE(*,*) 'PSPEC(5)=',
@@ -157,7 +158,7 @@ C     Don't allow illegal kinematics (usually spec. kz<<0)
          GOTO 9999
       ENDIF
       
-      IF (IOULEV(4).GE.2 .AND. NEVENT.LE.IOULEV(5)) THEN
+      IF (VERB) THEN
          write(*,*) "DT_PYEVNTEP: HCMS g*=z, e' px>0 py=0"
          CALL PYLIST(2)
       ENDIF
@@ -165,7 +166,6 @@ C     Don't allow illegal kinematics (usually spec. kz<<0)
 C     Analyze the events and extract the "partonic" skeleton
       NPRTNS=0
       NLSCAT=0
-      S2SUM=0.0D0
       DO IDIM=1,NDIM
          PSUM(IDIM)=0.0D0       ! sum p^mu for all stable except e'
       ENDDO
@@ -185,140 +185,27 @@ C     Analyze the events and extract the "partonic" skeleton
                      PSUM(IDIM)=PSUM(IDIM)+PTMP(NPRTNS,IDIM)
                   ENDIF
                ENDDO
-               S2SUM = S2SUM + (PTMP(NPRTNS,4)-PTMP(NPRTNS,5))
-     &              *(1.0D0+PTMP(NPRTNS,5)/PTMP(NPRTNS,4))
             ENDIF
          ENDIF
       ENDDO
       IF (NLSCAT.NE.1) 
      &     STOP "ERROR! BAD EVENT CONFIG. Scattered leptons .ne. 1"
          
-      IF (IOULEV(4).GE.2 .AND. NEVENT.LE.IOULEV(5)) then
-         W2TRY(1) = PSUM(4)**2-PSUM(1)**2-PSUM(2)**2-PSUM(3)**2
-         WRITE(*,*)"W2 from Pythia:",W2RAW,"W2 calc.:",W2TRY(1)
+
+C Scale all 3-momenta PTMP in their HCMS by a common factor, 
+C to go from invariant mass-squared  W2RAW -> W2F
+C
+      IF (VERB) THEN
+         WRITE(*,*)"W2 from Pythia:",W2RAW,"W2 calc.:",
+     &        PSUM(4)**2-PSUM(1)**2-PSUM(2)**2-PSUM(3)**2
          WRITE(*,*)"PSUM(1-4):",PSUM(1),PSUM(2),PSUM(3),PSUM(4)
       ENDIF
-C
-C Calculate "alpha", the factor by which all momenta should be 
-C multiplied by in the HCMS in order to go from W2RAW -> W2F
-C
-C We use an exact formula in the case where there are only two
-C particles.
-C 
-C For N>2, we use an approximate formula which just keeps the
-C terms to O(delta) where delta = alpha - 1 is assumed small.
-C
-C Approximate scale factor ASCALE=1+delta where
-C delta=(WF-W0)/SUM(p^2/E)
-C
-      IF (NPRTNS.GT.2) THEN
-         ASCALE(1) = 1.0D0 + (SQRT(W2F)-WRAW)/S2SUM
-      ELSEIF (NPRTNS.EQ.2) THEN
-         PHIGH2 =( PTMP(1,1)**2+PTMP(1,2)**2+PTMP(1,3)**2 +
-     &             PTMP(2,1)**2+PTMP(2,2)**2+PTMP(2,3)**2 )/2.0D0
-         SQRM1 = PTMP(1,5)*PTMP(1,5)
-         SQRM2 = PTMP(2,5)*PTMP(2,5)
-         ASCALE(1) = (W2F-2.0D0*(SQRM1+SQRM2)+((SQRM1-SQRM2)**2)/W2F )/
-     &        (4.0D0*PHIGH2)
-         ASCALE(1)=SQRT(ASCALE(1))
-      ELSE
-         STOP ('PFSHIFT: FATAL ERROR. NPRTNS<2!')
-      ENDIF
-      IF (IOULEV(4).GE.2 .AND. NEVENT.LE.IOULEV(5)) THEN
-         WRITE(*,*)'HCMS. Before pF-based W2 rescale. p5:'
-         DO ITRK=1,NPRTNS
-            WRITE(*,*)ITRK," ",PTMP(ITRK,1)," ",PTMP(ITRK,2)," ",
-     &           PTMP(ITRK,3)," ",PTMP(ITRK,4)," ",PTMP(ITRK,5)
-         ENDDO
-         WRITE(*,*)"W2F,PHIGH2,SQRM1,SQRM2,NUMER,DENOM:",
-     &        W2F,PHIGH2,SQRM1,SQRM2,
-     &        (W2F*W2F-2.0D0*W2F*(SQRM1+SQRM2)+(SQRM1-SQRM2)**2),
-     &        (4.0D0*PHIGH2*W2F)
-         WRITE(*,*)"ASCALE(1):",ASCALE(1)
-      ENDIF
 
-      S2SUM = 0.0D0
-      DO IDIM=1,NDIM
-         PSUM(IDIM)=0.0D0
-      ENDDO
-      DO ITRK=1,NPRTNS
-         DO IDIM=1,NDIM
-            IF (IDIM.LE.3) THEN
-               PTMP(ITRK,IDIM) = ASCALE(1)*PTMP(ITRK,IDIM)
-               PSUM(IDIM)=PSUM(IDIM)+PTMP(ITRK,IDIM)
-            ELSE
-C     Note: P already scaled. Just recalc E.
-               PTMP(ITRK,4)= SQRT( PTMP(ITRK,5)**2+
-     &              (PTMP(ITRK,1)**2+PTMP(ITRK,2)**2+PTMP(ITRK,3)**2))
-               PSUM(4) = PSUM(4) + PTMP(ITRK,4)
-            ENDIF
-         ENDDO
-         S2SUM = S2SUM + (PTMP(ITRK,4)-PTMP(ITRK,5))
-     &        *(1.0D0+PTMP(ITRK,5)/PTMP(ITRK,4))
-      ENDDO
-      W2TRY(1)  = (PSUM(4)-PSUM(3))*(PSUM(4)+PSUM(3))
-     &     -PSUM(1)**2-PSUM(2)**2
-      IF (IOULEV(4).GE.2 .AND. NEVENT.LE.IOULEV(5)) THEN
-         WRITE(*,*)"WF/WRAW, ASCALE(1):", SQRT(W2F/W2RAW),ASCALE(1)
-         WRITE(*,*)"W2F:",W2F,"Scaled W2:",W2TRY(1),"W2try/W2F",
-     &        W2TRY(1)/W2F,"NPRTNS:",NPRTNS
-         WRITE(*,*)'HCMS. After pF-based W2 rescale'
-         DO ITRK=1,NPRTNS
-            WRITE(*,*)ITRK," ",PTMP(ITRK,1)," ",PTMP(ITRK,2)," ",
-     &           PTMP(ITRK,3)," ",PTMP(ITRK,4)," ",PTMP(ITRK,5)
-         ENDDO
-         WRITE(*,*)"PSUM(1-4):",PSUM(1),PSUM(2),PSUM(3),PSUM(4)
-      ENDIF
-C     2nd and subsequent iterations
-      NSCLTR=1
-      DO WHILE (NSCLTR.LT.MAXTRY .AND.
-     &     ABS(W2TRY(NSCLTR)/W2F-1.0D0).GT.EPSPF)
-         NSCLTR=NSCLTR+1
-         PHIGH2 = ASCALE(NSCLTR-1)*ASCALE(NSCLTR-1)*PHIGH2
-         ASCALE(NSCLTR) = 1.0D0+(SQRT(W2F)-SQRT(W2TRY(NSCLTR-1)))/S2SUM
-         IF ( (IOULEV(4).GE.2 .AND. NEVENT.LE.IOULEV(5)) .OR.
-     &        (IOULEV(4).GE.1 .AND. NSCLTR.GT.MAXTRY-3) ) then
-            WRITE(*,*)'W2 inaccurate. Iteration # ',NSCLTR
-            WRITE(*,*)'Next ASCALE factor = ',ASCALE(NSCLTR)
-         ENDIF
-         S2SUM=0.0D0
-C     3-momenta just scale
-         DO IDIM=1,3
-            PSUM(IDIM)=ASCALE(NSCLTR)*PSUM(IDIM)
-         ENDDO
-         PSUM(4)=0.0D0
-         DO ITRK=1,NPRTNS
-            DO IDIM=1,3
-               PTMP(ITRK,IDIM)=ASCALE(NSCLTR)*PTMP(ITRK,IDIM)
-            ENDDO
-            PTMP(ITRK,4)= SQRT( PTMP(ITRK,5)**2+
-     &           (PTMP(ITRK,1)**2+PTMP(ITRK,2)**2+PTMP(ITRK,3)**2))
-            PSUM(4) = PSUM(4) + PTMP(ITRK,4)
-            S2SUM = S2SUM + (PTMP(ITRK,4)-PTMP(ITRK,5))
-     &           *(1.0D0+PTMP(ITRK,5)/PTMP(ITRK,4))
-         ENDDO
-         W2TRY(NSCLTR) = (PSUM(4)-PSUM(3))*(PSUM(4)+PSUM(3))
-     &        -PSUM(1)**2-PSUM(2)**2
-      
-         IF ( (IOULEV(4).GE.2 .AND. NEVENT.LE.IOULEV(5)) .OR.
-     &        (IOULEV(4).GE.1 .AND. NSCLTR.GT.MAXTRY-3) ) then
-            WRITE(*,*)"W2F:",W2F,"Iteration ",NSCLTR," Scaled W2:",
-     &           W2TRY(NSCLTR),"W2try(",NSCLTR,")/W2F",
-     &           W2TRY(NSCLTR)/W2F,"NPRTNS:",NPRTNS
-            WRITE(*,*)'HCMS. After W2 rescale iteration ', NSCLTR
-            DO ITRK=1,NPRTNS
-               WRITE(*,*)ITRK," ",PTMP(ITRK,1)," ",PTMP(ITRK,2)," ",
-     &              PTMP(ITRK,3)," ",PTMP(ITRK,4)," ",PTMP(ITRK,5)
-            ENDDO
-            WRITE(*,*)"Leads to ..."
-            WRITE(*,*)"PSUM(1-4):",PSUM(1),PSUM(2),PSUM(3),PSUM(4)
-         ENDIF
-      ENDDO
-
-      W2FAIL = (ABS(W2TRY(NSCLTR)/W2F-1).GT.EPSPF)
+      CALL SCLSUBEVT(W2RAW,W2F,EPSPF,VERB,NPRTNS,PTMP,W2OUT,
+     &     NSCLTR, W2FAIL)
 
       IF (.NOT. W2FAIL) THEN
-         IF (IOULEV(4).GE.2 .AND. NEVENT.LE.IOULEV(5)) then
+         IF (VERB) THEN 
             WRITE(*,*)'pF-based W2-rescale succeeded after ',NSCLTR,
      &           ' tries.'
          ENDIF
@@ -337,29 +224,9 @@ C     3-momenta just scale
          ENDDO
       ENDIF
       
-      IF ( IOULEV(4).GE.2 .AND. 
-     &     (NEVENT.LE.IOULEV(5) .OR. NSCLTR.GT.MAXTRY-3) ) THEN
-         WRITE(*,*)
-         WRITE(*,*)'Iteration   W2/W2F'
-         WRITE(*,*)'          0   ',W2RAW/W2F
-         ASCLFL = 1.0D0
-         DO ITRK=1,NSCLTR
-            WRITE(*,*) ITRK, "  ", W2TRY(ITRK)/W2F
-            ASCLFL = ASCLFL * ASCALE(ITRK)
-         ENDDO
-         IF (W2FAIL) THEN
-            WRITE(*,*)'Failed to converge to level of: ',EPSPF
-         ELSE
-            WRITE(*,*)'Success. Converged to level of: ',EPSPF
-         ENDIF
-         WRITE(*,*)'WF/WRAW:     ',SQRT(W2F)/WRAW
-         WRITE(*,*)'ASCALE(1):   ',ASCALE(1)
-         WRITE(*,*)'ASCALE(full):',ASCLFL
-      ENDIF
-
       IF (USERSET.EQ.3) THEN
          USER1=W2F
-         USER2=W2TRY(NSCLTR)/W2F - 1.0D0
+         USER2=W2OUT/W2F - 1.0D0
 C         USER3=DBLE(NPRTNS)
          IF (W2FAIL) THEN
             USER3 = -1.0D0
@@ -369,16 +236,16 @@ C         USER3=DBLE(NPRTNS)
       ENDIF
 C
       IF (IKIN.GT.0) THEN
-         FERBX = DPF(1)/SQRT(W2TRY(NSCLTR)) 
-         FERBY = DPF(2)/SQRT(W2TRY(NSCLTR)) 
+         FERBX = DPF(1)/SQRT(W2OUT) 
+         FERBY = DPF(2)/SQRT(W2OUT)
          IF (IKIN.EQ.1) THEN
-            FERBZ = DPF(3)/SQRT(W2TRY(NSCLTR))
+            FERBZ = DPF(3)/SQRT(W2OUT)
          ELSEIF (IKIN.EQ.2) THEN
 C     Note: Wmu transverse quantities are PXF,PYF=DPF(1,2). WZ,W0:
             WZIRF = SQRT(Q2+NU*NU)+PZF
             W0IRF = NU + PDEUT(5) - PSPEC(4)
             CALL DT_LTNUC(WZIRF,W0IRF,WZHCMS,W0HCMS,3)
-            FERBZ = WZHCMS/SQRT(W2TRY(NSCLTR))
+            FERBZ = WZHCMS/SQRT(W2OUT)
          ELSE
             FERBZ = 0.0D0
             FERBY = 0.0D0

@@ -209,7 +209,7 @@ C     Local Glauber 3D
 c....3 more card FSEED, OUTPUT, FSEED added by liang
 c      PARAMETER (MXCARD=58)
       CHARACTER*8 PYINPUT
-      PARAMETER (MXCARD=67)
+      PARAMETER (MXCARD=69)
       CHARACTER*78 CLINE,CTITLE
       CHARACTER*60 CWHAT
       CHARACTER*8  BLANK,SDUM
@@ -235,7 +235,8 @@ c      PARAMETER (MXCARD=58)
      &   'OUTFILE   ','VDM-PAR2  ','XS-QELPRO ','RNDMINIT  ',
      &   'LEPTO-CUT ','LEPTO-LST ','LEPTO-PARL','FSEED     ',
      &   'OUTPUT    ','PYQM-CTRL ','USERSET   ','PYVECTORS ',
-     &   'GLAUB-3D  ','START     ','STOP      '/
+     &   'GLAUB-3D  ','CHARMPOT  ','ESTARFIX  ','START     ',
+     &   'STOP      '/
       DATA BLANK /'        '/
 
       DATA LSTART,LXSTAB,IFIRST /.TRUE.,.FALSE.,1/
@@ -243,6 +244,7 @@ c      PARAMETER (MXCARD=58)
 
 C     Local
       INTEGER IFSEED
+      DOUBLE PRECISION POTCMES
 *---------------------------------------------------------------------
 * at the first call of INIT: initialize event generation
       EPNSAV = EPN
@@ -410,11 +412,11 @@ C1000 FORMAT(A10,6E10.0,A8)
 *      RNDMINIT ,LEPTO-CUT, LEPTO-LST,LEPTO-PARL, FSEED    , 
      &  590     ,600      ,  610     ,  620     ,  621     ,
 *------------------------------------------------------------
-*      OUTPUT   ,PYQM-CTRL, USERSET  ,PYVECTORS , GLAU-MODRN,
+*      OUTPUT   ,PYQM-CTRL, USERSET  ,PYVECTORS , GLAUB-3D,
      &  622     , 623     ,    624   ,    625,       626   ,  
 *------------------------------------------------------------
-*      START  ,  STOP    )
-     &  630,       640   ) , ICW
+*     CHARMPOT  ,ESTARFIX , START  ,  STOP    )
+     &  627,      630,     930,       940   ) , ICW
 *
 *------------------------------------------------------------
 
@@ -2383,6 +2385,7 @@ C        WRITE(LOUT,*) 'CMENER = ',CMENER
  624  CONTINUE
       USERSET = NINT(WHAT(1))
       IF (WHAT(2).GT.0.01) EEXCMAX = WHAT(2)
+C     Note: Userset finalized and documented also in DT_PYOUTEP
       IF (USERSET.EQ.0) THEN
          WRITE(*,*) 'USERSET 0 selected. Variable definition:'
          WRITE(*,*) '          USER1 = dipole cross-section'
@@ -2450,7 +2453,7 @@ C        WRITE(LOUT,*) 'CMENER = ',CMENER
          WRITE(*,*) '          USER2 = ZSUM'
          WRITE(*,*) '          USER3 = ASUM'
       ELSEIF (USERSET.EQ.13) THEN
-         WRITE(*,*) 'USERSET 13 selected.'
+         WRITE(*,*) 'USERSET 13 selected. Hypernuclear information'
          WRITE(*,*) '          USER1 = NHYPER'
          WRITE(*,*) '          USER2 = ZSUM'
          WRITE(*,*) '          USER3 = IDHYP(1)'
@@ -2469,6 +2472,11 @@ C        WRITE(LOUT,*) 'CMENER = ',CMENER
          WRITE(*,*) '           USER1 = gaussian'
          WRITE(*,*) '           USER2 = gaussian'
          WRITE(*,*) '           USER3 = gaussian'
+      ELSEIF (USERSET.EQ.17) THEN
+         WRITE(*,*) 'USERSET 17 selected. E* fix information'
+         WRITE(*,*) '           USER1 = E* before the fix'
+         WRITE(*,*) '           USER2 = E* after the fix'
+         WRITE(*,*) '           USER3 = Ncollt'
       ENDIF
       GOTO 10
 
@@ -2563,6 +2571,93 @@ C           0.23873241 is 3/4pi
 
 *********************************************************************
 *                                                                   *
+*               control card:  codewd = CHARMPOT                    *
+*                                                                   *
+*       Mark D. Baker - July 2023 - control nuclear potential for   *
+*       charm mesons.                                               *
+*                                                                   *
+*       what(1) = potential on (0=D) or off (-1)                    *
+*       what(2) = ratio of charm/light meson potential D=1.0        *
+*                                                                   *
+*       Note: You must specify -1 to turn it off. Setting ratio to  *
+*             zero doesn't work                                     *
+*********************************************************************
+
+C     Problem - how to make default 0?
+ 627  CONTINUE
+      IF (NINT(WHAT(1)).LT.0) THEN
+         POTCMES = 0.0D0 
+         WRITE(*,*) 'Turning off nuclear potential for charm mesons.'
+      ELSEIF (ABS(WHAT(2)).LT.1D-12) THEN
+         WRITE(*,*) 'Using default nuclear potential for charm mesons.'       
+         WRITE(*,*) 'Use -1 for 1st param. to turn off potential.'
+         POTCMES = POTMES
+      ELSE
+         POTCMES = WHAT(2)*POTMES
+      ENDIF
+
+* charm mesons
+      DO I=1,2
+         DO J=31,47
+            EPOT(I,J) = POTCMES
+         ENDDO
+         EPOT(I,95) = POTCMES
+         EPOT(I,96) = POTCMES
+         DO J=116,130
+            EPOT(I,J) = POTCMES
+         ENDDO
+      ENDDO
+
+      GOTO 10
+
+*********************************************************************
+*                                                                   *
+*               control card:  codewd = ESTARFIX                    *
+*                                                                   *
+*       Mark D. Baker - June 2023 - Correct the case when the hard  *
+*       collision fails to transfer enough energy to put the        *
+*       nuclear remnant on mass shell, leading to a negative E* and *
+*       an aborted, rerolled event. Such rerolls are too common and *
+*       lead to biases.                                             *
+*                                                                   *
+*       The desired E* distribution is input by the user, with a    *
+*       reasonable default.                                         *
+*                                                                   *
+*       what (1) = distribution type for E*                         *
+*                  -1: (any negative value) No correction. Reroll.  *
+*                  0,1: (D=0) truncated Gaussian (positive definite)*
+*                  2: Flat distribution.                            *
+*                  3: Use the history.                              *
+*       what (2) = Correct Overall 4-momentum? D=0:Yes, -1: No      *
+*       what (3) = center for gaussian or min value for flat        *
+*       what (4) = sigma for gaussian or max value for flat         *
+*                                                                   *
+*       Note: Because of the truncation, no negative values, the    *
+*       gaussian mean is different from the center.                 *
+*                                                                   *
+*********************************************************************
+ 630  CONTINUE
+C     Meaning of default D=0 is set in BLOCK DATA DT_DEFSET
+C     Should be gaussian, ESFIXTYP=1
+      IF (WHAT(1).NE.0) ESFIXTYP = NINT(WHAT(1))
+      IF (NINT(WHAT(2)).LT.0) ESFCOR = .FALSE.
+      IF (WHAT(3).GE.0.0D0) ESFPAR1 = WHAT(3)
+      IF (WHAT(4).GE.0.0D0) ESFPAR2 = WHAT(4)
+      IF (ESFIXTYP.EQ.2) THEN
+C     Default flat distribution goes from 0-2*center. 
+         IF ((ABS(ESFPAR1).LE.1D-08 .AND. ABS(ESFPAR2).LE.1D-08)) THEN
+            ESFPAR2 = 2.0*ESFPAR1
+            ESFPAR1 = 0.0
+         ENDIF
+      ELSEIF (ESFIXTYP.GT.3 .OR. ESFIXTYP.LT.-1) THEN
+         ESFIXTYP=-1
+         WRITE(*,*) 'WARNING: Invalid ESFIXTYP. Set to -1 (no fix)'
+      ENDIF
+            
+      GOTO 10
+
+*********************************************************************
+*                                                                   *
 *               control card:  codewd = START                       *
 *                                                                   *
 *       what (1) =   number of events                default: 100.  *
@@ -2580,7 +2675,7 @@ C           0.23873241 is 3/4pi
 *                                                                   *
 *********************************************************************
 
-  630 CONTINUE
+  930 CONTINUE
 
 
 C....Random number seed set up moved from the initialization
@@ -2751,7 +2846,7 @@ C     ENDIF
       WRITE(LOUT,9000)
  9000 FORMAT(1X,'---> unexpected end of input !')
 
-  640 CONTINUE
+  940 CONTINUE
       STOP
 
       END
@@ -3131,6 +3226,15 @@ C     COMMON /PQCTRL/ PQRECF, PYQ_SUPF, PYQ_IPTF, PYQ_IEG
          EPOT(I,23) = POTMES
          EPOT(I,24) = POTMES
          EPOT(I,25) = POTMES
+* charm mesons - same as light mesons by default. Can be overridden
+         DO J=31,47
+            EPOT(I,J) = POTMES
+         ENDDO
+         EPOT(I,95) = POTMES
+         EPOT(I,96) = POTMES
+         DO J=116,130
+            EPOT(I,J) = POTMES
+         ENDDO
    10 CONTINUE
       FERMOD    = 0.62D0
       ETACOU(1) = ZERO
@@ -12053,10 +12157,16 @@ C      LOGICAL LLCPOT  ! moved to beagle.inc
 
 C Local variable for High E* protection & LT storage
       DOUBLE PRECISION TMPMAS,TMPENE,PZCMTMP,ECMTMP
+      LOGICAL VERB
 
       IREJ   = 0
       LRCLPR = .FALSE.
       LRCLTA = .FALSE.
+
+      IF (USERSET.EQ.17) THEN
+         USER1=0.0D0
+         USER2=0.0D0
+      ENDIF
 
 * skip residual nucleus treatment if not requested or in case
 * of central collisions
@@ -12235,6 +12345,13 @@ C              Boost back to naive HCMS
 *
 *   0 < M_res < M_res0 : mass below ground-state mass
 *
+*  2023-June Mark D. Baker
+* 
+*  Add multiple options, including fixing the bugged option described below
+*  Also, don't just add energy to the remnant, also allow conservation of
+*  the total 4-momentum in the event.
+*
+*    Old documentation which failed to implement properly.
 *      a) we had residual nuclei with mass N_tot and reasonable E_exc
 *         before- assign average E_exc of those configurations to this
 *         one ( Nexc(i,N_tot) > 0 )
@@ -12248,14 +12365,25 @@ C              Boost back to naive HCMS
 *
             ELSEIF ((AMRCL(I).GT.ZERO).AND.(AMRCL(I).LT.AMRCL0(I)))
      &                                                         THEN
+               ESTARINI = AMRCL(I)-AMRCL0(I)
+               IF (USERSET.EQ.17) USER1=ESTARINI 
                IF (IOULEV(3).GT.0)
      &         WRITE(LOUT,1002) I,PRCL(I,1),PRCL(I,2),PRCL(I,3),
-     &              PRCL(I,4),NTOT
+     &              PRCL(I,4),ESTARINI,NTOT
  1002          FORMAT(1X,'warning! negative excitation energy',/,
-     &              I4,4E15.4,2I4)
+     &              I4,5E15.4,2I4)
                M = MIN(NTOT(I),260)
-               IF (NEXC(I,M).GT.0) THEN
-                  AMRCL(I) = AMRCL0(I)+EXC(I,M)/DBLE(NEXC(I,M))
+
+               IF (ESFIXTYP.EQ.1 .OR. ESFIXTYP.EQ.2) THEN
+                  IF (I.EQ.2) THEN
+                     AMRCL(I) = AMRCL0(I)+
+     &                    GETESTAR(ESFIXTYP,ESFPAR1,ESFPAR2)
+                  ELSE
+                     STOP ('FATAL LOGIC FLAW IN DT_FICONF')
+                  ENDIF
+C              Original code starting here (MDB June 2023) IF->ELSEIF
+               ELSEIF (NEXC(I,M).GT.0) THEN
+                  AMRCL(I) = AMRCL0(I)+EXC(I,M)/DBLE(NEXC(I,M))             
                ELSE
    70             CONTINUE
                   M = M+1
@@ -12279,7 +12407,22 @@ C              Boost back to naive HCMS
                   ENDIF
                ENDIF
                EEXC(I)  = AMRCL(I)-AMRCL0(I)
-               ICOR     = ICOR+I
+               ESTARFIN = EEXC(I)
+               IF (USERSET.EQ.17) USER2=EEXC(I)
+
+C              Drop the following which causes a reroll, unless desired.
+               IF (ESFIXTYP.LT.0) ICOR = ICOR+I
+C              Original code ending here (MDB June 2023)
+
+C              Just changing E* violates 4-momentum conservation
+C              If requested, adjust all FSP 4-momenta in a light-cone-aware 
+C              way while leaving the scattered electron alone
+               VERB = .TRUE.
+               IF (ESFCOR) THEN
+                  CALL FIXESTAR(ESTARINI,ESTARFIN,AMRCLO,PRCL,VERB)
+               ELSE
+                  PRCL(I,4) = SQRT ( PTORCL**2 + AMRCL(I)**2 )
+               ENDIF
 *
 *   M_res > 2.5 x M_res0 : unreasonably(?) high E_exc
 *
@@ -19458,7 +19601,7 @@ C      END
      &  '            |',/,               
      &  ' |                                                           ',
      &  '            |',/,   
-     &  ' | BeAGLE Version 1.02.00    ',44X,'|',/,1X,'|',71X,'|',/,
+     &  ' | BeAGLE Version 1.03.00    ',44X,'|',/,1X,'|',71X,'|',/,
      &  ' | Authors: Elke Aschenauer, Mark D. Baker, J.H. Lee, Zhoudun',
      &  'ming Tu,    |',/,
      &  ' |          Liang Zheng                                      ',
@@ -23009,6 +23152,12 @@ C      END
       DATA NCOMPO / 0 /
       DATA IEMUL  / 0 /
 
+* / ESFIXD / 
+C ESTARFIX parameters. Gaussian, center=0.014 GeV, sigma=0.008 GeV
+      DATA ESFIXTYP / 1 / 
+      DATA ESFCOR / .TRUE. /
+      DATA ESFPAR1 / 0.014 /
+      DATA ESFPAR2 / 0.008 /
       END
 
 *$ CREATE DT_HADPRP.FOR
