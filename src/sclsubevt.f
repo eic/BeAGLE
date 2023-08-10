@@ -47,9 +47,13 @@ C     Constants and calling parameters
       DOUBLE PRECISION EPS,W2RAW,W2F,W2OUT,PTMP(MAXPRTS,NDIMM)
 
 C     Local variables
-      INTEGER ITRK, IDIM
+      INTEGER ITRK, IDIM, II
       DOUBLE PRECISION ASCALE(MAXTRY), W2TRY(MAXTRY), ASCLFL, S2SUM
       DOUBLE PRECISION WRAW, PHIGH2, SQRM1, SQRM2, PSUM(NDIM)
+
+C     Protect against NaNs
+      IF (W2RAW.LT.0.0) STOP ('SCLSUBEVT FATAL: W2RAW<0')
+      IF (W2F.LT.0.0) STOP ('SCLSUBEVT FATAL: W2F<0')
 
       WRAW=DSQRT(W2RAW)
       S2SUM = 0.0D0
@@ -67,7 +71,15 @@ C     Local variables
          SQRM2 = PTMP(2,5)*PTMP(2,5)
          ASCALE(1) = (W2F-2.0D0*(SQRM1+SQRM2)+((SQRM1-SQRM2)**2)/W2F )/
      &        (4.0D0*PHIGH2)
-         ASCALE(1)=SQRT(ASCALE(1))
+         IF (ASCALE(1).LT.0.0) THEN
+            WRITE(*,*) 'FATAL ERROR IN SCLSUBEVT. ASCALE(1)**2<0'
+            WRITE(*,*) 'PTMP(1,*):',(PTMP(1,II),ii=1,5)
+            WRITE(*,*) 'PTMP(2,*):',(PTMP(2,II),ii=1,5)
+            WRITE(*,*) 'W2F,SQPM1,SQRM2,PHIGH2',W2F,SQRM1,SQRM2,PHIGH2
+            STOP('STOPPING')
+         ELSE
+            ASCALE(1)=SQRT(ASCALE(1))
+         ENDIF
       ELSE
          STOP ('PFSHIFT: FATAL ERROR. NPARTS<2!')
       ENDIF
@@ -122,6 +134,10 @@ C     2nd and subsequent iterations
      &     ABS(W2TRY(NSCLTR)/W2F-1.0D0).GT.EPS)
          NSCLTR=NSCLTR+1
          PHIGH2 = ASCALE(NSCLTR-1)*ASCALE(NSCLTR-1)*PHIGH2
+         IF (W2TRY(NSCLTR-1).LT.0.0) THEN
+            WRITE (*,*) 'SCLSUBEVT ERROR: W2TRY<0:, ',W2TRY(NSCLTR-1)
+            STOP
+         ENDIF
          ASCALE(NSCLTR) = 1.0D0+(SQRT(W2F)-SQRT(W2TRY(NSCLTR-1)))/S2SUM
          IF ( VERB .OR.  NSCLTR.GT.MAXTRY-3 )  THEN
             WRITE(*,*)'W2 inaccurate. Iteration # ',NSCLTR

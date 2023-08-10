@@ -2591,20 +2591,20 @@ C     Problem - how to make default 0?
       ELSEIF (ABS(WHAT(2)).LT.1D-12) THEN
          WRITE(*,*) 'Using default nuclear potential for charm mesons.'       
          WRITE(*,*) 'Use -1 for 1st param. to turn off potential.'
-         POTCMES = POTMES
+         POTCMES = 1.0D0
       ELSE
-         POTCMES = WHAT(2)*POTMES
+         POTCMES = WHAT(2)
       ENDIF
 
 * charm mesons
       DO I=1,2
          DO J=31,47
-            EPOT(I,J) = POTCMES
+            EPOT(I,J) = POTCMES*EPOT(I,J)
          ENDDO
-         EPOT(I,95) = POTCMES
-         EPOT(I,96) = POTCMES
+         EPOT(I,95) = POTCMES*EPOT(I,95)
+         EPOT(I,96) = POTCMES*EPOT(I,96)
          DO J=116,130
-            EPOT(I,J) = POTCMES
+            EPOT(I,J) = POTCMES*EPOT(I,J)
          ENDDO
       ENDDO
 
@@ -2641,11 +2641,11 @@ C     Meaning of default D=0 is set in BLOCK DATA DT_DEFSET
 C     Should be gaussian, ESFIXTYP=1
       IF (WHAT(1).NE.0) ESFIXTYP = NINT(WHAT(1))
       IF (NINT(WHAT(2)).LT.0) ESFCOR = .FALSE.
-      IF (WHAT(3).GE.0.0D0) ESFPAR1 = WHAT(3)
-      IF (WHAT(4).GE.0.0D0) ESFPAR2 = WHAT(4)
+      IF (ABS(WHAT(3)).GE.1D-08) ESFPAR1 = WHAT(3)
+      IF (ABS(WHAT(4)).GE.1D-08) ESFPAR2 = WHAT(4)
       IF (ESFIXTYP.EQ.2) THEN
 C     Default flat distribution goes from 0-2*center. 
-         IF ((ABS(ESFPAR1).LE.1D-08 .AND. ABS(ESFPAR2).LE.1D-08)) THEN
+         IF ((ABS(WHAT(3)).LE.1D-08).AND.(ABS(WHAT(4)).LE.1D-08)) THEN
             ESFPAR2 = 2.0*ESFPAR1
             ESFPAR1 = 0.0
          ENDIF
@@ -12166,6 +12166,7 @@ C Local variable for High E* protection & LT storage
       IF (USERSET.EQ.17) THEN
          USER1=0.0D0
          USER2=0.0D0
+         USER3=0.0D0
       ENDIF
 
 * skip residual nucleus treatment if not requested or in case
@@ -12417,9 +12418,20 @@ C              Original code ending here (MDB June 2023)
 C              Just changing E* violates 4-momentum conservation
 C              If requested, adjust all FSP 4-momenta in a light-cone-aware 
 C              way while leaving the scattered electron alone
-               VERB = .TRUE.
+               VERB = (IOULEV(3).GT.0 .AND. NEVENT.LE.IOULEV(5))
                IF (ESFCOR) THEN
-                  CALL FIXESTAR(ESTARINI,ESTARFIN,AMRCLO,PRCL,VERB)
+                  CALL FIXESTAR(ESTARINI,ESTARFIN,AMRCL0,PRCL,VERB,IREJ)
+                  IF (USERSET.EQ.17) USER3=DBLE(IREJ)
+                  IF (IREJ.EQ.1) THEN
+C     Serious error. Could not put all on mass shell. Force a reroll.
+                     ICOR = ICOR+I
+                  ELSEIF (IREJ.EQ.2) THEN
+C     IREJ=2 means ESTARFIN was too large and it was changed
+                     EEXC(I) = ESTARFIN
+                     AMRCL(I) = AMRCL0(I)+ESTARFIN
+                     IF (USERSET.EQ.17) USER2=EEXC(I)
+                  ENDIF
+cccc **** What to do here for IREJ.NE.0!
                ELSE
                   PRCL(I,4) = SQRT ( PTORCL**2 + AMRCL(I)**2 )
                ENDIF
@@ -19601,7 +19613,7 @@ C      END
      &  '            |',/,               
      &  ' |                                                           ',
      &  '            |',/,   
-     &  ' | BeAGLE Version 1.03.00    ',44X,'|',/,1X,'|',71X,'|',/,
+     &  ' | BeAGLE Version 1.03.01    ',44X,'|',/,1X,'|',71X,'|',/,
      &  ' | Authors: Elke Aschenauer, Mark D. Baker, J.H. Lee, Zhoudun',
      &  'ming Tu,    |',/,
      &  ' |          Liang Zheng                                      ',

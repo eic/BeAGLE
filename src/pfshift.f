@@ -264,7 +264,7 @@ C     Note: Wmu transverse quantities are PXF,PYF=DPF(1,2). WZ,W0:
             CALL PYROBO(INDXP(ITRK),INDXP(ITRK),0.0D0,0.0D0,
      &           FERBX,FERBY,FERBZ)
          ENDDO
-         IF (IOULEV(4).GE.2 .AND. NEVENT.LE.IOULEV(5)) then
+         IF (VERB) then
             WRITE(*,*)"PYLIST: After pF boost"
             CALL PYLIST(2)
          ENDIF
