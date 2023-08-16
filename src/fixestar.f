@@ -93,11 +93,14 @@ C     PFIN(1-5) is the final remnamt
          PFIN(5)=AMRCL0(2)+ESTF
          CALL DT_MASHEL(PIN,PFSP,PFIN(5),PHKK(5,IDXHKK(1)),
      &                  PFIN,PHKK(1,IDXHKK(1)),IREJ)
-         WRITE(*,*) "FIXESTAR with 1 fsp"
-         WRITE(*,*) "PIN(1-4),PFSP(1-4),PFIN(5),MFSP,PFIN,PFSPout",
+         IF (VERB) THEN
+            WRITE(*,*) "FIXESTAR with 1 fsp"
+            WRITE(*,*) "PIN(1-4),PFSP(1-4),PFIN(5),MFSP,PFIN,PFSPout",
      &        PIN(1),PIN(2),PIN(3),PIN(4),PFSP(1),PFSP(2),PFSP(3),
-     &        PFSP(4),PFIN(5),PHKK(1,IDXHKK(1)),PHKK(2,IDXHKK(1)),
+     &        PFSP(4),PFIN(5),PHKK(5,IDXHKK(1)),PFIN(1),PFIN(2),
+     &        PFIN(3),PFIN(4),PHKK(1,IDXHKK(1)),PHKK(2,IDXHKK(1)),
      &        PHKK(3,IDXHKK(1)),PHKK(4,IDXHKK(1))
+         ENDIF
          IF (IREJ.NE.0) THEN
             WRITE(*,*) ('FIXESTAR ERROR. DT_MASHEL FAILED.')
             IREJ = 1

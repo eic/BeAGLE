@@ -2476,7 +2476,7 @@ C     Note: Userset finalized and documented also in DT_PYOUTEP
          WRITE(*,*) 'USERSET 17 selected. E* fix information'
          WRITE(*,*) '           USER1 = E* before the fix'
          WRITE(*,*) '           USER2 = E* after the fix'
-         WRITE(*,*) '           USER3 = Ncollt'
+         WRITE(*,*) '           USER3 = IREJ'
       ENDIF
       GOTO 10
 
@@ -12418,7 +12418,8 @@ C              Original code ending here (MDB June 2023)
 C              Just changing E* violates 4-momentum conservation
 C              If requested, adjust all FSP 4-momenta in a light-cone-aware 
 C              way while leaving the scattered electron alone
-               VERB = (IOULEV(3).GT.0 .AND. NEVENT.LE.IOULEV(5))
+               VERB = (IOULEV(3).EQ.1 .AND. NEVENT.LE.IOULEV(5) .OR.
+     &              IOULEV(3).GE.2)
                IF (ESFCOR) THEN
                   CALL FIXESTAR(ESTARINI,ESTARFIN,AMRCL0,PRCL,VERB,IREJ)
                   IF (USERSET.EQ.17) USER3=DBLE(IREJ)
@@ -19613,7 +19614,7 @@ C      END
      &  '            |',/,               
      &  ' |                                                           ',
      &  '            |',/,   
-     &  ' | BeAGLE Version 1.03.01    ',44X,'|',/,1X,'|',71X,'|',/,
+     &  ' | BeAGLE Version 1.03.02    ',44X,'|',/,1X,'|',71X,'|',/,
      &  ' | Authors: Elke Aschenauer, Mark D. Baker, J.H. Lee, Zhoudun',
      &  'ming Tu,    |',/,
      &  ' |          Liang Zheng                                      ',
