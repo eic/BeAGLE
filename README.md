@@ -1,7 +1,7 @@
 This is the readme file for BeAGLE
 
 The primary documentation for BeAGLE resides at:
-	https://wiki.bnl.gov/eic/index.php/BeAGLE
+	https://eic.github.io/software/beagle.html
 
 This directory contains the following files:
 ***********************************************************************
